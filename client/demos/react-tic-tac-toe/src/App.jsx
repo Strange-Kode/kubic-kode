@@ -1,17 +1,19 @@
+import { useState } from "react";
+
 import { Box, Container, VStack, Heading, Text } from "@chakra-ui/react";
 import GameCanvas from "./components/GameCanvas";
 import SimulationArea from "./components/SimulationArea";
 import LoadingScreen from "./components/LoadingScreen";
+import JoinOverlay from "./components/JoinOverlay";
 import {
   SimulationEngineProvider,
   useSimulationEngine,
 } from "./SimulationEngine";
 
 function AppContent() {
-  // isLoading, gameActive? await backend implementation
-  const { isLoading, gameState } = useSimulationEngine();
+  const { isLoading, gameState, simulateJoin } = useSimulationEngine();
+  const [joinOverlayVisible, setJoinOverlayVisible] = useState(false);
 
-  // Show loading screen while connecting to backend
   if (isLoading) {
     return <LoadingScreen message="Connecting to game..." />;
   }
@@ -20,6 +22,15 @@ function AppContent() {
     X: "Player X",
     O: "Player O",
   };
+
+  // Show join overlay if host exists and player is not the host (X), or if toggled manually
+  const shouldShowJoinOverlay =
+    (gameState.hostExists && gameState.player !== "X") || joinOverlayVisible;
+
+  // Function to allow SimulationArea to show the overlay
+  const showJoinOverlay = () => setJoinOverlayVisible(true);
+  const hideJoinOverlay = () => setJoinOverlayVisible(false);
+
   return (
     <Box
       minH="100vh"
@@ -71,8 +82,16 @@ function AppContent() {
           </Box>
 
           {/* Simulation Area */}
-          <SimulationArea />
+          <SimulationArea showJoinOverlay={showJoinOverlay} />
         </VStack>
+        {shouldShowJoinOverlay && (
+          <JoinOverlay
+            onJoin={() => {
+              simulateJoin();
+              hideJoinOverlay();
+            }}
+          />
+        )}
       </Container>
     </Box>
   );
