@@ -1,0 +1,17 @@
+{
+  "name": "kubic-kode",
+  "version": "1.0.0",
+  "description": "2D turn based tilemap game engine and related stuff",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Nils & Joakim Karlsson",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "lodash": "^4.17.21",
+    "ws": "^8.18.3"
+  }
+}
