@@ -4,22 +4,21 @@ import { sessionManager } from "./session-manager.js"; // Holds all active GameS
 const sessionRouter = express.Router();
 
 // Creates and secures a singleton session for simplicity.
-sessionRouter.get('/session/init', (req, res) => {
-    let sessionState, session_created;
-    if (sessionManager.hasSessions()) {
-        sessionState = sessionManager.getSessions()[0];
-        session_created = false;
-    }
-    else {
-        sessionState = sessionManager.createSession();
-        session_created = true;
-    }
-    console.log(`session-routes.js::session created: ${session_created}`);
-    console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
-    res.json({
-        session_id: sessionState.sessionId,
-        session_created: session_created
-    });
+sessionRouter.get("/session/init", (req, res) => {
+  let sessionState, session_created;
+  if (sessionManager.hasSessions()) {
+    sessionState = sessionManager.getSessions()[0];
+    session_created = false;
+  } else {
+    sessionState = sessionManager.createSession();
+    session_created = true;
+  }
+  console.log(`session-routes.js::session created: ${session_created}`);
+  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  res.json({
+    session_id: sessionState.sessionId,
+    session_created: session_created,
+  });
 });
 
 // Join session
@@ -34,10 +33,11 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
   }
 
   try {
-    const entity = sessionManager.createGameEntityForParticipant(
-      sessionId,
-      participantId
-    );
+    // const entity = sessionManager.createGameEntityForParticipant(
+    //   sessionId,
+    //   participantId
+    // );
+    const entity = null; // todo: temporary as we don't create gameplayerentities yet
     session.addParticipant(participantId, participantName, entity);
     res.json({ success: true });
   } catch (err) {
