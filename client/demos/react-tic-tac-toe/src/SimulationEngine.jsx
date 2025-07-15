@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { GameProvider, useGame } from "./GameContext";
 
 const SimulationEngineContext = createContext();
@@ -26,9 +26,33 @@ const simulatedInitialState = {
 };
 
 export function SimulationEngineProvider({ children }) {
-  // Provide initial state from "backend simulation"
+  const [isLoading, setIsLoading] = useState(true);
+  const [gameState, setGameState] = useState(null);
+
+  useEffect(() => {
+    // Simulate backend connection delay
+    const timeout = setTimeout(() => {
+      setGameState(simulatedInitialState);
+      setIsLoading(false);
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Provide loading state to children, let App decide what to render
+  if (isLoading || !gameState) {
+    return (
+      <SimulationEngineContext.Provider
+        value={{ isLoading: true, gameState: null, ready: false }}
+      >
+        {children}
+      </SimulationEngineContext.Provider>
+    );
+  }
+
+  // Once loaded, provide full game functionality
   return (
-    <GameProvider initialState={simulatedInitialState}>
+    <GameProvider initialState={gameState}>
       <SimulationEngineCore>{children}</SimulationEngineCore>
     </GameProvider>
   );
@@ -116,5 +140,11 @@ function SimulationEngineCore({ children }) {
 }
 
 export function useSimulationEngine() {
-  return useContext(SimulationEngineContext);
+  const context = useContext(SimulationEngineContext);
+  if (!context) {
+    throw new Error(
+      "useSimulationEngine must be used within SimulationEngineProvider"
+    );
+  }
+  return context;
 }
