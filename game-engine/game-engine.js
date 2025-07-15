@@ -1,32 +1,51 @@
 export class GameEngine {
     constructor(tilemapWidth, tilemapHeight) {
-        this.entities = [];
+        this.player_entities = [];
         this.registeredComponents = new Map(); // componentFunc -> componentName
         this.componentNames = new Set(); // set of all names in use
         this.tileMap = new TileMap(tilemapWidth, tilemapHeight);
         this.currentTurnIndex = 0;
+        this.gameStarted = false;
     }
 
     registerEntity(entity) {
-        this.entities.push(entity);
+        this.player_entities.push(entity);
     }
 
     deregisterEntity(entityId) {
-        this.entities = this.entities.filter(e => e.id !== entityId);
+        this.player_entities = this.player_entities.filter(e => e.id !== entityId);
+    }
+    
+    startGame() {
+        if (this.gameStarted === true) {
+            throw new Error(`Game is already started.`);
+        }
+        this.gameStarted = true;
+    }
+    
+    stopGame() {
+        if (this.gameStarted === false) {
+            throw new Error(`Game is already stopped.`);
+        }
+        this.gameStarted = false;
     }
 
     getCurrentPlayer() {
-        return this.entities[this.currentTurnIndex];
+        return this.player_entities[this.currentTurnIndex];
     }
 
     nextTurn() {
-        this.currentTurnIndex = (this.currentTurnIndex + 1) % this.entities.length;
+        this.currentTurnIndex = (this.currentTurnIndex + 1) % this.player_entities.length;
     }
 
     update() {
-        for (const entity of this.entities) {
-            entity.update();
+        for (const player_entity of this.player_entities) {
+            player_entity.update();
         }
+    }
+    
+    getTileMap() {
+        return this.tileMap;
     }
     
     registerComponent(componentFunc) {

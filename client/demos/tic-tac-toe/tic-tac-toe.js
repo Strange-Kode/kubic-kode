@@ -1,0 +1,92 @@
+// tic-tac-toe.js
+
+import { GameEngine } from '../game-engine/game-engine.js';
+import { PlayerEntity } from './game-entity/player-entity.js';
+import { MarkEntity } from './game-entity/mark-entity.js';
+import { TileMap } from '../game-engine/tile-map.js';
+
+class TicTacToeGame {
+    constructor({ gridSize = 3, winCondition = 3 } = {}) {
+        this.engine = new GameEngine(gridSize, gridSize);
+
+        this.gridSize = gridSize;
+        this.winCondition = winCondition;
+
+        this.players = [];
+    }
+
+    addPlayer(name, markType) {
+        const player = new PlayerEntity(name, markType);
+        this.players.push(player);
+        this.engine.registerEntity(player);
+    }
+
+    startGame() {
+        if (this.players.length < 2) {
+            throw new Error('At least two players are required to start the game.');
+        }
+        this.engine.startTurns(this.players);
+    }
+
+    playTurn(x, y) {
+        const currentPlayer = this.engine.getCurrentPlayer();
+        if (this.engine.getTileMap().getTile(x, y)) {
+            console.log('Tile already occupied.');
+            return;
+        }
+
+        const mark = currentPlayer.placeMark({ x, y });
+        this.engine.getTileMap().setTile(x, y, mark);
+
+        if (this.checkWinCondition(mark)) {
+            console.log(`${currentPlayer.name} wins!`);
+            this.engine.stopGame();
+            return;
+        }
+        this.engine.nextTurn();
+    }
+
+    checkWinCondition(lastMark) {
+        const directions = [
+            { dx: 1, dy: 0 },   // horizontal
+            { dx: 0, dy: 1 },   // vertical
+            { dx: 1, dy: 1 },   // diagonal \
+            { dx: 1, dy: -1 }   // diagonal /
+        ];
+
+        const { x, y } = lastMark.position;
+        const targetType = lastMark.type;
+
+        for (const { dx, dy } of directions) {
+            let count = 1;
+            count += this.countInDirection(x, y, dx, dy, targetType);
+            count += this.countInDirection(x, y, -dx, -dy, targetType);
+
+            if (count >= this.winCondition) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    countInDirection(startX, startY, dx, dy, type) {
+        let count = 0;
+        let x = startX + dx;
+        let y = startY + dy;
+
+        while (this.engine.getTileMap().inBounds(x, y)) {
+            const tile = this.engine.getTileMap().getTile(x, y);
+            if (!tile || tile.type !== type) {
+                break;
+            }
+            count++;
+            x += dx;
+            y += dy;
+        }
+
+        return count;
+    }
+}
+
+export default TicTacToeGame;
