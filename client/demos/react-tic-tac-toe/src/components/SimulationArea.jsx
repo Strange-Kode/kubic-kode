@@ -8,12 +8,13 @@ import {
   Text,
   SimpleGrid,
   Select,
+  Button,
 } from "@chakra-ui/react";
 import { useSimulationEngine } from "../SimulationEngine";
 
 const cellOptions = ["", "X", "O"];
 
-const SimulationArea = () => {
+const SimulationArea = ({ showJoinOverlay }) => {
   const { gameState, simulateSetCell, simulateSetField } =
     useSimulationEngine();
   const { matrix, turn, player, status, isPlayerTurn, gameActive, validMoves } =
@@ -31,19 +32,23 @@ const SimulationArea = () => {
 
   return (
     <Box
+      position="fixed"
+      top={4}
+      right={4}
+      zIndex={1200}
       bgGradient="linear(to-br, whiteAlpha.900, blue.50, purple.50)"
       p={6}
       borderRadius="xl"
-      boxShadow="0 4px 24px rgba(80, 80, 180, 0.08)"
+      boxShadow="0 4px 24px rgba(80, 80, 180, 0.18)"
       borderWidth={1}
-      borderColor="purple.100"
-      w="full"
-      maxW="md"
+      borderColor="purple.200"
+      w="340px"
+      maxW="90vw"
       color="gray.800"
     >
       <VStack spacing={4} align="stretch">
         <Heading as="h2" size="md" color="gray.900">
-          Simulation of what we'll get from the backend
+          Simulation Backend
         </Heading>
 
         {/* Matrix Controls */}
@@ -84,7 +89,6 @@ const SimulationArea = () => {
             value={turn}
             onChange={(e) => setField("turn", e.target.value)}
             size="md"
-            // bg="white"
             maxW="120px"
           >
             <option value="X">X</option>
@@ -101,7 +105,6 @@ const SimulationArea = () => {
             value={player}
             onChange={(e) => setField("player", e.target.value)}
             size="md"
-            // bg="white"
             maxW="120px"
           >
             <option value="X">X</option>
@@ -160,6 +163,11 @@ const SimulationArea = () => {
           <br />
           Valid moves: {validMoves?.join(", ") || "none"}
         </Text>
+
+        {/* Button to trigger JoinOverlay for demo/testing */}
+        <Button mt={2} size="sm" colorScheme="blue" onClick={showJoinOverlay}>
+          Show Join Overlay (Demo)
+        </Button>
       </VStack>
     </Box>
   );
