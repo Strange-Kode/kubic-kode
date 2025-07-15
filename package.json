@@ -4,7 +4,10 @@
   "description": "2D turn based tilemap game engine and related stuff",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start-frontend": "vite",
+    "build-frontend": "vite build",
+    "start-server": "node server.js"
   },
   "keywords": [],
   "author": "Nils & Joakim Karlsson",
@@ -14,6 +17,7 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "lodash": "^4.17.21",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "vite": "^7.0.4"
   }
 }
