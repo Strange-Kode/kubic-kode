@@ -5,19 +5,33 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start-frontend": "vite",
-    "build-frontend": "vite build",
+    "start-frontend": "vite --config client/demos/react-tic-tac-toe/vite.config.js",
+    "build-frontend": "vite build --config client/demos/react-tic-tac-toe/vite.config.js",
     "start-server": "node server.js"
   },
   "keywords": [],
   "author": "Nils & Joakim Karlsson",
   "license": "ISC",
   "dependencies": {
-    "alpinejs": "^3.14.9",
+    "@chakra-ui/react": "^2.8.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "framer-motion": "^10.16.16",
     "lodash": "^4.17.21",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "ws": "^8.18.3",
     "vite": "^7.0.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5"
   }
 }
