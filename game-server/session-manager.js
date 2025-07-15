@@ -37,7 +37,7 @@ class SessionManager {
     return this.sessions.size > 0;
   }
 
-  // createGameEntityForParticipant(sessionId, participantId) {
+  // createGamePlayerEntityForParticipant(sessionId, participantId) {
   //     const session = this.getSession(sessionId);
 
   //     if (!session) {
@@ -46,8 +46,10 @@ class SessionManager {
 
   //     const entity = gameEngine.createPlayerEntity();  // Assumes method to create empty player entity
   //     gameEngine.registerEntity(entity);
-  //     return entity;
+  //     return entity; <-- this would be gameplayerentity
   // }
+  // todo: We need to create a player as an gameplayerentity in the game backend at a later point
+  // for now, just use null or something as we're unsure about exactly what gameplayerentity contains
 }
 
 export const sessionManager = new SessionManager();
