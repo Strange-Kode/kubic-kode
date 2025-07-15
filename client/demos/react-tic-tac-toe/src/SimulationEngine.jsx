@@ -23,6 +23,7 @@ const simulatedInitialState = {
   isPlayerTurn: true, // Is it this player's turn?
   gameActive: true, // Is the game still active (not finished)?
   validMoves: ["0,0", "0,1", "0,2", "1,0", "1,1", "1,2", "2,0", "2,1", "2,2"], // Valid cell keys
+  hostExists: false, // Simulate if a host is present (for join overlay)
 };
 
 export function SimulationEngineProvider({ children }) {
@@ -117,6 +118,18 @@ function SimulationEngineCore({ children }) {
     simulateGameStateUpdate({ [field]: value });
   }
 
+  // Simulate joining as player 2 (for demo)
+  function simulateJoin() {
+    // In a real app, this would notify the backend and get a new state
+    // Here, just set player to 'O' and remove hostExists
+    setGameState({
+      ...gameState,
+      player: "O",
+      status: "Player O's turn",
+      hostExists: false,
+    });
+  }
+
   // Expose gameState and the action handlers
   const value = {
     gameState,
@@ -125,6 +138,7 @@ function SimulationEngineCore({ children }) {
     simulateGameStateUpdate,
     simulateSetCell,
     simulateSetField,
+    simulateJoin,
   };
 
   // For demo: expose globally for GameCanvas to call
