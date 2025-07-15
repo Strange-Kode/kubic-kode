@@ -1,4 +1,6 @@
 import { GameSession } from "./game-session.js";
+import { v4 as uuidv4 } from "uuid";
+
 // import { gameEngine } from './gameEngineInstance.js';  // Singleton engine instance
 
 class SessionManager {
@@ -10,13 +12,29 @@ class SessionManager {
     return this.sessions.get(sessionId);
   }
 
-  createSession(sessionId) {
+  getSessions() {
+    return Array.from(this.sessions.values());
+  }
+
+  createSession() {
+    console.log("creating game session...");
+    const sessionId = uuidv4(); // generate unique ID
     if (this.sessions.has(sessionId)) {
-      throw new Error("Session already exists.");
+      // Unlikely, but just in case
+      return this.createSession();
     }
+    console.log(`allocated new session id: ${sessionId}`);
     const session = new GameSession(sessionId);
     this.sessions.set(sessionId, session);
-    return session;
+    return session; // Return the session instance, not an object
+  }
+
+  hasSession(sessionId) {
+    return this.sessions.get(sessionId) !== undefined;
+  }
+
+  hasSessions() {
+    return this.sessions.size > 0;
   }
 
   // createGameEntityForParticipant(sessionId, participantId) {
