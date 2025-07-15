@@ -1,0 +1,17 @@
+{
+  "editor.autoIndent": true,
+  "files.eol": "\n",
+  "editor.detectIndentation": true,
+  "editor.renderWhitespace": "selection",
+  "editor.fontSize": 8,
+  "editor.gutter": true,
+  "editor.guides.indentation": true,
+  "editor.guides.highlightActiveIndentation": true,
+  "editor.indentToBracket": false,
+  "editor.smartIndent": true,
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.trimAutoWhitespace": false,
+  "files.trimTrailingWhitespace": false,
+  "editor.useTabStops": true
+}
