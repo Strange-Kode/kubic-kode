@@ -3,10 +3,32 @@ import { GameProvider, useGame } from "./GameContext";
 
 const SimulationEngineContext = createContext();
 
+// Simulated initial game state (what backend would send when joining a game)
+const simulatedInitialState = {
+  matrix: {
+    "0,0": "",
+    "0,1": "",
+    "0,2": "",
+    "1,0": "",
+    "1,1": "",
+    "1,2": "",
+    "2,0": "",
+    "2,1": "",
+    "2,2": "",
+  },
+  turn: "X", // 'X' or 'O'
+  player: "X", // 'X' or 'O' (who you are)
+  status: "Player X's turn",
+  // Validation fields (would come from backend)
+  isPlayerTurn: true, // Is it this player's turn?
+  gameActive: true, // Is the game still active (not finished)?
+  validMoves: ["0,0", "0,1", "0,2", "1,0", "1,1", "1,2", "2,0", "2,1", "2,2"], // Valid cell keys
+};
+
 export function SimulationEngineProvider({ children }) {
-  // Use the real game context under the hood
+  // Provide initial state from "backend simulation"
   return (
-    <GameProvider>
+    <GameProvider initialState={simulatedInitialState}>
       <SimulationEngineCore>{children}</SimulationEngineCore>
     </GameProvider>
   );
