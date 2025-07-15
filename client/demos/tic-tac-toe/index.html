@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kubic Kode Game Engine - Tic Tac Toe demo</title>
+    <link rel="stylesheet" href="../tic-tac-toe/style.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-red-100 min-h-screen flex items-center justify-center">
+    <div x-data="ticTacToe()" class="tic-tac-toe-container">
+      <h1 class="text-4xl font-bold mb-4">Tic Tac Toe</h1>
+      <div class="hud">
+        <span x-text="status"></span>
+      </div>
+      <div class="board">Board goes here</div>
+      <button class="reset" @click="reset()">Reset</button>
+    </div>
+    <script src="../tic-tac-toe/js/app.js"></script>
+  </body>
+</html>
