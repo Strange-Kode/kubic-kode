@@ -14,4 +14,10 @@ export class TileMap {
     setTile(x, y, value) {
         this.tiles[y][x] = value;
     }
+    
+    inBounds(x, y, tilemap) {
+        return x >= 0 && y >= 0 && 
+               x < tilemap.width &&
+               y < tilemap.height;
+    }
 }
