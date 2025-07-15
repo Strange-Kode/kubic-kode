@@ -11,3 +11,5 @@ export function ActionPointComponent(entity, initialAP = 100) {
         }
     };
 }
+
+ActionPointComponent.componentName = 'ap';
