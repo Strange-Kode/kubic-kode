@@ -4,11 +4,17 @@ export class GameSession {
         this.sessionId = sessionId;
         this.gameInstance = gameInstance;
         this.maxParticipants = maxParticipants;
-        this.participants = [];   // { id, name, gameEntity }
+        this.participants = [];   // { id, name }
         this.started = false;
+        this.participant_alloc_idx = 0;
+    }
+    
+    allocateParticipantId() {
+        this.participant_alloc_idx++;
+        return this.participant_alloc_idx;
     }
 
-    addParticipant(id, name, gameEntity) {
+    addParticipant(name) {
         if (this.participants.length >= this.maxParticipants) {
             throw new Error('Session is full.');
         }
@@ -23,9 +29,8 @@ export class GameSession {
         }
 
         this.participants.push({
-            id: id,
-            name: name,
-            gameEntity: gameEntity    // Must be pre-registered into the GameEngine externally
+            id: this.allocateParticipantId(),
+            name: name
         });
     }
 

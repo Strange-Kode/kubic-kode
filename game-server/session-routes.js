@@ -26,7 +26,7 @@ sessionRouter.get('/session/init/:gameId', (req, res) => {
 // Join session
 sessionRouter.post('/session/:sessionId/join', (req, res) => {
     const { sessionId } = req.params;
-    const { participantId, participantName } = req.body;
+    const { participantName } = req.body;
 
     const session = sessionManager.getSession(sessionId);
 
@@ -35,9 +35,8 @@ sessionRouter.post('/session/:sessionId/join', (req, res) => {
     }
 
     try {
-        const entity = sessionManager.createGameEntityForParticipant(sessionId, participantId);
-        session.addParticipant(participantId, participantName, entity);
-        res.json({ success: true });
+        let participantId = session.addParticipant(participantName);
+        res.json({ success: true, participant_id: participantId });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
