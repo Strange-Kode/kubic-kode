@@ -13,15 +13,16 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   const sessionParticipants = gameSession.getParticipants();
 
   if (gameInstance.getGameEngine().isGameStarted()) {
+    const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
     return res.json({
-      current_player_id: currentPlayer.getPlayerId(),
+      current_player_id: currentPlayer.id,
       game_started: true,
       status: "game already previously started",
     });
   }
 
   // Step 1: Add participants as players to your game
-  for (let i = 0; i < sessionParticipants; i++) {
+  for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
     gameInstance.addPlayer(participant.name);
   }
@@ -33,9 +34,9 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   gameInstance.startGame();
 
   // Step 4: Return the current player
-  const currentPlayer = gameInstance.getCurrentPlayer();
+  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   res.json({
-    current_player_id: currentPlayer.getPlayerId(),
+    current_player_id: currentPlayer.id,
     game_started: true,
     status: "new game created",
   });
@@ -56,7 +57,7 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   gameSession.markEnded();
 
   // Step 2: Stop the game instance
-  gameInstance.stopGame();
+  gameInstance.getGameEngine().stopGame();
 
   res.json({
     game_stopped: true,
@@ -68,9 +69,16 @@ gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   const { sessionId } = req.params;
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
+  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+
+  if (!currentPlayer) {
+    return res
+      .status(400)
+      .json({ error: "No current player - game may not be started" });
+  }
 
   res.json({
-    current_player_id: gameInstance.getGameEngine().getCurrentPlayer().id,
+    current_player_id: currentPlayer.id,
   });
 });
 
@@ -85,11 +93,11 @@ gameRouter.get("/game/is-active/:sessionId", (req, res) => {
 });
 
 gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
-    const { sessionId } = req.params;
-    const gameSession = sessionManager.getSession(sessionId);
-    const gameInstance = gameSession.getGameInstance();
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
 
-    res.json(serializeRecursively(gameInstance.getGameEngine().getTileMap()));
+  res.json(serializeRecursively(gameInstance.getGameEngine().getTileMap()));
 });
 
 export default gameRouter;

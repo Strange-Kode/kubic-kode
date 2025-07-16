@@ -22,15 +22,20 @@ export class GameSession {
       throw new Error("Cannot join. Game has already started.");
     }
 
-    const existing = this.participants.find((p) => p.id === id);
+    // Check for duplicate names (not IDs, since ID doesn't exist yet)
+    const existing = this.participants.find((p) => p.name === name);
     if (existing) {
-      throw new Error("Participant with this ID already exists.");
+      throw new Error("Participant with this name already exists.");
     }
 
+    const participantId = this.allocateParticipantId();
     this.participants.push({
-      id: this.allocateParticipantId(),
+      id: participantId,
       name: name,
     });
+
+    // Return the participant ID (was missing!)
+    return participantId;
   }
 
   removeParticipant(id) {
