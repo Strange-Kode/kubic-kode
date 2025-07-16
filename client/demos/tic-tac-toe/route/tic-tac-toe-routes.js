@@ -2,6 +2,8 @@ import express from 'express';
 import { sessionManager } from '../../../../game-server/session-manager.js';  // Holds all active GameSession instances
 import { gameRegistry } from '../../../../game-server/game-registry.js';
 
+import { GameEventService } from '../../../../game-server/game-event-service.js';
+
 const ticTacToeRouter = express.Router();
 
 // Plays turn and returns game state of the player round (e.g. did current player win?)
@@ -15,7 +17,11 @@ ticTacToeRouter.post('/tic-tac-toe/play-turn/:sessionId', (req, res) => {
     const gameSession = sessionManager.getSession(sessionId);
     const gameInstance = gameSession.getGameInstance();
     
-    let round_status = gameInstance.playTurn(xPos, yPos);
+    let roundStatus = gameInstance.playTurn(xPos, yPos);
+    GameEventService.broadcastToSession(sessionId, {
+        type: 'turnPlayed',
+        payload: { roundStatus }
+    });
     res.json(round_status);
 });
 

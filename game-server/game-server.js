@@ -6,6 +6,7 @@ import sessionRouter from './session-routes.js';
 import gameRouter from './game-routes.js';
 import { gameRegistry } from './game-registry.js';
 import { TicTacToeGame, ticTacToeRouter } from '../client/demos/tic-tac-toe/tic-tac-toe.js';
+import { GameEventService } from './game-event-service.js';
 
 function TicTacToeClassicFactory(sessionId) {
     return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3 });
@@ -36,9 +37,11 @@ gameRouters.forEach(({ path, router }) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("It works!");
+    res.send("It works!");
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
 });
+
+GameEventService.initWebSocketServer(server);
