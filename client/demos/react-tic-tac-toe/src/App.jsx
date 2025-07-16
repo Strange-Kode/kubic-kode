@@ -1,222 +1,148 @@
-import { useState, useEffect } from "react";
-
-import { Box, Container, VStack, Heading, Text } from "@chakra-ui/react";
-import GameCanvas from "./components/GameCanvas";
-import SimulationArea from "./components/SimulationArea";
+import { useState } from "react";
+import { Box, Container, VStack, Heading, Text, Button, Input } from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
-import JoinOverlay from "./components/JoinOverlay";
 import NameSelectionModal from "./components/NameSelectionModal";
-import ShareableSessionLink from "./components/ShareableSessionLink";
-import CountdownOverlay from "./components/CountdownOverlay";
-import GameModal from "./components/GameModal";
-import {
-  SimulationEngineProvider,
-  useSimulationEngine,
-} from "./SimulationEngine";
+import { useSession } from "./hooks/useSession";
 
 function AppContent() {
   const {
-    isLoading,
-    gameState,
-    simulateJoin,
     sessionId,
-    joinSession,
-    showNameModal,
-    setShowNameModal,
-    participants,
     participantId,
-    sessionFullModal,
-    closeSessionFullModal,
-  } = useSimulationEngine();
-  const [joinOverlayVisible, setJoinOverlayVisible] = useState(false);
-  const [showCountdown, setShowCountdown] = useState(false);
-  const [gameModal, setGameModal] = useState({
-    isOpen: false,
-    type: "info",
-    title: "",
-    message: "",
-  });
+    participants,
+    isSessionLoading,
+    sessionError,
+    isHost,
+    joinSession,
+    fetchParticipants,
+  } = useSession();
 
-  if (isLoading) {
-    return <LoadingScreen message="Connecting to game..." />;
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [testName, setTestName] = useState("");
+
+  // Show loading while session initializes
+  if (isSessionLoading) {
+    return <LoadingScreen message="Initializing session..." />;
   }
 
-  const playerNames = {
-    X: "Player X",
-    O: "Player O",
-  };
+  // Show error if session failed to initialize
+  if (sessionError) {
+    return (
+      <Container maxW="md" centerContent>
+        <VStack spacing={4} py={8}>
+          <Heading color="red.500">Session Error</Heading>
+          <Text>{sessionError}</Text>
+        </VStack>
+      </Container>
+    );
+  }
 
-  // Show join overlay if host exists and player is not the host (X), or if toggled manually
-  const shouldShowJoinOverlay =
-    (gameState.hostExists && gameState.player !== "X") || joinOverlayVisible;
-
-  // Function to allow SimulationArea to show the overlay
-  const showJoinOverlay = () => setJoinOverlayVisible(true);
-  const hideJoinOverlay = () => setJoinOverlayVisible(false);
-
-  // Determine host/guest status
-  const isHost =
-    participants.length > 0 && participants[0]?.id === participantId;
-  const hostGuestStatus =
-    participants.length === 0 ? "" : isHost ? "Host" : "Guest";
-
-  // Show countdown when both players have joined AND current user is a valid participant
-  useEffect(() => {
-    if (participants.length === 2 && !showCountdown && participantId) {
-      // Only show countdown if the current user is one of the valid participants
-      const isValidParticipant = participants.some(
-        (p) => p.id === participantId
-      );
-      if (isValidParticipant) {
-        setShowCountdown(true);
-      }
-    }
-  }, [participants.length, showCountdown, participantId]);
-
-  const handleCountdownComplete = () => {
-    setShowCountdown(false);
-  };
-
-  // Helper functions for showing different game modals
-  const showGameOverModal = (winner) => {
-    if (winner === "draw") {
-      setGameModal({
-        isOpen: true,
-        type: "warning",
-        title: "It's a Draw!",
-        message: "Great game! No one wins this time.",
-      });
+  const handleJoinWithName = async (name) => {
+    console.log("[App] Attempting to join with name:", name);
+    const result = await joinSession(name);
+    
+    if (result.success) {
+      setShowNameModal(false);
+      console.log("[App] Successfully joined session");
     } else {
-      const isWinner = winner === gameState.player;
-      setGameModal({
-        isOpen: true,
-        type: isWinner ? "success" : "error",
-        title: isWinner ? "You Win!" : "You Lose!",
-        message: isWinner ? "Congratulations! 🎉" : "Better luck next time!",
-      });
+      console.error("[App] Failed to join session:", result.error);
+      alert(`Failed to join: ${result.error}`);
     }
   };
 
-  const closeGameModal = () => {
-    setGameModal({ ...gameModal, isOpen: false });
+  const handleQuickJoin = async () => {
+    if (!testName.trim()) {
+      alert("Please enter a name");
+      return;
+    }
+    await handleJoinWithName(testName);
   };
 
   return (
-    <Box
-      minH="100vh"
-      py={8}
-      bgGradient="linear(to-br, teal.50, blue.50, purple.100)"
-      backgroundAttachment="fixed"
-    >
-      <Container maxW="container.md" centerContent>
-        <VStack spacing={8}>
-          {/* Main Game Container */}
-          <Box
-            bg="whiteAlpha.900"
-            p={8}
-            borderRadius="3xl"
-            boxShadow="0 8px 32px rgba(80, 80, 180, 0.10)"
-            w="full"
-            maxW="md"
-            borderWidth={1}
-            borderColor="blue.100"
-          >
-            <VStack spacing={6}>
-              <Heading as="h1" size="xl" textAlign="center" color="blue.700">
-                Tic-Tac-Toe
-              </Heading>
-
-              {/* Status Display */}
-              <Text
-                fontSize="lg"
-                textAlign="center"
-                fontWeight="medium"
-                color="gray.800"
-              >
-                {gameState.status}
-              </Text>
-
-              {/* Game Canvas */}
-              <GameCanvas />
-
-              {/* Player Identity */}
-              <Text
-                fontSize="md"
-                textAlign="center"
-                fontWeight="medium"
-                color="gray.800"
-              >
-                You are: {playerNames[gameState.player]}
-              </Text>
-
-              {/* Host/Guest Status */}
-              {hostGuestStatus && (
-                <Text
-                  fontSize="sm"
-                  textAlign="center"
-                  fontWeight="medium"
-                  color="gray.600"
-                >
-                  {hostGuestStatus}
-                </Text>
-              )}
+    <Box minH="100vh" bg="gray.50">
+      <Container maxW="4xl" py={8}>
+        <VStack spacing={6}>
+          <Heading>🎮 useSession Hook Test</Heading>
+          
+          {/* Session Info */}
+          <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
+            <VStack align="start" spacing={2}>
+              <Text><strong>Session ID:</strong> {sessionId || "Not initialized"}</Text>
+              <Text><strong>Participant ID:</strong> {participantId || "Not joined"}</Text>
+              <Text><strong>Is Host:</strong> {isHost ? "Yes" : "No"}</Text>
+              <Text><strong>Total Participants:</strong> {participants.length}/2</Text>
             </VStack>
           </Box>
 
-          {/* Shareable Session Link */}
-          <ShareableSessionLink sessionId={sessionId} />
+          {/* Participants List */}
+          <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
+            <Heading size="md" mb={3}>Participants</Heading>
+            {participants.length === 0 ? (
+              <Text color="gray.500">No participants yet</Text>
+            ) : (
+              <VStack align="start" spacing={1}>
+                {participants.map((participant, index) => (
+                  <Text key={participant.id}>
+                    {index + 1}. {participant.name} (ID: {participant.id})
+                    {participant.id === participantId && " ← You"}
+                    {index === 0 && " (Host)"}
+                  </Text>
+                ))}
+              </VStack>
+            )}
+          </Box>
 
-          {/* Simulation Area */}
-          <SimulationArea
-            showJoinOverlay={showJoinOverlay}
-            showGameOverModal={showGameOverModal}
-          />
+          {/* Join Controls */}
+          {!participantId && (
+            <Box p={4} bg="blue.50" borderRadius="md" w="100%">
+              <VStack spacing={3}>
+                <Heading size="md">Join Session</Heading>
+                <VStack spacing={2} w="100%">
+                  <Input
+                    placeholder="Enter your name"
+                    value={testName}
+                    onChange={(e) => setTestName(e.target.value)}
+                    maxW="300px"
+                  />
+                  <Button colorScheme="blue" onClick={handleQuickJoin}>
+                    Join Session
+                  </Button>
+                </VStack>
+                <Text fontSize="sm" color="gray.600">Or</Text>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowNameModal(true)}
+                >
+                  Open Name Modal (Original)
+                </Button>
+              </VStack>
+            </Box>
+          )}
+
+          {/* Actions */}
+          <Box p={4} bg="gray.50" borderRadius="md" w="100%">
+            <VStack spacing={2}>
+              <Heading size="sm">Debug Actions</Heading>
+              <Button size="sm" onClick={fetchParticipants}>
+                Refresh Participants
+              </Button>
+            </VStack>
+          </Box>
+
+          {/* Status */}
+          <Box p={4} bg="green.50" borderRadius="md" w="100%">
+            <Text><strong>Status:</strong></Text>
+            {participants.length === 0 && <Text>🔄 Waiting for participants...</Text>}
+            {participants.length === 1 && <Text>👤 1 player joined, waiting for 2nd player...</Text>}
+            {participants.length === 2 && <Text>🎉 2 players joined! Ready to start game.</Text>}
+            {participants.length > 2 && <Text>⚠️ Too many participants ({participants.length})</Text>}
+          </Box>
         </VStack>
-        {shouldShowJoinOverlay && (
-          <JoinOverlay
-            onJoin={() => {
-              simulateJoin();
-              hideJoinOverlay();
-            }}
-          />
-        )}
+
+        {/* Name Selection Modal */}
         <NameSelectionModal
           isOpen={showNameModal}
           onClose={() => setShowNameModal(false)}
-          onJoin={joinSession}
-          sessionId={sessionId}
-        />
-        <CountdownOverlay
-          isOpen={showCountdown}
-          onComplete={handleCountdownComplete}
-        />
-        <GameModal
-          isOpen={gameModal.isOpen}
-          onClose={closeGameModal}
-          type={gameModal.type}
-          title={gameModal.title}
-          message={gameModal.message}
-          primaryButton={{
-            text: "Play Again",
-            onClick: () => {
-              closeGameModal();
-              // TODO: Implement play again logic
-            },
-          }}
-          secondaryButton={{
-            text: "Back to Menu",
-            onClick: () => {
-              closeGameModal();
-              // TODO: Implement back to menu logic
-            },
-          }}
-        />
-        <GameModal
-          isOpen={sessionFullModal.isOpen}
-          onClose={closeSessionFullModal}
-          type="warning"
-          title="Session Unavailable"
-          message={sessionFullModal.message}
+          onSubmit={handleJoinWithName}
         />
       </Container>
     </Box>
@@ -224,11 +150,7 @@ function AppContent() {
 }
 
 function App() {
-  return (
-    <SimulationEngineProvider>
-      <AppContent />
-    </SimulationEngineProvider>
-  );
+  return <AppContent />;
 }
 
 export default App;
