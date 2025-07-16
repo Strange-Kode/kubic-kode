@@ -1,18 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Box, Container, VStack, Heading, Text } from "@chakra-ui/react";
 import GameCanvas from "./components/GameCanvas";
 import SimulationArea from "./components/SimulationArea";
 import LoadingScreen from "./components/LoadingScreen";
 import JoinOverlay from "./components/JoinOverlay";
+import NameSelectionModal from "./components/NameSelectionModal";
+import ShareableSessionLink from "./components/ShareableSessionLink";
+import CountdownOverlay from "./components/CountdownOverlay";
+import GameModal from "./components/GameModal";
 import {
   SimulationEngineProvider,
   useSimulationEngine,
 } from "./SimulationEngine";
 
 function AppContent() {
-  const { isLoading, gameState, simulateJoin } = useSimulationEngine();
+  const {
+    isLoading,
+    gameState,
+    simulateJoin,
+    sessionId,
+    joinSession,
+    showNameModal,
+    setShowNameModal,
+    participants,
+    participantId,
+    sessionFullModal,
+    closeSessionFullModal,
+  } = useSimulationEngine();
   const [joinOverlayVisible, setJoinOverlayVisible] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [gameModal, setGameModal] = useState({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
 
   if (isLoading) {
     return <LoadingScreen message="Connecting to game..." />;
@@ -30,6 +53,53 @@ function AppContent() {
   // Function to allow SimulationArea to show the overlay
   const showJoinOverlay = () => setJoinOverlayVisible(true);
   const hideJoinOverlay = () => setJoinOverlayVisible(false);
+
+  // Determine host/guest status
+  const isHost =
+    participants.length > 0 && participants[0]?.id === participantId;
+  const hostGuestStatus =
+    participants.length === 0 ? "" : isHost ? "Host" : "Guest";
+
+  // Show countdown when both players have joined AND current user is a valid participant
+  useEffect(() => {
+    if (participants.length === 2 && !showCountdown && participantId) {
+      // Only show countdown if the current user is one of the valid participants
+      const isValidParticipant = participants.some(
+        (p) => p.id === participantId
+      );
+      if (isValidParticipant) {
+        setShowCountdown(true);
+      }
+    }
+  }, [participants.length, showCountdown, participantId]);
+
+  const handleCountdownComplete = () => {
+    setShowCountdown(false);
+  };
+
+  // Helper functions for showing different game modals
+  const showGameOverModal = (winner) => {
+    if (winner === "draw") {
+      setGameModal({
+        isOpen: true,
+        type: "warning",
+        title: "It's a Draw!",
+        message: "Great game! No one wins this time.",
+      });
+    } else {
+      const isWinner = winner === gameState.player;
+      setGameModal({
+        isOpen: true,
+        type: isWinner ? "success" : "error",
+        title: isWinner ? "You Win!" : "You Lose!",
+        message: isWinner ? "Congratulations! 🎉" : "Better luck next time!",
+      });
+    }
+  };
+
+  const closeGameModal = () => {
+    setGameModal({ ...gameModal, isOpen: false });
+  };
 
   return (
     <Box
@@ -78,11 +148,29 @@ function AppContent() {
               >
                 You are: {playerNames[gameState.player]}
               </Text>
+
+              {/* Host/Guest Status */}
+              {hostGuestStatus && (
+                <Text
+                  fontSize="sm"
+                  textAlign="center"
+                  fontWeight="medium"
+                  color="gray.600"
+                >
+                  {hostGuestStatus}
+                </Text>
+              )}
             </VStack>
           </Box>
 
+          {/* Shareable Session Link */}
+          <ShareableSessionLink sessionId={sessionId} />
+
           {/* Simulation Area */}
-          <SimulationArea showJoinOverlay={showJoinOverlay} />
+          <SimulationArea
+            showJoinOverlay={showJoinOverlay}
+            showGameOverModal={showGameOverModal}
+          />
         </VStack>
         {shouldShowJoinOverlay && (
           <JoinOverlay
@@ -92,6 +180,44 @@ function AppContent() {
             }}
           />
         )}
+        <NameSelectionModal
+          isOpen={showNameModal}
+          onClose={() => setShowNameModal(false)}
+          onJoin={joinSession}
+          sessionId={sessionId}
+        />
+        <CountdownOverlay
+          isOpen={showCountdown}
+          onComplete={handleCountdownComplete}
+        />
+        <GameModal
+          isOpen={gameModal.isOpen}
+          onClose={closeGameModal}
+          type={gameModal.type}
+          title={gameModal.title}
+          message={gameModal.message}
+          primaryButton={{
+            text: "Play Again",
+            onClick: () => {
+              closeGameModal();
+              // TODO: Implement play again logic
+            },
+          }}
+          secondaryButton={{
+            text: "Back to Menu",
+            onClick: () => {
+              closeGameModal();
+              // TODO: Implement back to menu logic
+            },
+          }}
+        />
+        <GameModal
+          isOpen={sessionFullModal.isOpen}
+          onClose={closeSessionFullModal}
+          type="warning"
+          title="Session Unavailable"
+          message={sessionFullModal.message}
+        />
       </Container>
     </Box>
   );
