@@ -1,12 +1,19 @@
 export class GameSession {
-  constructor(sessionId, maxParticipants = 2) {
+  constructor(sessionId, gameInstance, maxParticipants = 2) {
     this.sessionId = sessionId;
+    this.gameInstance = gameInstance;
     this.maxParticipants = maxParticipants;
-    this.participants = []; // { id, name, gameEntity }
+    this.participants = []; // { id, name }
     this.started = false;
+    this.participant_alloc_idx = 0;
   }
 
-  addParticipant(id, name, gameEntity) {
+  allocateParticipantId() {
+    this.participant_alloc_idx++;
+    return this.participant_alloc_idx;
+  }
+
+  addParticipant(name) {
     if (this.participants.length >= this.maxParticipants) {
       throw new Error("Session is full.");
     }
@@ -15,16 +22,20 @@ export class GameSession {
       throw new Error("Cannot join. Game has already started.");
     }
 
-    const existing = this.participants.find((p) => p.id === id);
+    // Check for duplicate names (not IDs, since ID doesn't exist yet)
+    const existing = this.participants.find((p) => p.name === name);
     if (existing) {
-      throw new Error("Participant with this ID already exists.");
+      throw new Error("Participant with this name already exists.");
     }
 
+    const participantId = this.allocateParticipantId();
     this.participants.push({
-      id: id,
+      id: participantId,
       name: name,
-      gameEntity: gameEntity, // Must be pre-registered into the GameEngine externally
     });
+
+    // Return the participant ID (was missing!)
+    return participantId;
   }
 
   removeParticipant(id) {
@@ -41,6 +52,10 @@ export class GameSession {
     return this.participants.map((p) => ({ id: p.id, name: p.name }));
   }
 
+  getParticipants() {
+    return this.participants;
+  }
+
   markStarted() {
     if (this.participants.length < 2) {
       throw new Error("Cannot start game. Not enough participants.");
@@ -50,6 +65,10 @@ export class GameSession {
 
   markEnded() {
     this.started = false;
+  }
+
+  getGameInstance() {
+    return this.gameInstance;
   }
 
   getParticipantById(id) {
