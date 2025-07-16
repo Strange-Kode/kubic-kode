@@ -1,6 +1,7 @@
 export class GameSession {
-  constructor(sessionId, maxParticipants = 2) {
+  constructor(sessionId, gameInstance, maxParticipants = 2) {
     this.sessionId = sessionId;
+    this.gameInstance = gameInstance;
     this.maxParticipants = maxParticipants;
     this.participants = []; // { id, name, gameEntity }
     this.started = false;
@@ -52,7 +53,15 @@ export class GameSession {
     this.started = false;
   }
 
+  getParticipants() {
+    return this.participants;
+  }
+
   getParticipantById(id) {
     return this.participants.find((p) => p.id === id) || null;
+  }
+
+  getGameInstance() {
+    return this.gameInstance;
   }
 }
