@@ -4,14 +4,15 @@ import { sessionManager } from './session-manager.js';  // Holds all active Game
 const sessionRouter = express.Router();
 
 // Creates and secures a singleton session for simplicity.
-sessionRouter.get('/session/init', (req, res) => {
+sessionRouter.get('/session/init/:gameId', (req, res) => {
+    const { gameId } = req.params;
     let sessionState, session_created;
     if (sessionManager.hasSessions()) {
         sessionState = sessionManager.getSessions()[0];
         session_created = false;
     }
     else {
-        sessionState = sessionManager.createSession();
+        sessionState = sessionManager.createSession(gameId);
         session_created = true;
     }
     console.log(`session-routes.js::session created: ${session_created}`);

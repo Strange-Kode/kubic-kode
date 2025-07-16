@@ -13,9 +13,11 @@ class TicTacToeGame {
         this.winCondition = winCondition;
 
         this.players = [];
+        this.consumeMarkTypes = ['X', 'O'];
     }
 
-    addPlayer(name, markType) {
+    addPlayer(name) {
+        let markType = this.consumeMarkTypes.shift();
         const player = new PlayerEntity(name, markType);
         this.players.push(player);
         this.engine.registerEntity(player);
@@ -25,7 +27,11 @@ class TicTacToeGame {
         if (this.players.length < 2) {
             throw new Error('At least two players are required to start the game.');
         }
-        this.engine.startTurns(this.players);
+        this.engine.startGame();
+    }
+    
+    getCurrentPlayer() {
+        return this.engine.getCurrentPlayer();
     }
 
     playTurn(x, y) {
