@@ -2,8 +2,6 @@ import { GameSession } from "./game-session.js";
 import { gameRegistry } from "./game-registry.js";
 import { v4 as uuidv4 } from "uuid";
 
-// import { gameEngine } from './gameEngineInstance.js';  // Singleton engine instance
-
 class SessionManager {
   constructor() {
     this.sessions = new Map();
@@ -43,20 +41,6 @@ class SessionManager {
   hasSessions() {
     return this.sessions.size > 0;
   }
-
-  // createGamePlayerEntityForParticipant(sessionId, participantId) {
-  //     const session = this.getSession(sessionId);
-
-  //     if (!session) {
-  //         throw new Error('Session not found.');
-  //     }
-
-  //     const entity = gameEngine.createPlayerEntity();  // Assumes method to create empty player entity
-  //     gameEngine.registerEntity(entity);
-  //     return entity; <-- this would be gameplayerentity
-  // }
-  // todo: We need to create a player as an gameplayerentity in the game backend at a later point
-  // for now, just use null or something as we're unsure about exactly what gameplayerentity contains
 }
 
 export const sessionManager = new SessionManager();

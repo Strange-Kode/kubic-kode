@@ -20,11 +20,19 @@ export class GameEngine {
     );
   }
 
+  getEntities() {
+    return this.player_entities;
+  }
+
   startGame() {
     if (this.gameStarted === true) {
       throw new Error(`Game is already started.`);
     }
     this.gameStarted = true;
+  }
+
+  isGameStarted() {
+    return this.gameStarted;
   }
 
   stopGame() {
