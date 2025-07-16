@@ -4,6 +4,7 @@ import { GameEngine } from '../game-engine/game-engine.js';
 import { PlayerEntity } from './game-entity/player-entity.js';
 import { MarkEntity } from './game-entity/mark-entity.js';
 import { TileMap } from '../game-engine/tile-map.js';
+import { ticTacToeRouter } from './tic-tac-toe-routes.js';
 
 class TicTacToeGame {
     constructor({ gridSize = 3, winCondition = 3 } = {}) {
@@ -11,34 +12,35 @@ class TicTacToeGame {
 
         this.gridSize = gridSize;
         this.winCondition = winCondition;
-
-        this.players = [];
         this.consumeMarkTypes = ['X', 'O'];
     }
 
     addPlayer(name) {
         let markType = this.consumeMarkTypes.shift();
         const player = new PlayerEntity(name, markType);
-        this.players.push(player);
         this.engine.registerEntity(player);
     }
 
     startGame() {
-        if (this.players.length < 2) {
+        if (this.engine.getEntities().length < 2) {
             throw new Error('At least two players are required to start the game.');
         }
         this.engine.startGame();
     }
     
-    getCurrentPlayer() {
-        return this.engine.getCurrentPlayer();
+    getGameEngine() {
+        return this.engine;
     }
-
+    
     playTurn(x, y) {
         const currentPlayer = this.engine.getCurrentPlayer();
         if (this.engine.getTileMap().getTile(x, y)) {
             console.log('Tile already occupied.');
-            return;
+            return {
+                status: 'invalid',
+                type: 'occupied_tile'
+                player_has_won: false
+            };
         }
 
         const mark = currentPlayer.placeMark({ x, y });
@@ -46,10 +48,17 @@ class TicTacToeGame {
 
         if (this.checkWinCondition(mark)) {
             console.log(`${currentPlayer.name} wins!`);
-            this.engine.stopGame();
-            return;
+            // this.engine.stopGame();
+            return {
+                status: 'ok',
+                player_has_won: true
+            };
         }
         this.engine.nextTurn();
+        return {
+            status: 'ok',
+            player_has_won: false
+        };
     }
 
     checkWinCondition(lastMark) {
@@ -95,4 +104,4 @@ class TicTacToeGame {
     }
 }
 
-export default TicTacToeGame;
+export { TicTacToeGame, ticTacToeRouter };

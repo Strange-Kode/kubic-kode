@@ -1,6 +1,5 @@
 import express from 'express';
 import { sessionManager } from './session-manager.js';  // Holds all active GameSession instances
-import { gameRegistry } from './game-server/game-registry.js';
 
 const gameRouter = express.Router();
 
@@ -10,6 +9,14 @@ gameRouter.get('/game/start/:sessionId', (req, res) => {
     const gameSession = sessionManager.getSession(sessionId);
     const gameInstance = gameSession.getGameInstance();
     const sessionParticipants = gameSession.getParticipants();
+    
+    if (gameInstance.getGameEngine().isGameStarted()) {
+        return res.json({
+            current_player_id: currentPlayer.getPlayerId(),
+            game_started: true,
+            status: 'game already previously started'
+        });
+    }
     
     // Step 1: Add participants as players to your game
     for (let i = 0; i < sessionParticipants; i++) {
@@ -28,9 +35,9 @@ gameRouter.get('/game/start/:sessionId', (req, res) => {
     const currentPlayer = gameInstance.getCurrentPlayer();
     res.json({
         current_player_id: currentPlayer.getPlayerId(),
-        game_started: true
+        game_started: true,
+        status: 'new game created'
     });
-    
 });
 
 gameRouter.get('/game/stop/:sessionId', (req, res) => {
@@ -38,7 +45,11 @@ gameRouter.get('/game/stop/:sessionId', (req, res) => {
     const gameSession = sessionManager.getSession(sessionId);
     const gameInstance = gameSession.getGameInstance();
     
-    // Step 1: Stop the game session
+    if (!gameInstance.getGameEngine().isGameStarted()) {
+        throw new Error(`Attempting to stop unstarted game with session id: ${sessionId}`);
+    }
+    
+    // Step 1: End the game session
     gameSession.markEnded();
     
     // Step 2: Stop the game instance
@@ -46,6 +57,27 @@ gameRouter.get('/game/stop/:sessionId', (req, res) => {
     
     res.json({
         game_stopped: true
+    });
+});
+
+// Used to get current turn (=> current player id)
+gameRouter.get('/game/get-current-player/:sessionId', (req, res) => {
+    const { sessionId } = req.params;
+    const gameSession = sessionManager.getSession(sessionId);
+    const gameInstance = gameSession.getGameInstance();
+    
+    res.json({
+        current_player_id: gameInstance.getGameEngine().getCurrentPlayer().id
+    });
+});
+
+gameRouter.get('/game/is-active/:sessionId', (req, res) => {
+    const { sessionId } = req.params;
+    const gameSession = sessionManager.getSession(sessionId);
+    const gameInstance = gameSession.getGameInstance();
+    
+    res.json({
+        is_active: gameInstance.getGameEngine().isGameStarted()
     });
 });
 
