@@ -1,58 +1,72 @@
 export class GameSession {
-  constructor(sessionId, maxParticipants = 2) {
-    this.sessionId = sessionId;
-    this.maxParticipants = maxParticipants;
-    this.participants = []; // { id, name, gameEntity }
-    this.started = false;
-  }
-
-  addParticipant(id, name, gameEntity) {
-    if (this.participants.length >= this.maxParticipants) {
-      throw new Error("Session is full.");
+    constructor(sessionId, gameInstance, maxParticipants = 2) {
+        this.sessionId = sessionId;
+        this.gameInstance = gameInstance;
+        this.maxParticipants = maxParticipants;
+        this.participants = [];   // { id, name }
+        this.started = false;
+        this.participant_alloc_idx = 0;
+    }
+    
+    allocateParticipantId() {
+        this.participant_alloc_idx++;
+        return this.participant_alloc_idx;
     }
 
-    if (this.started) {
-      throw new Error("Cannot join. Game has already started.");
+    addParticipant(name) {
+        if (this.participants.length >= this.maxParticipants) {
+            throw new Error('Session is full.');
+        }
+
+        if (this.started) {
+            throw new Error('Cannot join. Game has already started.');
+        }
+
+        const existing = this.participants.find(p => p.id === id);
+        if (existing) {
+            throw new Error('Participant with this ID already exists.');
+        }
+
+        this.participants.push({
+            id: this.allocateParticipantId(),
+            name: name
+        });
     }
 
-    const existing = this.participants.find((p) => p.id === id);
-    if (existing) {
-      throw new Error("Participant with this ID already exists.");
+    removeParticipant(id) {
+        const index = this.participants.findIndex((p) => p.id === id);
+
+        if (index === -1) {
+            throw new Error("Participant not found.");
+        }
+
+        this.participants.splice(index, 1);
     }
 
-    this.participants.push({
-      id: id,
-      name: name,
-      gameEntity: gameEntity, // Must be pre-registered into the GameEngine externally
-    });
-  }
-
-  removeParticipant(id) {
-    const index = this.participants.findIndex((p) => p.id === id);
-
-    if (index === -1) {
-      throw new Error("Participant not found.");
+    listParticipants() {
+        return this.participants.map((p) => ({ id: p.id, name: p.name }));
+    }
+    
+    getParticipants() {
+        return this.participants;
     }
 
-    this.participants.splice(index, 1);
-  }
-
-  listParticipants() {
-    return this.participants.map((p) => ({ id: p.id, name: p.name }));
-  }
-
-  markStarted() {
-    if (this.participants.length < 2) {
-      throw new Error("Cannot start game. Not enough participants.");
+    markStarted() {
+        if (this.participants.length < 2) {
+            throw new Error("Cannot start game. Not enough participants.");
+        }
+        this.started = true;
     }
-    this.started = true;
-  }
+    
+    markEnded() {
+        this.started = false;
+    }
+    
+    getGameInstance() {
+        return this.gameInstance;
+    }
 
-  markEnded() {
-    this.started = false;
-  }
-
-  getParticipantById(id) {
-    return this.participants.find((p) => p.id === id) || null;
-  }
+    getParticipantById(id) {
+        return this.participants.find((p) => p.id === id) || null;
+    }
 }
