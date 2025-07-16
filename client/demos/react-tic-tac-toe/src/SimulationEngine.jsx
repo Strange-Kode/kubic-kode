@@ -24,6 +24,11 @@ export function SimulationEngineProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionId, setSessionId] = useState(null);
   const [participantId, setParticipantId] = useState(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [sessionFullModal, setSessionFullModal] = useState({
+    isOpen: false,
+    message: "",
+  });
   const toast = useToast();
 
   // Fetch participants for the session
@@ -69,6 +74,7 @@ export function SimulationEngineProvider({ children }) {
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to join session");
       }
+      setShowNameModal(false); // Close the modal on successful join
       toast({
         title: "Joined session",
         description: `You joined as ${name}`,
@@ -78,8 +84,60 @@ export function SimulationEngineProvider({ children }) {
         position: "bottom-left",
       });
     } catch (err) {
+      const errorMessage = err.message;
+
+      // Handle specific error cases
+      if (
+        errorMessage.includes("Session is full") ||
+        errorMessage.includes("full")
+      ) {
+        setSessionFullModal({
+          isOpen: true,
+          message: "This game session is full.",
+        });
+        setShowNameModal(false);
+      } else if (
+        errorMessage.includes("already started") ||
+        errorMessage.includes("Game has already started")
+      ) {
+        setSessionFullModal({
+          isOpen: true,
+          message: "This game has already started.",
+        });
+        setShowNameModal(false);
+      } else {
+        // Generic error handling
+        toast({
+          title: "Join failed",
+          description: errorMessage,
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+          position: "bottom-left",
+        });
+      }
+    }
+  }
+
+  // Start game when both participants have joined
+  async function startGame() {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/game/start/${sessionId}`);
+      if (!res.ok) throw new Error("Failed to start game");
+      const data = await res.json();
       toast({
-        title: "Join failed",
+        title: "Game started!",
+        description: `Current player: ${data.current_player_id}`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-left",
+      });
+      return data;
+    } catch (err) {
+      toast({
+        title: "Failed to start game",
         description: err.message,
         status: "error",
         duration: 4000,
@@ -89,13 +147,50 @@ export function SimulationEngineProvider({ children }) {
     }
   }
 
-  // Automatically join session after sessionId is set
-  useEffect(() => {
-    if (sessionId && !participantId) {
-      joinSession({ name: participantId });
+  // Check if session is available for joining
+  const checkSessionAvailability = async () => {
+    if (!sessionId) return false;
+
+    try {
+      // First check how many participants are already in the session
+      const participantsRes = await fetch(
+        `/api/session/${sessionId}/participants`
+      );
+      if (!participantsRes.ok) return false;
+
+      const participantsData = await participantsRes.json();
+
+      // If session already has 2+ participants, it's full
+      if (participantsData.length >= 2) {
+        setSessionFullModal({
+          isOpen: true,
+          message:
+            "This game session is full. Please try creating a new game or wait for a spot to open up.",
+        });
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Error checking session availability:", err);
+      return false;
     }
+  };
+
+  // Show name modal after sessionId is set, but only if session is available
+  useEffect(() => {
+    const checkAndShowModal = async () => {
+      if (sessionId && !participantId) {
+        const isAvailable = await checkSessionAvailability();
+        if (isAvailable) {
+          setShowNameModal(true);
+        }
+      }
+    };
+
+    checkAndShowModal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, participantId]);
 
   // Refetch participants after joining
   useEffect(() => {
@@ -105,14 +200,23 @@ export function SimulationEngineProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, participantId]);
 
+  // Monitor participants and start game when we have 2 players
   useEffect(() => {
-    // Fetch session from backend, but always show loading for at least 1 second
+    if (participants.length === 2) {
+      startGame();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants.length]);
+
+  useEffect(() => {
+    // Fetch session from backend, but always show loading component for at least 1 second
     async function fetchSession() {
       setIsLoading(true);
       const start = Date.now();
       let sessionData = null;
       try {
-        const res = await fetch("/api/session/init");
+        // Use tic-tac-toe-classic as the default gameId for initialization
+        const res = await fetch("/api/session/init/tic-tac-toe-classic");
         if (!res.ok) throw new Error("Failed to fetch session");
         const data = await res.json();
         setSessionId(data.session_id);
@@ -153,6 +257,11 @@ export function SimulationEngineProvider({ children }) {
     fetchSession();
   }, [toast]);
 
+  // Close session full modal
+  const closeSessionFullModal = () => {
+    setSessionFullModal({ isOpen: false, message: "" });
+  };
+
   // Provide loading state to children, let App decide what to render
   if (isLoading) {
     return (
@@ -170,15 +279,26 @@ export function SimulationEngineProvider({ children }) {
       value={{
         isLoading: false,
         sessionId,
+        participantId,
         joinSession,
         participants,
         fetchParticipants,
+        showNameModal,
+        setShowNameModal,
+        sessionFullModal,
+        closeSessionFullModal,
       }}
     >
       <SimulationEngineCore
         sessionId={sessionId}
         participants={participants}
         fetchParticipants={fetchParticipants}
+        joinSession={joinSession}
+        showNameModal={showNameModal}
+        setShowNameModal={setShowNameModal}
+        participantId={participantId}
+        sessionFullModal={sessionFullModal}
+        closeSessionFullModal={closeSessionFullModal}
       >
         {children}
       </SimulationEngineCore>
@@ -191,6 +311,12 @@ function SimulationEngineCore({
   sessionId,
   participants,
   fetchParticipants,
+  joinSession,
+  showNameModal,
+  setShowNameModal,
+  participantId,
+  sessionFullModal,
+  closeSessionFullModal,
 }) {
   // Simulated initial game state (for not-yet-migrated logic)
   const defaultGameState = {
@@ -286,6 +412,7 @@ function SimulationEngineCore({
 
   // Expose gameState and the action handlers
   const value = {
+    isLoading: false,
     gameState,
     onCellClick,
     simulateGameStateUpdate,
@@ -295,6 +422,12 @@ function SimulationEngineCore({
     sessionId,
     participants,
     fetchParticipants,
+    joinSession,
+    showNameModal,
+    setShowNameModal,
+    participantId,
+    sessionFullModal,
+    closeSessionFullModal,
   };
 
   return (
