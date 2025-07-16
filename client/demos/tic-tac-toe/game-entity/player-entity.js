@@ -1,4 +1,5 @@
 import { GameEntity } from "../../../../game-engine/game-entity/game-entity.js";
+import MarkEntity from "./mark-entity.js";
 
 class PlayerEntity extends GameEntity {
   constructor(name, markType) {
@@ -18,3 +19,5 @@ class PlayerEntity extends GameEntity {
     return mark;
   }
 }
+
+export default PlayerEntity;
