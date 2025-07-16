@@ -4,8 +4,8 @@ const PORT = 3000;
 
 import sessionRouter from "./session-routes.js";
 import gameRouter from "./game-routes.js";
-import { gameRegistry } from "./game-server/game-registry.js";
-import { TicTacToeGame } from "../client/demo/tic-tac-toe/tic-tac-toe.js";
+import { gameRegistry } from "./game-registry.js";
+import TicTacToeGame from "../client/demos/tic-tac-toe/tic-tac-toe.js";
 
 function TicTacToeClassicFactory(sessionId) {
   return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3 });
