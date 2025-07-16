@@ -142,3 +142,6 @@ vite.config.ts.timestamp-*
 #vs code settings
 
 .vscode
+
+# AI stuff
+ai
