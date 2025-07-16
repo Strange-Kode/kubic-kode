@@ -20,4 +20,8 @@ export class GameEntity {
     update() {
         // Override in subclasses
     }
+    
+    toJSON() {
+        // Override in subclasses
+    }
 }

@@ -3,6 +3,8 @@ import { sessionManager } from "./session-manager.js"; // Holds all active GameS
 
 const gameRouter = express.Router();
 
+import { serializeRecursively } from "../game-utility.js";
+
 gameRouter.get("/game/start/:sessionId", (req, res) => {
   const { sessionId } = req.params;
 
@@ -80,6 +82,14 @@ gameRouter.get("/game/is-active/:sessionId", (req, res) => {
   res.json({
     is_active: gameInstance.getGameEngine().isGameStarted(),
   });
+});
+
+gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    const gameSession = sessionManager.getSession(sessionId);
+    const gameInstance = gameSession.getGameInstance();
+
+    res.json(serializeRecursively(gameInstance.getGameEngine().getTileMap()));
 });
 
 export default gameRouter;

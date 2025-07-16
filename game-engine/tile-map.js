@@ -20,4 +20,12 @@ export class TileMap {
                x < tilemap.width &&
                y < tilemap.height;
     }
+    
+    toJSON() {
+        return {
+            width: this.width,
+            height: this.height,
+            tiles: this.tiles
+        };
+    }
 }
