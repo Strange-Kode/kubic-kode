@@ -8,3 +8,5 @@ class MarkEntity extends GameEntity {
     this.position = position; // e.g., { x: 1, y: 2 }
   }
 }
+
+export default MarkEntity;
