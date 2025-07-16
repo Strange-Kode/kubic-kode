@@ -1,3 +1,6 @@
+import { createContext, useContext, useState, useEffect } from "react";
+import { useToast } from "@chakra-ui/react";
+
 // Custom hook to use the SimulationEngine context
 export function useSimulationEngine() {
   const context = useContext(SimulationEngineContext);
@@ -8,8 +11,6 @@ export function useSimulationEngine() {
   }
   return context;
 }
-import { createContext, useContext, useState, useEffect } from "react";
-import { useToast } from "@chakra-ui/react";
 
 const SimulationEngineContext = createContext();
 
@@ -17,9 +18,7 @@ const SimulationEngineContext = createContext();
 // PART 1: MIGRATED TO BACKEND (or in progress)
 // =====================
 
-// Fetch session from backend on mount
 export function SimulationEngineProvider({ children }) {
-  // All hooks must be declared before any logic that uses them
   const [participants, setParticipants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionId, setSessionId] = useState(null);
@@ -44,11 +43,6 @@ export function SimulationEngineProvider({ children }) {
     }
   }
 
-  // todo: temporary generation, fix
-  function generateParticipantId() {
-    return "p_" + Math.random().toString(36).slice(2, 10);
-  }
-
   // Join session as a participant
   async function joinSession({ name }) {
     if (!sessionId) {
@@ -62,18 +56,20 @@ export function SimulationEngineProvider({ children }) {
       });
       return;
     }
-    const participantId = generateParticipantId();
-    setParticipantId(participantId);
+
     try {
       const res = await fetch(`/api/session/${sessionId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId, participantName: name }),
+        body: JSON.stringify({ participantName: name }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to join session");
       }
+
+      // Set the participant ID returned by the backend
+      setParticipantId(data.participant_id);
       setShowNameModal(false); // Close the modal on successful join
       toast({
         title: "Joined session",
@@ -318,6 +314,7 @@ function SimulationEngineCore({
   sessionFullModal,
   closeSessionFullModal,
 }) {
+  const toast = useToast();
   // Simulated initial game state (for not-yet-migrated logic)
   const defaultGameState = {
     matrix: {
@@ -342,83 +339,133 @@ function SimulationEngineCore({
 
   const [gameState, setGameState] = useState(defaultGameState);
 
-  // Simulate a backend action handler
-  function onCellClick(row, col) {
-    // In a real app, this would send an action to the backend and update gameState from the response
-    // For now, just update the matrix and alternate turn for demo
-    const key = `${row},${col}`;
-    const nextMatrix = { ...gameState.matrix, [key]: gameState.turn };
-    const nextTurn = gameState.turn === "X" ? "O" : "X";
+  // =====================
+  // REAL BACKEND INTEGRATION (replacing simulation)
+  // =====================
 
-    // Calculate valid moves (empty cells)
-    const validMoves = Object.keys(nextMatrix).filter(
-      (cellKey) => nextMatrix[cellKey] === ""
-    );
+  // Fetch current game state from backend
+  async function fetchGameState() {
+    if (!sessionId) return;
 
-    // Check if it's still the player's turn after this move
-    const isPlayerTurn = nextTurn === gameState.player;
-
-    setGameState({
-      ...gameState,
-      matrix: nextMatrix,
-      turn: nextTurn,
-      status: `Player ${nextTurn}'s turn`,
-      isPlayerTurn,
-      validMoves,
-      gameActive: validMoves.length > 0,
-    });
-  }
-
-  // Simulation functions for SimulationArea (simulating backend state updates)
-  function simulateGameStateUpdate(updates) {
-    // In a real app, this would be a WebSocket message from backend
-    // For now, simulate by updating state with validation recalculation
-    const newState = { ...gameState, ...updates };
-
-    // Recalculate validation fields based on new state
-    if (updates.matrix || updates.turn || updates.player) {
-      const validMoves = Object.keys(newState.matrix).filter(
-        (cellKey) => newState.matrix[cellKey] === ""
+    try {
+      // Get current player
+      const currentPlayerRes = await fetch(
+        `/api/game/get-current-player/${sessionId}`
       );
-      newState.validMoves = validMoves;
-      newState.isPlayerTurn = newState.turn === newState.player;
-      newState.gameActive = validMoves.length > 0;
+      const isActiveRes = await fetch(`/api/game/is-active/${sessionId}`);
+
+      if (currentPlayerRes.ok && isActiveRes.ok) {
+        const currentPlayerData = await currentPlayerRes.json();
+        const isActiveData = await isActiveRes.json();
+
+        // For now, we'll need to construct the board state from what we have
+        // Since we don't have a direct board endpoint, we'll start with empty board
+        // and rely on moves to update it properly
+        const updatedGameState = {
+          ...gameState,
+          currentPlayer: currentPlayerData.current_player_id,
+          gameActive: isActiveData.is_active,
+          // TODO: We'll need to get the actual board state somehow
+          // For now keep the current matrix until we make moves
+        };
+
+        setGameState(updatedGameState);
+      }
+    } catch (err) {
+      console.error("Failed to fetch game state:", err);
     }
-
-    setGameState(newState);
   }
 
-  function simulateSetCell(row, col, value) {
-    const key = `${row},${col}`;
-    const updatedMatrix = { ...gameState.matrix, [key]: value };
-    simulateGameStateUpdate({ matrix: updatedMatrix });
+  // Send move to backend and update state
+  async function playMove(row, col) {
+    if (!sessionId) return;
+
+    try {
+      const res = await fetch(`/api/tic-tac-toe/play-turn/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerId: participantId, // TODO: map participant to player
+          xPos: col, // backend expects x/y coordinates
+          yPos: row,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to play move");
+
+      const moveResult = await res.json();
+
+      // Update local game state based on move result
+      const key = `${row},${col}`;
+      const currentTurn = gameState.turn || "X";
+      const nextTurn = currentTurn === "X" ? "O" : "X";
+
+      const updatedMatrix = { ...gameState.matrix, [key]: currentTurn };
+
+      // Calculate valid moves
+      const validMoves = Object.keys(updatedMatrix).filter(
+        (cellKey) => updatedMatrix[cellKey] === ""
+      );
+
+      let status = `Player ${nextTurn}'s turn`;
+      let gameActive = true;
+
+      if (moveResult.player_has_won) {
+        status = `Player ${currentTurn} wins!`;
+        gameActive = false;
+      } else if (validMoves.length === 0) {
+        status = "It's a draw!";
+        gameActive = false;
+      }
+
+      setGameState({
+        ...gameState,
+        matrix: updatedMatrix,
+        turn: nextTurn,
+        status,
+        gameActive,
+        validMoves,
+        isPlayerTurn: nextTurn === gameState.player,
+      });
+
+      return moveResult;
+    } catch (err) {
+      console.error("Failed to play move:", err);
+      toast({
+        title: "Move failed",
+        description: err.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-left",
+      });
+    }
   }
 
-  function simulateSetField(field, value) {
-    simulateGameStateUpdate({ [field]: value });
+  // Real backend cell click handler
+  function onCellClick(row, col) {
+    playMove(row, col);
   }
 
-  // Simulate joining as player 2 (for demo)
-  function simulateJoin() {
-    // In a real app, this would notify the backend and get a new state
-    // Here, just set player to 'O' and remove hostExists
-    setGameState({
-      ...gameState,
-      player: "O",
-      status: "Player O's turn",
-      hostExists: false,
-    });
-  }
+  // Fetch game state when session starts or participants change
+  useEffect(() => {
+    if (sessionId && participants.length > 0) {
+      fetchGameState();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, participants.length]);
+
+  // =====================
+  // END REAL BACKEND INTEGRATION
+  // =====================
 
   // Expose gameState and the action handlers
   const value = {
     isLoading: false,
     gameState,
     onCellClick,
-    simulateGameStateUpdate,
-    simulateSetCell,
-    simulateSetField,
-    simulateJoin,
+    fetchGameState,
+    playMove,
     sessionId,
     participants,
     fetchParticipants,
