@@ -14,7 +14,7 @@ import { useSimulationEngine } from "../SimulationEngine";
 
 const cellOptions = ["", "X", "O"];
 
-const SimulationArea = ({ showJoinOverlay }) => {
+const SimulationArea = ({ showJoinOverlay, showGameOverModal }) => {
   const { gameState, simulateSetCell, simulateSetField } =
     useSimulationEngine();
   const { matrix, turn, player, status, isPlayerTurn, gameActive, validMoves } =
@@ -168,6 +168,38 @@ const SimulationArea = ({ showJoinOverlay }) => {
         <Button mt={2} size="sm" colorScheme="blue" onClick={showJoinOverlay}>
           Show Join Overlay (Demo)
         </Button>
+
+        {/* Demo buttons for GameModal */}
+        {showGameOverModal && (
+          <VStack spacing={2} mt={4}>
+            <Text fontSize="xs" color="gray.600">
+              Game Modal Tests:
+            </Text>
+            <Button
+              size="sm"
+              colorScheme="green"
+              onClick={() => showGameOverModal(gameState.player)}
+            >
+              Test Win Modal
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="red"
+              onClick={() =>
+                showGameOverModal(gameState.player === "X" ? "O" : "X")
+              }
+            >
+              Test Lose Modal
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="orange"
+              onClick={() => showGameOverModal("draw")}
+            >
+              Test Draw Modal
+            </Button>
+          </VStack>
+        )}
       </VStack>
     </Box>
   );
