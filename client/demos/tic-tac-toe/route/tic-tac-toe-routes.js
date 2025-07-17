@@ -16,8 +16,6 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
 
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
-  
-  // TODO: Add logic for letting computer or human play the move.
 
   // Human move.
   let roundStatus = gameInstance.playTurn(xPos, yPos);

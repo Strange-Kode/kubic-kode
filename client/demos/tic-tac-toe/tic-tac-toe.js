@@ -65,8 +65,92 @@ class TicTacToeGame {
   }
   
   calculateComputerMove() {
-    // TODO: calculate a computer move, return { xPos: <xPos>, yPos: <yPos> }. (#30)
-    throw new Error("Not implemented");
+    const tileMap = this.engine.getTileMap();
+    const opponentMark = currentPlayer.getMarkType() === 'X' ? 'O' : 'X';
+
+    // Collect all empty tiles
+    const emptyTiles = [];
+    for (let y = 0; y < tileMap.height; y++) {
+      for (let x = 0; x < tileMap.width; x++) {
+        if (tileMap.getTile(x, y) === null) {
+          emptyTiles.push({ x, y });
+        }
+      }
+    }
+
+    // 20% random move
+    if (Math.random() < 0.2 || emptyTiles.length === 0) {
+      return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+    }
+
+    // 80% "best move"
+    // Look for a blocking move first
+    const bestMove = this.findBlockingMove(tileMap, opponentMark);
+    if (bestMove) {
+      return bestMove;
+    }
+
+    // Otherwise, fallback to random
+    return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+  }
+
+  findBlockingMove(tileMap, opponentMark) {
+    const lines = this.getAllLines(tileMap);
+
+    for (const line of lines) {
+      const opponentMarks = line.filter(tile => tile.tile && tile.tile.type === opponentMark);
+      const emptyTiles = line.filter(tile => tile.tile === null);
+
+      if (opponentMarks.length === 2 && emptyTiles.length === 1) {
+        return emptyTiles[0].position;
+      }
+    }
+
+    return null;
+  }
+
+  getAllLines(tileMap) {
+    const lines = [];
+
+    // Rows
+    for (let y = 0; y < tileMap.height; y++) {
+      const row = [];
+      for (let x = 0; x < tileMap.width; x++) {
+        row.push({ 
+          tile: tileMap.getTile(x, y), 
+          position: { x, y } 
+        });
+      }
+      lines.push(row);
+    }
+
+    // Columns
+    for (let x = 0; x < tileMap.width; x++) {
+      const column = [];
+      for (let y = 0; y < tileMap.height; y++) {
+        column.push({ 
+          tile: tileMap.getTile(x, y), 
+          position: { x, y } 
+        });
+      }
+      lines.push(column);
+    }
+
+    // Diagonal top-left to bottom-right
+    lines.push([
+      { tile: tileMap.getTile(0, 0), position: { x: 0, y: 0 } },
+      { tile: tileMap.getTile(1, 1), position: { x: 1, y: 1 } },
+      { tile: tileMap.getTile(2, 2), position: { x: 2, y: 2 } }
+    ]);
+
+    // Diagonal top-right to bottom-left
+    lines.push([
+      { tile: tileMap.getTile(2, 0), position: { x: 2, y: 0 } },
+      { tile: tileMap.getTile(1, 1), position: { x: 1, y: 1 } },
+      { tile: tileMap.getTile(0, 2), position: { x: 0, y: 2 } }
+    ]);
+
+    return lines;
   }
 
   checkWinCondition(lastMark) {

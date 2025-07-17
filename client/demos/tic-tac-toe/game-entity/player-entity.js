@@ -27,6 +27,10 @@ class PlayerEntity extends GameEntity {
     }
     return 'human';
   }
+  
+  getMarkType() {
+    return this.markType;
+  }
 
   toJSON() {
     return {
