@@ -69,16 +69,12 @@ gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   const { sessionId } = req.params;
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-
-  if (!currentPlayer) {
-    return res
-      .status(400)
-      .json({ error: "No current player - game may not be started" });
-  }
 
   res.json({
-    current_player_id: currentPlayer.id,
+    current_player_id: gameInstance
+      .getGameEngine()
+      .getCurrentPlayer()
+      .getPlayerId(),
   });
 });
 
