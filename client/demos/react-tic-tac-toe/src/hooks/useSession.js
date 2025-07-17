@@ -23,7 +23,7 @@ export function useSession() {
 
   // Initialize session with backend
   const initializeSession = useCallback(async () => {
-    console.log("[useSession] Initializing session...");
+    // console.log("[useSession] Initializing session...");
     setIsSessionLoading(true);
     setSessionError(null);
 
@@ -33,9 +33,9 @@ export function useSession() {
       if (result.success) {
         const newSessionId = result.data.session_id;
         setSessionId(newSessionId);
-        console.log(
-          `[useSession] Session initialized: session_id=${newSessionId}`
-        );
+        // console.log(
+        //   `[useSession] Session initialized: session_id=${newSessionId}`
+        // );
       } else {
         throw new Error(result.error || "Failed to initialize session");
       }
@@ -54,7 +54,7 @@ export function useSession() {
         throw new Error("Session not initialized");
       }
 
-      console.log(`[useSession] Joining session with name: ${name}`);
+      // console.log(`[useSession] Joining session with name: ${name}`);
 
       try {
         const result = await post(`/api/session/${sessionId}/join`, {
@@ -64,9 +64,9 @@ export function useSession() {
         if (result.success) {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
-          console.log(
-            `[useSession] Joined session: participant_id=${newParticipantId}`
-          );
+          // console.log(
+          //   `[useSession] Joined session: participant_id=${newParticipantId}`
+          // );
 
           // Fetch updated participants list
           await fetchParticipants();
@@ -95,10 +95,10 @@ export function useSession() {
       if (result.success) {
         const participantsList = result.data;
         setParticipants(participantsList);
-        console.log(
-          `[useSession] Participants updated: total=${participantsList.length}`,
-          participantsList
-        );
+        // console.log(
+        //   `[useSession] Participants updated: total=${participantsList.length}`,
+        //   participantsList
+        // );
       } else {
         console.error(
           "[useSession] Failed to fetch participants:",
@@ -135,6 +135,13 @@ export function useSession() {
       return { available: false, reason: error.message };
     }
   }, [sessionId, get]);
+
+  // Always fetch participants when sessionId changes (even before joining)
+  useEffect(() => {
+    if (sessionId) {
+      fetchParticipants();
+    }
+  }, [sessionId, fetchParticipants]);
 
   // Auto-fetch participants when sessionId or participantId changes
   useEffect(() => {

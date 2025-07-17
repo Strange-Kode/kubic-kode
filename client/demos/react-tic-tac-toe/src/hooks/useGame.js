@@ -28,7 +28,7 @@ export function useGame(sessionId) {
       const result = await get(`/api/game/get-tilemap/${sessionId}`);
 
       if (result.success) {
-        console.log("[useGame] Fetched game state:", result.data);
+        // console.log("[useGame] Fetched game state:", result.data);
         setTileMap(result.data);
       } else {
         console.error("[useGame] Failed to fetch game state:", result.error);
@@ -42,7 +42,7 @@ export function useGame(sessionId) {
 
   // Fetch current player
   const fetchCurrentPlayer = useCallback(async () => {
-    if (!sessionId) {
+    if (!sessionId || !gameStarted) {
       return;
     }
 
@@ -50,7 +50,7 @@ export function useGame(sessionId) {
       const result = await get(`/api/game/get-current-player/${sessionId}`);
 
       if (result.success) {
-        console.log("[useGame] Current player:", result.data.current_player_id);
+        // console.log("[useGame] Current player:", result.data.current_player_id);
         setCurrentPlayerId(result.data.current_player_id);
       } else {
         console.error(
@@ -61,7 +61,7 @@ export function useGame(sessionId) {
     } catch (error) {
       console.error("[useGame] Error fetching current player:", error);
     }
-  }, [sessionId, get]);
+  }, [sessionId, get, gameStarted]);
 
   // Start the game (called when session has 2 participants)
   const startGame = useCallback(async () => {
@@ -69,7 +69,7 @@ export function useGame(sessionId) {
       throw new Error("Session ID required to start game");
     }
 
-    console.log("[useGame] Starting game for session:", sessionId);
+    // console.log("[useGame] Starting game for session:", sessionId);
     setIsGameLoading(true);
     setGameError(null);
 
@@ -77,7 +77,7 @@ export function useGame(sessionId) {
       const result = await get(`/api/game/start/${sessionId}`);
 
       if (result.success) {
-        console.log("[useGame] Game started successfully:", result.data);
+        // console.log("[useGame] Game started successfully:", result.data);
         setGameStarted(true);
         setGameActive(true);
         setCurrentPlayerId(result.data.current_player_id);
@@ -110,7 +110,7 @@ export function useGame(sessionId) {
       const result = await get(`/api/game/is-active/${sessionId}`);
 
       if (result.success) {
-        console.log("[useGame] Game active status:", result.data.is_active);
+        // console.log("[useGame] Game active status:", result.data.is_active);
         setGameActive(result.data.is_active);
         if (result.data.is_active) {
           setGameStarted(true);
@@ -130,9 +130,9 @@ export function useGame(sessionId) {
         throw new Error("Session ID required to make move");
       }
 
-      console.log(
-        `[useGame] Making move at (${x}, ${y}) for player ${playerId}`
-      );
+      // console.log(
+      //   `[useGame] Making move at (${x}, ${y}) for player ${playerId}`
+      // );
 
       try {
         const result = await post(
@@ -145,7 +145,7 @@ export function useGame(sessionId) {
         );
 
         if (result.success) {
-          console.log("[useGame] Move result:", result.data);
+          // console.log("[useGame] Move result:", result.data);
           setLastMoveResult(result.data);
 
           // If move was successful, fetch updated game state
@@ -157,7 +157,7 @@ export function useGame(sessionId) {
               await fetchCurrentPlayer();
             } else {
               // Game ended, player won
-              console.log("[useGame] Game ended - player won!");
+              // console.log("[useGame] Game ended - player won!");
               setGameActive(false);
             }
           }
@@ -181,7 +181,7 @@ export function useGame(sessionId) {
       return;
     }
 
-    console.log("[useGame] Refreshing all game data");
+    // console.log("[useGame] Refreshing all game data");
     await Promise.all([
       checkGameStatus(),
       fetchGameState(),
