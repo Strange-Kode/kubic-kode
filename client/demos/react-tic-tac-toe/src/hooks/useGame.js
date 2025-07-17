@@ -164,11 +164,14 @@ export function useGame(sessionId) {
       );
 
       try {
-        const result = await post(`/api/tic-tac-toe/play-turn/${sessionId}`, {
-          playerId: playerId,
-          xPos: x,
-          yPos: y,
-        });
+        const result = await post(
+          `/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`,
+          {
+            playerId: playerId,
+            xPos: x,
+            yPos: y,
+          }
+        );
 
         if (result.success) {
           console.log("[useGame] Move result:", result.data);
