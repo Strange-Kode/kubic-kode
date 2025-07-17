@@ -12,7 +12,7 @@ export function useFetch() {
   const fetchData = useCallback(async (url, options = {}) => {
     const method = options.method || "GET";
 
-    console.log(`[useFetch] ${method} ${url} - Starting request`);
+    // console.log(`[useFetch] ${method} ${url} - Starting request`);
 
     setIsLoading(true);
     setError(null);
@@ -40,7 +40,7 @@ export function useFetch() {
 
       // Parse JSON response
       const data = await response.json();
-      console.log(`[useFetch] ${method} ${url} → ${response.status}`);
+      // console.log(`[useFetch] ${method} ${url} → ${response.status}`);
 
       setIsLoading(false);
       return { data, success: true };

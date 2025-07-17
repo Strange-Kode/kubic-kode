@@ -67,7 +67,7 @@ function AppContent() {
   }
 
   const handleJoinWithName = async (name) => {
-    console.log("[App] Attempting to join with name:", name);
+    // console.log("[App] Attempting to join with name:", name);
     // Use the orchestration hook's handler
     await handleNameSubmit(name);
   };
@@ -81,10 +81,10 @@ function AppContent() {
   };
 
   const handleStartGame = async () => {
-    console.log("[App] Starting game...");
+    // console.log("[App] Starting game...");
     const result = await startGame();
     if (result.success) {
-      console.log("[App] Game started successfully!");
+      // console.log("[App] Game started successfully!");
     } else {
       console.error("[App] Failed to start game:", result.error);
       alert(`Failed to start game: ${result.error}`);
@@ -102,12 +102,12 @@ function AppContent() {
       return;
     }
 
-    console.log(`[App] Making move at (${x}, ${y})`);
+    // console.log(`[App] Making move at (${x}, ${y})`);
     const success = await handleMove(x, y);
 
     if (!success) {
       // Error already handled by useTicTacToe hook
-      console.log("[App] Move was not successful");
+      // console.log("[App] Move was not successful");
     }
   };
 
@@ -118,14 +118,14 @@ function AppContent() {
       return <Text color="gray.500">No game board available</Text>;
     }
 
-    console.log("[App-test] Rendering board - tileMap:", tileMap);
+    // console.log("[App-test] Rendering board - tileMap:", tileMap);
 
     return (
       <Grid templateColumns={`repeat(${width}, 1fr)`} gap={1} maxW="300px">
         {Array.from({ length: height }, (_, y) =>
           Array.from({ length: width }, (_, x) => {
             const tile = getTile(x, y);
-            console.log(`[App-test] Tile at (${x},${y}):`, tile);
+            // console.log(`[App-test] Tile at (${x},${y}):`, tile);
             const cellValue = tile?.type || ""; // Use tile.type instead of tile.mark
 
             return (
@@ -268,7 +268,9 @@ function AppContent() {
                   <Text>👤 1 player joined, waiting for 2nd player...</Text>
                 )}
                 {participants.length === 2 && (
-                  <Text>🎉 2 players joined! Ready to start game.</Text>
+                  <Text>
+                    🎉 2 players joined! Game has now started automatically.
+                  </Text>
                 )}
                 {participants.length > 2 && (
                   <Text>⚠️ Too many participants ({participants.length})</Text>
