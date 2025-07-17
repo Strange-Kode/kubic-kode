@@ -139,14 +139,16 @@ export function useTicTacToe() {
   }, [session, game]);
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
-  useGameWebSocket(
-    session.sessionId && game.gameStarted ? session.sessionId : null,
-    (data) => {
-      if (data.type === "turnPlayed") {
-        refreshData();
-      }
+  // Listen for session events (join/leave) and game events
+  useGameWebSocket(session.sessionId ? session.sessionId : null, (data) => {
+    if (
+      data.type === "turnPlayed" ||
+      data.type === "sessionParticipantJoined" ||
+      data.type === "sessionParticipantLeft"
+    ) {
+      refreshData();
     }
-  );
+  });
 
   // Determine current game phase
   const getGamePhase = useCallback(() => {
