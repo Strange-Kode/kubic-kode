@@ -17,25 +17,28 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
 
-  // Human move.
+  // Human move. After play is turned the engine updates to next player
   let roundStatus = gameInstance.playTurn(xPos, yPos);
   
   // Respond to human immediately before considering if next player(s) are computer(s)
   res.json(round_status);
   
   // Handle AI move (if needed), asynchronously
-  // TODO: need to make a loop here in case there are multiple sequential computer players (#30)
-  // When all sequential computer players have played: broadcast to session!
-  if (gameInstance.getCurrentPlayer().getPlayerType() === 'computer') {
-      setTimeout(() => {
-          const computerMove = gameInstance.calculateComputerMove();
-          let compRoundStatus = gameInstance.playTurn(computerMove.x, computerMove.y);
+  // TODO: need to make a loop here in case there are multiple (2+) sequential computer players.
+  // When all sequential computer players have played and next player is human: broadcast turnPlayed to session!
+  // Also consider that if one of the computer players has won (compRoundStatus.player_has_won) the next
+  // possible computer player does not have to play, it should instead break.
+  if (gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
+    const delay = 1000 + Math.floor(Math.random() * 1001);  // 1000 to 2000 ms
+    setTimeout(() => {
+      const computerMove = gameInstance.calculateComputerMove();
+      let compRoundStatus = gameInstance.playTurn(computerMove.x, computerMove.y);
 
-          GameEventService.broadcastToSession(gameSession, {
-            type: "turnPlayed",
-            payload: { compRoundStatus },
-          });
-      }, 1000);  // e.g. 1-second thinking delay
+      GameEventService.broadcastToSession(gameSession, {
+        type: "turnPlayed",
+        payload: { compRoundStatus },
+      });
+    }, delay);
   }
   
   GameEventService.broadcastToSession(gameSession, {
