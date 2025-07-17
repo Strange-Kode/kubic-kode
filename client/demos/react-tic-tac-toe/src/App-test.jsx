@@ -15,52 +15,54 @@ import {
 } from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
 import NameSelectionModal from "./components/NameSelectionModal";
-import { useSession } from "./hooks/useSession";
-import { useGame } from "./hooks/useGame";
+import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
+  // Use the orchestration hook instead of individual hooks
   const {
-    sessionId,
-    participantId,
+    gamePhase,
+    isLoading,
+    error,
+    showNameModal,
+    playerName,
     participants,
-    isSessionLoading,
-    sessionError,
-    isHost,
-    joinSession,
-    fetchParticipants,
-  } = useSession();
-
-  const {
+    currentPlayer,
+    opponent,
+    isMyTurn,
     gameStarted,
     gameActive,
     tileMap,
-    currentPlayerId,
-    isGameLoading,
-    gameError,
     lastMoveResult,
-    startGame,
-    stopGame,
-    makeMove,
-    refreshGameData,
+    sessionId,
+    participantId,
+    isHost,
+    handleNameSubmit,
+    handleMove,
+    refreshData,
     getTile,
     getGridDimensions,
-  } = useGame(sessionId);
+    // Pass-through for advanced use
+    joinSession,
+    startGame,
+    checkSessionAvailability,
+  } = useTicTacToe();
 
-  const [showNameModal, setShowNameModal] = useState(false);
   const [testName, setTestName] = useState("");
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [suppressAutoModal, setSuppressAutoModal] = useState(false);
 
   // Show loading while session initializes
-  if (isSessionLoading) {
+  if (gamePhase === "loading" || isLoading) {
     return <LoadingScreen message="Initializing session..." />;
   }
 
   // Show error if session failed to initialize
-  if (sessionError) {
+  if (gamePhase === "error" || error) {
     return (
       <Container maxW="md" centerContent>
         <VStack spacing={4} py={8}>
           <Heading color="red.500">Session Error</Heading>
-          <Text>{sessionError}</Text>
+          <Text>{error}</Text>
         </VStack>
       </Container>
     );
@@ -68,15 +70,8 @@ function AppContent() {
 
   const handleJoinWithName = async (name) => {
     console.log("[App] Attempting to join with name:", name);
-    const result = await joinSession(name);
-
-    if (result.success) {
-      setShowNameModal(false);
-      console.log("[App] Successfully joined session");
-    } else {
-      console.error("[App] Failed to join session:", result.error);
-      alert(`Failed to join: ${result.error}`);
-    }
+    // Use the orchestration hook's handler
+    await handleNameSubmit(name);
   };
 
   const handleQuickJoin = async () => {
@@ -98,16 +93,7 @@ function AppContent() {
     }
   };
 
-  const handleStopGame = async () => {
-    console.log("[App] Stopping game...");
-    const result = await stopGame();
-    if (result.success) {
-      console.log("[App] Game stopped successfully!");
-    } else {
-      console.error("[App] Failed to stop game:", result.error);
-      alert(`Failed to stop game: ${result.error}`);
-    }
-  };
+  // Note: stopGame not available in useTicTacToe (games auto-manage lifecycle)
 
   const handleTileClick = async (x, y) => {
     if (!participantId) {
@@ -115,23 +101,17 @@ function AppContent() {
       return;
     }
 
-    if (currentPlayerId !== participantId) {
+    if (!isMyTurn) {
       alert("It's not your turn!");
       return;
     }
 
     console.log(`[App] Making move at (${x}, ${y})`);
-    const result = await makeMove(x, y, participantId);
+    const success = await handleMove(x, y);
 
-    if (result.success) {
-      if (result.data.status === "invalid") {
-        alert(`Invalid move: ${result.data.type || "Unknown reason"}`);
-      } else if (result.data.player_has_won) {
-        alert("🎉 You won!");
-      }
-    } else {
-      console.error("[App] Move failed:", result.error);
-      alert(`Move failed: ${result.error}`);
+    if (!success) {
+      // Error already handled by useTicTacToe hook
+      console.log("[App] Move was not successful");
     }
   };
 
@@ -142,11 +122,16 @@ function AppContent() {
       return <Text color="gray.500">No game board available</Text>;
     }
 
+    console.log("[App-test] Rendering board - tileMap:", tileMap);
+
     return (
       <Grid templateColumns={`repeat(${width}, 1fr)`} gap={1} maxW="300px">
         {Array.from({ length: height }, (_, y) =>
           Array.from({ length: width }, (_, x) => {
             const tile = getTile(x, y);
+            console.log(`[App-test] Tile at (${x},${y}):`, tile);
+            const cellValue = tile?.type || ""; // Use tile.type instead of tile.mark
+
             return (
               <GridItem key={`${x}-${y}`}>
                 <Button
@@ -154,11 +139,25 @@ function AppContent() {
                   h="60px"
                   w="60px"
                   onClick={() => handleTileClick(x, y)}
-                  isDisabled={!gameActive || currentPlayerId !== participantId}
-                  colorScheme={tile ? "gray" : "blue"}
-                  variant={tile ? "solid" : "outline"}
+                  isDisabled={!gameActive || !isMyTurn || cellValue !== ""}
+                  colorScheme={
+                    cellValue === "X"
+                      ? "purple"
+                      : cellValue === "O"
+                      ? "blue"
+                      : "gray"
+                  }
+                  variant={cellValue ? "solid" : "outline"}
+                  bg={
+                    cellValue === "X"
+                      ? "purple.400"
+                      : cellValue === "O"
+                      ? "blue.400"
+                      : "white"
+                  }
+                  color={cellValue ? "white" : "gray.500"}
                 >
-                  {tile ? tile.type : ""}
+                  {cellValue}
                 </Button>
               </GridItem>
             );
@@ -172,7 +171,35 @@ function AppContent() {
     <Box minH="100vh" bg="gray.50">
       <Container maxW="6xl" py={8}>
         <VStack spacing={6}>
-          <Heading>🎮 useSession + useGame Hook Test</Heading>
+          <Heading>🎮 useTicTacToe Hook Test</Heading>
+
+          {/* Game Phase Info */}
+          <Box p={4} bg="yellow.50" borderRadius="md" shadow="sm" w="100%">
+            <Text>
+              <strong>Game Phase:</strong> {gamePhase}
+            </Text>
+            <Text>
+              <strong>Your Name:</strong> {playerName || "Not set"}
+            </Text>
+            <Text>
+              <strong>Show Name Modal:</strong> {showNameModal ? "Yes" : "No"}
+            </Text>
+            <Text>
+              <strong>Participant ID:</strong> {participantId || "Not joined"}
+            </Text>
+            <Text color="blue.600">
+              <strong>Why Modal Shows:</strong>{" "}
+              {gamePhase === "name-selection"
+                ? "Need to collect name"
+                : showNameModal
+                ? "Hook triggered modal"
+                : "Modal should be hidden"}
+            </Text>
+            <Text color="purple.600">
+              <strong>Auto Modal Suppressed:</strong>{" "}
+              {suppressAutoModal ? "Yes" : "No"}
+            </Text>
+          </Box>
 
           <HStack align="start" spacing={8} w="100%">
             {/* Left Column - Session Management */}
@@ -242,9 +269,9 @@ function AppContent() {
                     </Text>
                     <Button
                       variant="outline"
-                      onClick={() => setShowNameModal(true)}
+                      onClick={() => setManualModalOpen(true)}
                     >
-                      Open Name Modal (Original)
+                      Open Name Modal (Manual)
                     </Button>
                   </VStack>
                 </Box>
@@ -296,16 +323,18 @@ function AppContent() {
                     </Badge>
                   </HStack>
                   <Text>
-                    <strong>Current Player ID:</strong>{" "}
-                    {currentPlayerId || "None"}
+                    <strong>Current Player:</strong>{" "}
+                    {currentPlayer?.name || "None"}
                   </Text>
                   <Text>
-                    <strong>Your Turn:</strong>{" "}
-                    {currentPlayerId === participantId ? "Yes" : "No"}
+                    <strong>Your Turn:</strong> {isMyTurn ? "Yes" : "No"}
                   </Text>
-                  {gameError && (
+                  <Text>
+                    <strong>Opponent:</strong> {opponent?.name || "None"}
+                  </Text>
+                  {error && (
                     <Text color="red.500">
-                      <strong>Game Error:</strong> {gameError}
+                      <strong>Game Error:</strong> {error}
                     </Text>
                   )}
                 </VStack>
@@ -320,24 +349,24 @@ function AppContent() {
                       colorScheme="green"
                       onClick={handleStartGame}
                       isDisabled={
-                        participants.length < 2 || gameStarted || isGameLoading
+                        participants.length < 2 || gameStarted || isLoading
                       }
-                      isLoading={isGameLoading}
+                      isLoading={isLoading}
                     >
                       Start Game
                     </Button>
                     <Button
                       colorScheme="red"
-                      onClick={handleStopGame}
+                      onClick={() =>
+                        alert(
+                          "Stop game not available - games auto-manage lifecycle"
+                        )
+                      }
                       isDisabled={!gameStarted}
                     >
-                      Stop Game
+                      Stop Game (N/A)
                     </Button>
-                    <Button
-                      colorScheme="blue"
-                      size="sm"
-                      onClick={refreshGameData}
-                    >
+                    <Button colorScheme="blue" size="sm" onClick={refreshData}>
                       Refresh
                     </Button>
                   </HStack>
@@ -352,9 +381,8 @@ function AppContent() {
                   {lastMoveResult && (
                     <Box p={2} bg="gray.100" borderRadius="md" w="100%">
                       <Text fontSize="sm">
-                        <strong>Last Move:</strong> {lastMoveResult.status}
-                        {lastMoveResult.player_has_won && " - 🎉 Player Won!"}
-                        {lastMoveResult.type && ` (${lastMoveResult.type})`}
+                        <strong>Last Move Result:</strong> Available in
+                        useTicTacToe hook
                       </Text>
                     </Box>
                   )}
@@ -370,23 +398,53 @@ function AppContent() {
             <VStack spacing={2}>
               <Heading size="sm">Debug Actions</Heading>
               <HStack spacing={2}>
-                <Button size="sm" onClick={fetchParticipants}>
-                  Refresh Participants
+                <Button size="sm" onClick={refreshData}>
+                  Refresh All Data
                 </Button>
-                <Button size="sm" onClick={refreshGameData}>
-                  Refresh Game Data
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    console.log("useTicTacToe state:", {
+                      gamePhase,
+                      participants,
+                      currentPlayer,
+                      isMyTurn,
+                    })
+                  }
+                >
+                  Log Hook State
+                </Button>
+                <Button
+                  size="sm"
+                  colorScheme={suppressAutoModal ? "red" : "green"}
+                  onClick={() => setSuppressAutoModal(!suppressAutoModal)}
+                >
+                  {suppressAutoModal ? "Enable" : "Suppress"} Auto Modal
                 </Button>
               </HStack>
             </VStack>
           </Box>
         </VStack>
 
-        {/* Name Selection Modal */}
+        {/* Name Selection Modal - Manual Control */}
         <NameSelectionModal
-          isOpen={showNameModal}
-          onClose={() => setShowNameModal(false)}
-          onSubmit={handleJoinWithName}
+          isOpen={manualModalOpen}
+          onClose={() => setManualModalOpen(false)}
+          onSubmit={(name) => {
+            handleNameSubmit(name);
+            setManualModalOpen(false);
+          }}
         />
+
+        {/* Auto Name Selection Modal - DISABLED for test app 
+            We want to use the direct input form instead of modal */}
+        {false && (
+          <NameSelectionModal
+            isOpen={showNameModal && !suppressAutoModal}
+            onClose={() => {}} // Handled by useTicTacToe hook automatically
+            onSubmit={handleNameSubmit}
+          />
+        )}
       </Container>
     </Box>
   );
