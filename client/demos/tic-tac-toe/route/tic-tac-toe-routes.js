@@ -22,6 +22,7 @@ ticTacToeRouter.post('/tic-tac-toe/play-turn/:sessionId', (req, res) => {
         type: 'turnPlayed',
         payload: { roundStatus }
     });
+    gameSession.getInactivityManager().resetTimer();
     res.json(round_status);
 });
 

@@ -1,3 +1,5 @@
+import { InactivityManager } from '../game-utility/inactivity-manager.js';
+
 export class GameSession {
     constructor(sessionId, gameInstance, maxParticipants = 2) {
         this.sessionId = sessionId;
@@ -6,6 +8,7 @@ export class GameSession {
         this.participants = [];   // { id, name }
         this.started = false;
         this.participant_alloc_idx = 0;
+        this.inactivityManager = null;
     }
     
     allocateParticipantId() {
@@ -56,10 +59,16 @@ export class GameSession {
             throw new Error("Cannot start game. Not enough participants.");
         }
         this.started = true;
+        const inactivityManager = new InactivityManager(this.sessionId, this.gameInstance);
+        this.inactivityManager = inactivityManager;
+        inactivityManager.startTimer();
     }
     
     markEnded() {
         this.started = false;
+        if (this.inactivityManager) {
+            this.inactivityManager.clearTimer();
+        }
     }
     
     getGameInstance() {
@@ -68,5 +77,9 @@ export class GameSession {
 
     getParticipantById(id) {
         return this.participants.find((p) => p.id === id) || null;
+    }
+    
+    getInactivityManager() {
+        return this.inactivityManager;
     }
 }
