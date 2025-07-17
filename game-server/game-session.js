@@ -74,4 +74,8 @@ export class GameSession {
   getParticipantById(id) {
     return this.participants.find((p) => p.id === id) || null;
   }
+  
+  getSessionId() {
+    return this.sessionId;
+  }
 }

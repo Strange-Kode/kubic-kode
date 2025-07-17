@@ -6,7 +6,8 @@ export class GameEngine {
     this.registeredComponents = new Map(); // componentFunc -> componentName
     this.componentNames = new Set(); // set of all names in use
     this.tileMap = new TileMap(tilemapWidth, tilemapHeight);
-    this.currentTurnIndex = 0;
+    this.currentTurnIndex = 0; // keeps track of current player
+    this.currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
     this.gameStarted = false;
   }
 
@@ -40,6 +41,8 @@ export class GameEngine {
       throw new Error(`Game is already stopped.`);
     }
     this.gameStarted = false;
+    this.currentTurnIndex = 0;
+    this.currentTurnNumber = 1;
   }
 
   getCurrentPlayer() {
@@ -49,6 +52,11 @@ export class GameEngine {
   nextTurn() {
     this.currentTurnIndex =
       (this.currentTurnIndex + 1) % this.player_entities.length;
+    this.currentTurnNumber++;
+  }
+  
+  getTurnNumber() {
+    return this.currentTurnNumber;
   }
 
   update() {
