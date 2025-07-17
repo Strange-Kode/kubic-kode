@@ -67,7 +67,7 @@ gameRouter.get('/game/get-current-player/:sessionId', (req, res) => {
     const gameInstance = gameSession.getGameInstance();
     
     res.json({
-        current_player_id: gameInstance.getGameEngine().getCurrentPlayer().id
+        current_player_id: gameInstance.getGameEngine().getCurrentPlayer().getPlayerId()
     });
 });
 

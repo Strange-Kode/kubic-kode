@@ -39,7 +39,8 @@ class TicTacToeGame {
             return {
                 status: 'invalid',
                 type: 'occupied_tile',
-                player_has_won: false
+                player_has_won: false,
+                player_id: currentPlayer.getPlayerId()
             };
         }
 
@@ -47,17 +48,19 @@ class TicTacToeGame {
         this.engine.getTileMap().setTile(x, y, mark);
 
         if (this.checkWinCondition(mark)) {
-            console.log(`${currentPlayer.name} wins!`);
+            console.log(`${currentPlayer.getPlayerName()} wins!`);
             // this.engine.stopGame();
             return {
                 status: 'ok',
-                player_has_won: true
+                player_has_won: true,
+                player_id: currentPlayer.getPlayerId()
             };
         }
         this.engine.nextTurn();
         return {
             status: 'ok',
-            player_has_won: false
+            player_has_won: false,
+            player_id: currentPlayer.getPlayerId()
         };
     }
 
