@@ -1,150 +1,247 @@
-import { useState } from "react";
-import { Box, Container, VStack, Heading, Text, Button, Input } from "@chakra-ui/react";
+import {
+  Box,
+  Container,
+  VStack,
+  Heading,
+  Text,
+  Button,
+} from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
 import NameSelectionModal from "./components/NameSelectionModal";
-import { useSession } from "./hooks/useSession";
+import GameCanvas from "./components/GameCanvas";
+import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
   const {
+    gamePhase,
+    isLoading,
+    error,
+    showNameModal,
+    playerName,
+    participants,
+    currentPlayer,
+    opponent,
+    isMyTurn,
+    gameStarted,
+    gameActive,
     sessionId,
     participantId,
-    participants,
-    isSessionLoading,
-    sessionError,
     isHost,
-    joinSession,
-    fetchParticipants,
-  } = useSession();
+    handleNameSubmit,
+    refreshData,
+  } = useTicTacToe();
 
-  const [showNameModal, setShowNameModal] = useState(false);
-  const [testName, setTestName] = useState("");
-
-  // Show loading while session initializes
-  if (isSessionLoading) {
-    return <LoadingScreen message="Initializing session..." />;
+  // Show loading screen for various loading states
+  if (gamePhase === "loading") {
+    return <LoadingScreen message="Setting up your game..." />;
   }
 
-  // Show error if session failed to initialize
-  if (sessionError) {
+  // Show error state
+  if (gamePhase === "error") {
     return (
       <Container maxW="md" centerContent>
         <VStack spacing={4} py={8}>
-          <Heading color="red.500">Session Error</Heading>
-          <Text>{sessionError}</Text>
+          <Heading color="red.500">Game Error</Heading>
+          <Text>{error}</Text>
+          <Button onClick={refreshData} colorScheme="blue">
+            Try Again
+          </Button>
         </VStack>
       </Container>
     );
   }
 
-  const handleJoinWithName = async (name) => {
-    console.log("[App] Attempting to join with name:", name);
-    const result = await joinSession(name);
-    
-    if (result.success) {
-      setShowNameModal(false);
-      console.log("[App] Successfully joined session");
-    } else {
-      console.error("[App] Failed to join session:", result.error);
-      alert(`Failed to join: ${result.error}`);
-    }
-  };
+  // Render different UI based on game phase
+  const renderGamePhase = () => {
+    switch (gamePhase) {
+      case "name-selection":
+        return (
+          <Container maxW="md" centerContent>
+            <VStack spacing={4} py={8}>
+              <Heading>🎮 Tic-Tac-Toe</Heading>
+              <Text>Welcome! Please enter your name to join the game.</Text>
+            </VStack>
+          </Container>
+        );
 
-  const handleQuickJoin = async () => {
-    if (!testName.trim()) {
-      alert("Please enter a name");
-      return;
+      case "waiting-for-players":
+        return (
+          <Container maxW="4xl" py={8}>
+            <VStack spacing={6}>
+              <Heading>🎮 Tic-Tac-Toe Game</Heading>
+
+              {/* Game Info */}
+              <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
+                <VStack align="start" spacing={2}>
+                  <Text>
+                    <strong>Session ID:</strong> {sessionId}
+                  </Text>
+                  <Text>
+                    <strong>Your Name:</strong> {playerName}
+                  </Text>
+                  <Text>
+                    <strong>Players:</strong> {participants.length}/2
+                  </Text>
+                  {isHost && (
+                    <Text color="blue.500">
+                      <strong>You are the host</strong>
+                    </Text>
+                  )}
+                </VStack>
+              </Box>
+
+              {/* Participants List */}
+              <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
+                <Heading size="md" mb={3}>
+                  Players in Game
+                </Heading>
+                {participants.length === 0 ? (
+                  <Text color="gray.500">No players yet</Text>
+                ) : (
+                  <VStack align="start" spacing={1}>
+                    {participants.map((participant, index) => (
+                      <Text key={participant.id}>
+                        {index + 1}. {participant.name}
+                        {participant.id === participantId && " (You)"}
+                        {index === 0 && " 🏠"}
+                      </Text>
+                    ))}
+                  </VStack>
+                )}
+              </Box>
+
+              {/* Waiting Status */}
+              <Box p={4} bg="blue.50" borderRadius="md" w="100%">
+                <VStack spacing={2}>
+                  <Heading size="md">⏳ Waiting for Players</Heading>
+                  <Text>
+                    Share this session with a friend to start playing!
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Game will start automatically when 2 players join
+                  </Text>
+                </VStack>
+              </Box>
+
+              {/* Debug Actions */}
+              <Box p={4} bg="gray.50" borderRadius="md" w="100%">
+                <VStack spacing={2}>
+                  <Heading size="sm">Actions</Heading>
+                  <Button size="sm" onClick={refreshData}>
+                    Refresh Game Data
+                  </Button>
+                </VStack>
+              </Box>
+            </VStack>
+          </Container>
+        );
+
+      case "starting-game":
+        return (
+          <Container maxW="md" centerContent>
+            <VStack spacing={4} py={8}>
+              <Heading>🚀 Starting Game</Heading>
+              <Text>All players joined! Starting the game...</Text>
+              <LoadingScreen message="Initializing game board..." />
+            </VStack>
+          </Container>
+        );
+
+      case "playing":
+        return (
+          <Container maxW="4xl" py={8}>
+            <VStack spacing={6}>
+              <Heading>🎮 Tic-Tac-Toe Game</Heading>
+
+              {/* Game Status */}
+              <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
+                <VStack spacing={2}>
+                  <Text>
+                    <strong>Game Status:</strong>{" "}
+                    {gameActive ? "🟢 Active" : "⏸️ Paused"}
+                  </Text>
+                  <Text>
+                    <strong>Current Turn:</strong>{" "}
+                    {currentPlayer?.name || "Loading..."}
+                  </Text>
+                  <Text color={isMyTurn ? "green.500" : "gray.500"}>
+                    <strong>
+                      {isMyTurn
+                        ? "🎯 Your Turn!"
+                        : "⏳ Waiting for opponent..."}
+                    </strong>
+                  </Text>
+                </VStack>
+              </Box>
+
+              {/* Players Info */}
+              <Box p={4} bg="blue.50" borderRadius="md" w="100%">
+                <VStack align="start" spacing={1}>
+                  <Text>
+                    <strong>You:</strong> {playerName}
+                  </Text>
+                  <Text>
+                    <strong>Opponent:</strong> {opponent?.name || "Loading..."}
+                  </Text>
+                </VStack>
+              </Box>
+
+              {/* Game Board */}
+              <Box>
+                <GameCanvas />
+              </Box>
+
+              {/* Game Actions */}
+              <Box p={4} bg="gray.50" borderRadius="md" w="100%">
+                <VStack spacing={2}>
+                  <Heading size="sm">Game Actions</Heading>
+                  <Button size="sm" onClick={refreshData}>
+                    Refresh Game State
+                  </Button>
+                </VStack>
+              </Box>
+            </VStack>
+          </Container>
+        );
+
+      case "game-ended":
+        return (
+          <Container maxW="md" centerContent>
+            <VStack spacing={4} py={8}>
+              <Heading>🏁 Game Over</Heading>
+              <Text>The game has ended.</Text>
+              <Button onClick={refreshData} colorScheme="green">
+                Check Final Results
+              </Button>
+            </VStack>
+          </Container>
+        );
+
+      default:
+        return (
+          <Container maxW="md" centerContent>
+            <VStack spacing={4} py={8}>
+              <Heading color="orange.500">Unknown Game State</Heading>
+              <Text>Game phase: {gamePhase}</Text>
+              <Button onClick={refreshData} colorScheme="blue">
+                Refresh
+              </Button>
+            </VStack>
+          </Container>
+        );
     }
-    await handleJoinWithName(testName);
   };
 
   return (
     <Box minH="100vh" bg="gray.50">
-      <Container maxW="4xl" py={8}>
-        <VStack spacing={6}>
-          <Heading>🎮 useSession Hook Test</Heading>
-          
-          {/* Session Info */}
-          <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
-            <VStack align="start" spacing={2}>
-              <Text><strong>Session ID:</strong> {sessionId || "Not initialized"}</Text>
-              <Text><strong>Participant ID:</strong> {participantId || "Not joined"}</Text>
-              <Text><strong>Is Host:</strong> {isHost ? "Yes" : "No"}</Text>
-              <Text><strong>Total Participants:</strong> {participants.length}/2</Text>
-            </VStack>
-          </Box>
+      {renderGamePhase()}
 
-          {/* Participants List */}
-          <Box p={4} bg="white" borderRadius="md" shadow="sm" w="100%">
-            <Heading size="md" mb={3}>Participants</Heading>
-            {participants.length === 0 ? (
-              <Text color="gray.500">No participants yet</Text>
-            ) : (
-              <VStack align="start" spacing={1}>
-                {participants.map((participant, index) => (
-                  <Text key={participant.id}>
-                    {index + 1}. {participant.name} (ID: {participant.id})
-                    {participant.id === participantId && " ← You"}
-                    {index === 0 && " (Host)"}
-                  </Text>
-                ))}
-              </VStack>
-            )}
-          </Box>
-
-          {/* Join Controls */}
-          {!participantId && (
-            <Box p={4} bg="blue.50" borderRadius="md" w="100%">
-              <VStack spacing={3}>
-                <Heading size="md">Join Session</Heading>
-                <VStack spacing={2} w="100%">
-                  <Input
-                    placeholder="Enter your name"
-                    value={testName}
-                    onChange={(e) => setTestName(e.target.value)}
-                    maxW="300px"
-                  />
-                  <Button colorScheme="blue" onClick={handleQuickJoin}>
-                    Join Session
-                  </Button>
-                </VStack>
-                <Text fontSize="sm" color="gray.600">Or</Text>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowNameModal(true)}
-                >
-                  Open Name Modal (Original)
-                </Button>
-              </VStack>
-            </Box>
-          )}
-
-          {/* Actions */}
-          <Box p={4} bg="gray.50" borderRadius="md" w="100%">
-            <VStack spacing={2}>
-              <Heading size="sm">Debug Actions</Heading>
-              <Button size="sm" onClick={fetchParticipants}>
-                Refresh Participants
-              </Button>
-            </VStack>
-          </Box>
-
-          {/* Status */}
-          <Box p={4} bg="green.50" borderRadius="md" w="100%">
-            <Text><strong>Status:</strong></Text>
-            {participants.length === 0 && <Text>🔄 Waiting for participants...</Text>}
-            {participants.length === 1 && <Text>👤 1 player joined, waiting for 2nd player...</Text>}
-            {participants.length === 2 && <Text>🎉 2 players joined! Ready to start game.</Text>}
-            {participants.length > 2 && <Text>⚠️ Too many participants ({participants.length})</Text>}
-          </Box>
-        </VStack>
-
-        {/* Name Selection Modal */}
-        <NameSelectionModal
-          isOpen={showNameModal}
-          onClose={() => setShowNameModal(false)}
-          onSubmit={handleJoinWithName}
-        />
-      </Container>
+      {/* Name Selection Modal */}
+      <NameSelectionModal
+        isOpen={showNameModal}
+        onClose={() => {}} // Handled by useTicTacToe hook
+        onSubmit={handleNameSubmit}
+      />
     </Box>
   );
 }

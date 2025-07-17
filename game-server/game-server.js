@@ -9,6 +9,7 @@ import {
   TicTacToeGame,
   ticTacToeRouter,
 } from "../client/demos/tic-tac-toe/tic-tac-toe.js";
+import { GameEventService } from "./game-event-service.js";
 
 function TicTacToeClassicFactory(sessionId) {
   return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3 });
@@ -40,6 +41,8 @@ app.get("/", (req, res) => {
   res.send("It works!");
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
+GameEventService.initWebSocketServer(server);
