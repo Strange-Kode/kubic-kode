@@ -19,12 +19,6 @@ export function useTicTacToe() {
   const session = useSession();
   const game = useGame(session.sessionId);
 
-  useGameWebSocket(session.sessionId, (data) => {
-    if (data.type === "turnPlayed") {
-      refreshData();
-    }
-  });
-
   // Check if we need to show name modal
   const needsName =
     session.sessionId && !session.participantId && !session.isSessionLoading;
@@ -143,6 +137,16 @@ export function useTicTacToe() {
       setError(err.message);
     }
   }, [session, game]);
+
+  // Only connect WebSocket after game has started (must be after refreshData is defined)
+  useGameWebSocket(
+    session.sessionId && game.gameStarted ? session.sessionId : null,
+    (data) => {
+      if (data.type === "turnPlayed") {
+        refreshData();
+      }
+    }
+  );
 
   // Determine current game phase
   const getGamePhase = useCallback(() => {
