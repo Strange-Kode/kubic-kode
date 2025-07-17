@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "./useSession.js";
 import { useGame } from "./useGame.js";
+import { useGameWebSocket } from "./useGameWebSocket.js";
 
 /**
  * Main orchestration hook for Tic-Tac-Toe game
@@ -136,6 +137,16 @@ export function useTicTacToe() {
       setError(err.message);
     }
   }, [session, game]);
+
+  // Only connect WebSocket after game has started (must be after refreshData is defined)
+  useGameWebSocket(
+    session.sessionId && game.gameStarted ? session.sessionId : null,
+    (data) => {
+      if (data.type === "turnPlayed") {
+        refreshData();
+      }
+    }
+  );
 
   // Determine current game phase
   const getGamePhase = useCallback(() => {

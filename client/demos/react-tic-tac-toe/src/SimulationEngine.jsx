@@ -381,15 +381,18 @@ function SimulationEngineCore({
     if (!sessionId) return;
 
     try {
-      const res = await fetch(`/api/tic-tac-toe/play-turn/${sessionId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playerId: participantId, // TODO: map participant to player
-          xPos: col, // backend expects x/y coordinates
-          yPos: row,
-        }),
-      });
+      const res = await fetch(
+        `/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playerId: participantId, // TODO: map participant to player
+            xPos: col, // backend expects x/y coordinates
+            yPos: row,
+          }),
+        }
+      );
 
       if (!res.ok) throw new Error("Failed to play move");
 
