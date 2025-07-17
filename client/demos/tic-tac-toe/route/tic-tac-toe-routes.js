@@ -12,7 +12,7 @@ ticTacToeRouter.post('/tic-tac-toe/play-turn/:sessionId', (req, res) => {
     const { sessionId } = req.params;
     const { playerId, xPos, yPos } = req.body;
     
-    // TODO: playerId is never used, remove or validate?
+    // TODO: Add validation to playerId (is it playerIds turn to play?)
     
     const gameSession = sessionManager.getSession(sessionId);
     const gameInstance = gameSession.getGameInstance();
