@@ -25,6 +25,7 @@ class TicTacToeGame {
     if (this.engine.getEntities().length < 2) {
       throw new Error("At least two players are required to start the game.");
     }
+    this.engine.resetTileMap();
     this.engine.startGame();
   }
 
@@ -49,7 +50,6 @@ class TicTacToeGame {
 
     if (this.checkWinCondition(mark)) {
       console.log(`${currentPlayer.getPlayerName()} wins!`);
-      // this.engine.stopGame();
       return {
         status: "ok",
         player_has_won: true,

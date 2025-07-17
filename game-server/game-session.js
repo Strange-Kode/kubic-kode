@@ -6,6 +6,8 @@ export class GameSession {
     this.participants = []; // { id, name }
     this.started = false;
     this.participant_alloc_idx = 0;
+    
+    this.restartVote = null; // { votes: {}, totalParticipants: N }
   }
 
   allocateParticipantId() {
@@ -78,4 +80,36 @@ export class GameSession {
   getSessionId() {
     return this.sessionId;
   }
+  
+  startRestartVote() {
+    this.restartVote = {
+      votes: {}, // participantId => true/false
+      totalParticipants: this.participants.length
+    };
+  }
+  
+  registerRestartVote(participantId, voteYes) {
+    if (!this.restartVote) {
+      throw new Error("No active restart vote.");
+    }
+
+    this.restartVote.votes[participantId] = voteYes;
+  }
+  
+  isRestartVoteComplete() {
+    if (!this.restartVote) return false;
+    return Object.keys(this.restartVote.votes).length === this.restartVote.totalParticipants;
+  }
+  
+  getRestartVoteResult() {
+    if (!this.isRestartVoteComplete()) {
+      throw new Error("Vote not complete.");
+    }
+    return Object.values(this.restartVote.votes).every(v => v === true);
+  }
+  
+  clearRestartVote() {
+    this.restartVote = null;
+  }
+  
 }
