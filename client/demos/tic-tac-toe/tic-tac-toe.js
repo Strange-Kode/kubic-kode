@@ -102,6 +102,14 @@ class TicTacToeGame {
 
         return count;
     }
+    
+    getInactivityTimeout() {
+        return 30_000; // 30 seconds
+    }
+    
+    handleInactivity() {
+        // TODO: specify who the winner (this.winner) is and return status (game over)
+    }
 }
 
 export { TicTacToeGame, ticTacToeRouter };

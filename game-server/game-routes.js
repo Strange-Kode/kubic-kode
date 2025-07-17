@@ -1,5 +1,6 @@
 import express from 'express';
 import { sessionManager } from './session-manager.js';  // Holds all active GameSession instances
+import { InactivityManager } from '../game-utility/inactivity-manager.js';
 
 const gameRouter = express.Router();
 
@@ -27,11 +28,10 @@ gameRouter.get('/game/start/:sessionId', (req, res) => {
     // Step 2: Start the game session
     gameSession.markStarted();
         
-        
     // Step 3: Start the game instance
     gameInstance.startGame();
     
-    // Step 4: Return the current player
+    // Step 5: Return the current player
     const currentPlayer = gameInstance.getCurrentPlayer();
     res.json({
         current_player_id: currentPlayer.getPlayerId(),
