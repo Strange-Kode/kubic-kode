@@ -18,7 +18,7 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
   const gameInstance = gameSession.getGameInstance();
 
   let roundStatus = gameInstance.playTurn(xPos, yPos);
-  GameEventService.broadcastToSession(sessionId, {
+  GameEventService.broadcastToSession(gameSession, {
     type: "turnPlayed",
     payload: { roundStatus },
   });
