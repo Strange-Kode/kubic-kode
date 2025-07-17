@@ -14,7 +14,6 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
-import NameSelectionModal from "./components/NameSelectionModal";
 import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
@@ -48,8 +47,7 @@ function AppContent() {
   } = useTicTacToe();
 
   const [testName, setTestName] = useState("");
-  const [manualModalOpen, setManualModalOpen] = useState(false);
-  const [suppressAutoModal, setSuppressAutoModal] = useState(false);
+  // Removed manualModalOpen and suppressAutoModal state
 
   // Show loading while session initializes
   if (gamePhase === "loading" || isLoading) {
@@ -92,8 +90,6 @@ function AppContent() {
       alert(`Failed to start game: ${result.error}`);
     }
   };
-
-  // Note: stopGame not available in useTicTacToe (games auto-manage lifecycle)
 
   const handleTileClick = async (x, y) => {
     if (!participantId) {
@@ -171,7 +167,17 @@ function AppContent() {
     <Box minH="100vh" bg="gray.50">
       <Container maxW="6xl" py={8}>
         <VStack spacing={6}>
-          <Heading>🎮 useTicTacToe Hook Test</Heading>
+          <Box
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Heading>Tic Tac Toe Classic - Hackathon Demo</Heading>
+            <Text color="gray.600">
+              It aint beautiful and it aint supposed to be beautiful
+            </Text>
+          </Box>
 
           {/* Game Phase Info */}
           <Box p={4} bg="yellow.50" borderRadius="md" shadow="sm" w="100%">
@@ -182,22 +188,8 @@ function AppContent() {
               <strong>Your Name:</strong> {playerName || "Not set"}
             </Text>
             <Text>
-              <strong>Show Name Modal:</strong> {showNameModal ? "Yes" : "No"}
-            </Text>
-            <Text>
-              <strong>Participant ID:</strong> {participantId || "Not joined"}
-            </Text>
-            <Text color="blue.600">
-              <strong>Why Modal Shows:</strong>{" "}
-              {gamePhase === "name-selection"
-                ? "Need to collect name"
-                : showNameModal
-                ? "Hook triggered modal"
-                : "Modal should be hidden"}
-            </Text>
-            <Text color="purple.600">
-              <strong>Auto Modal Suppressed:</strong>{" "}
-              {suppressAutoModal ? "Yes" : "No"}
+              <strong>Your Participant ID:</strong>{" "}
+              {participantId || "Not joined"}
             </Text>
           </Box>
 
@@ -216,11 +208,7 @@ function AppContent() {
                     {sessionId || "Not initialized"}
                   </Text>
                   <Text>
-                    <strong>Participant ID:</strong>{" "}
-                    {participantId || "Not joined"}
-                  </Text>
-                  <Text>
-                    <strong>Is Host:</strong> {isHost ? "Yes" : "No"}
+                    <strong>Are you the host?:</strong> {isHost ? "Yes" : "No"}
                   </Text>
                   <Text>
                     <strong>Total Participants:</strong> {participants.length}/2
@@ -264,15 +252,6 @@ function AppContent() {
                         Join Session
                       </Button>
                     </VStack>
-                    <Text fontSize="sm" color="gray.600">
-                      Or
-                    </Text>
-                    <Button
-                      variant="outline"
-                      onClick={() => setManualModalOpen(true)}
-                    >
-                      Open Name Modal (Manual)
-                    </Button>
                   </VStack>
                 </Box>
               )}
@@ -355,17 +334,6 @@ function AppContent() {
                     >
                       Start Game
                     </Button>
-                    <Button
-                      colorScheme="red"
-                      onClick={() =>
-                        alert(
-                          "Stop game not available - games auto-manage lifecycle"
-                        )
-                      }
-                      isDisabled={!gameStarted}
-                    >
-                      Stop Game (N/A)
-                    </Button>
                     <Button colorScheme="blue" size="sm" onClick={refreshData}>
                       Refresh
                     </Button>
@@ -378,14 +346,6 @@ function AppContent() {
                 <VStack spacing={4}>
                   <Heading size="md">Game Board</Heading>
                   {renderGameBoard()}
-                  {lastMoveResult && (
-                    <Box p={2} bg="gray.100" borderRadius="md" w="100%">
-                      <Text fontSize="sm">
-                        <strong>Last Move Result:</strong> Available in
-                        useTicTacToe hook
-                      </Text>
-                    </Box>
-                  )}
                 </VStack>
               </Box>
             </VStack>
@@ -414,37 +374,10 @@ function AppContent() {
                 >
                   Log Hook State
                 </Button>
-                <Button
-                  size="sm"
-                  colorScheme={suppressAutoModal ? "red" : "green"}
-                  onClick={() => setSuppressAutoModal(!suppressAutoModal)}
-                >
-                  {suppressAutoModal ? "Enable" : "Suppress"} Auto Modal
-                </Button>
               </HStack>
             </VStack>
           </Box>
         </VStack>
-
-        {/* Name Selection Modal - Manual Control */}
-        <NameSelectionModal
-          isOpen={manualModalOpen}
-          onClose={() => setManualModalOpen(false)}
-          onSubmit={(name) => {
-            handleNameSubmit(name);
-            setManualModalOpen(false);
-          }}
-        />
-
-        {/* Auto Name Selection Modal - DISABLED for test app 
-            We want to use the direct input form instead of modal */}
-        {false && (
-          <NameSelectionModal
-            isOpen={showNameModal && !suppressAutoModal}
-            onClose={() => {}} // Handled by useTicTacToe hook automatically
-            onSubmit={handleNameSubmit}
-          />
-        )}
       </Container>
     </Box>
   );

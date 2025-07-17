@@ -100,35 +100,6 @@ export function useGame(sessionId) {
     }
   }, [sessionId, get, fetchGameState]);
 
-  // Stop the game
-  const stopGame = useCallback(async () => {
-    if (!sessionId) {
-      throw new Error("Session ID required to stop game");
-    }
-
-    console.log("[useGame] Stopping game for session:", sessionId);
-
-    try {
-      const result = await get(`/api/game/stop/${sessionId}`);
-
-      if (result.success) {
-        console.log("[useGame] Game stopped successfully");
-        setGameStarted(false);
-        setGameActive(false);
-        setCurrentPlayerId(null);
-        setTileMap(null);
-        setLastMoveResult(null);
-        return { success: true };
-      } else {
-        console.error("[useGame] Failed to stop game:", result.error);
-        return { success: false, error: result.error };
-      }
-    } catch (error) {
-      console.error("[useGame] Error stopping game:", error);
-      return { success: false, error: error.message };
-    }
-  }, [sessionId, get]);
-
   // Check if game is active
   const checkGameStatus = useCallback(async () => {
     if (!sessionId) {
@@ -164,11 +135,14 @@ export function useGame(sessionId) {
       );
 
       try {
-        const result = await post(`/api/tic-tac-toe/play-turn/${sessionId}`, {
-          playerId: playerId,
-          xPos: x,
-          yPos: y,
-        });
+        const result = await post(
+          `/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`,
+          {
+            playerId: playerId,
+            xPos: x,
+            yPos: y,
+          }
+        );
 
         if (result.success) {
           console.log("[useGame] Move result:", result.data);
@@ -255,7 +229,6 @@ export function useGame(sessionId) {
 
     // Game actions
     startGame,
-    stopGame,
     makeMove,
     refreshGameData,
     fetchGameState,
