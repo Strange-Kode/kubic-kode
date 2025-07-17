@@ -22,8 +22,16 @@ function initWebSocketServer(server) {
     });
 }
 
-function broadcastToSession(sessionId, messageObj) {
+function broadcastToSession(gameSession, messageObj) {
+    const sessionId = gameSession.getSessionId()
+    const gameInstance = gameSession.getGameInstance();
     const conns = connectionsBySession.get(sessionId) || [];
+    // intercept and add message data
+    const finalMessageObj = { ... messageObj };
+    finalMessageObj.sessionData = {
+        sessionId: sessionId,
+        turnNumber: gameInstance.getGameEngine().getTurnNumber() // use this to keep track of async ws calls to avoid race condition
+    }
     const message = JSON.stringify(messageObj);
 
     conns.forEach(ws => {
