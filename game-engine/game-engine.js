@@ -8,15 +8,15 @@ export class GameEngine {
         this.gameStarted = false;
     }
 
-    registerEntity(entity) {
+    registerPlayerEntity(entity) {
         this.player_entities.push(entity);
     }
 
-    deregisterEntity(entityId) {
+    deregisterPlayerEntity(entityId) {
         this.player_entities = this.player_entities.filter(e => e.id !== entityId);
     }
     
-    getEntities() {
+    getPlayerEntities() {
         return this.player_entities;
     }
     
