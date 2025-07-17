@@ -15,7 +15,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   if (gameInstance.getGameEngine().isGameStarted()) {
     const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
     return res.json({
-      current_player_id: currentPlayer.id,
+      current_player_id: currentPlayer.getPlayerId(),
       game_started: true,
       status: "game already previously started",
     });
@@ -24,7 +24,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   // Step 1: Add participants as players to your game
   for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
-    gameInstance.addPlayer(participant.name);
+    gameInstance.addPlayer(participant.name, participant.type === 'computer');
   }
 
   // Step 2: Start the game session
@@ -36,7 +36,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   // Step 4: Return the current player
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   res.json({
-    current_player_id: currentPlayer.id,
+    current_player_id: currentPlayer.getPlayerId(),
     game_started: true,
     status: "new game created",
   });

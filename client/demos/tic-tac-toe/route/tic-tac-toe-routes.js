@@ -16,13 +16,34 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
 
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
+  
+  // TODO: Add logic for letting computer or human play the move.
 
+  // Human move.
   let roundStatus = gameInstance.playTurn(xPos, yPos);
-  GameEventService.broadcastToSession(sessionId, {
+  
+  // Respond to human immediately before considering if next player(s) are computer(s)
+  res.json(round_status);
+  
+  // Handle AI move (if needed), asynchronously
+  // TODO: need to make a loop here in case there are multiple sequential computer players (#30)
+  // When all sequential computer players have played: broadcast to session!
+  if (gameInstance.getCurrentPlayer().getPlayerType() === 'computer') {
+      setTimeout(() => {
+          const computerMove = gameInstance.calculateComputerMove();
+          let compRoundStatus = gameInstance.playTurn(computerMove.x, computerMove.y);
+
+          GameEventService.broadcastToSession(gameSession, {
+            type: "turnPlayed",
+            payload: { compRoundStatus },
+          });
+      }, 1000);  // e.g. 1-second thinking delay
+  }
+  
+  GameEventService.broadcastToSession(gameSession, {
     type: "turnPlayed",
     payload: { roundStatus },
   });
-  res.json(round_status);
 });
 
 export default ticTacToeRouter;

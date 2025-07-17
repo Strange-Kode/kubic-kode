@@ -13,13 +13,13 @@ export class GameSession {
     return this.participant_alloc_idx;
   }
 
-  addParticipant(name) {
+  addParticipant(name, participant_type) {
     if (this.participants.length >= this.maxParticipants) {
-      throw new Error("Session is full.");
+      throw new Error("Game session is full.");
     }
 
     if (this.started) {
-      throw new Error("Cannot join. Game has already started.");
+      throw new Error("Cannot join. Game session has already started.");
     }
 
     // Check for duplicate names (not IDs, since ID doesn't exist yet)
@@ -27,11 +27,16 @@ export class GameSession {
     if (existing) {
       throw new Error("Participant with this name already exists.");
     }
+    
+    if (!['human', 'computer'].includes(participant_type)) {
+      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'human' or 'computer'`)
+    }
 
     const participantId = this.allocateParticipantId();
     this.participants.push({
       id: participantId,
       name: name,
+      type: participant_type
     });
 
     // Return the participant ID (was missing!)

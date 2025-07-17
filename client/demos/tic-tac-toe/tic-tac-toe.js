@@ -15,9 +15,9 @@ class TicTacToeGame {
     this.consumeMarkTypes = ["X", "O"];
   }
 
-  addPlayer(name) {
+  addPlayer(name, isComputer) {
     let markType = this.consumeMarkTypes.shift();
-    const player = new PlayerEntity(name, markType);
+    const player = new PlayerEntity(name, markType, isComputer);
     this.engine.registerEntity(player);
   }
 
@@ -60,8 +60,13 @@ class TicTacToeGame {
     return {
       status: "ok",
       player_has_won: false,
-      player_id: currentPlayer.getPlayerId(),
+      player_id: currentPlayer.getPlayerId(), // TODO: bug, refers to player with next turn, not current player that just played! (#30)
     };
+  }
+  
+  calculateComputerMove() {
+    // TODO: calculate a computer move, return { xPos: <xPos>, yPos: <yPos> }. (#30)
+    throw new Error("Not implemented");
   }
 
   checkWinCondition(lastMark) {
