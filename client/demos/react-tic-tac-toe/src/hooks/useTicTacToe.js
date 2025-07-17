@@ -6,7 +6,7 @@ import { useGameWebSocket } from "./useGameWebSocket.js";
 /**
  * Main orchestration hook for Tic-Tac-Toe game
  * Combines useSession + useGame hooks and manages the complete flow:
- * session → name modal → join → auto-start game → play
+ * session → join → auto-start game → play
  */
 export function useTicTacToe() {
   // UI state
@@ -37,16 +37,29 @@ export function useTicTacToe() {
   // Show name modal when session is ready but user hasn't joined
   useEffect(() => {
     if (needsName) {
-      console.log("[useTicTacToe] Session ready, showing name modal");
+      // console.log("[useTicTacToe] Session ready, showing name modal");
       setShowNameModal(true);
       setIsLoading(false);
     }
   }, [needsName]);
 
+  // Refresh all data
+  const refreshData = useCallback(async () => {
+    // console.log("[useTicTacToe] Refreshing all data");
+    setError(null);
+
+    try {
+      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
+    } catch (err) {
+      console.error("[useTicTacToe] Error refreshing data:", err);
+      setError(err.message);
+    }
+  }, [session, game]);
+
   // Auto-start game when 2 participants are present
   useEffect(() => {
     if (shouldAutoStart) {
-      console.log("[useTicTacToe] AUTO-START triggered: participants=2");
+      // console.log("[useTicTacToe] AUTO-START triggered: participants=2");
       handleAutoStartGame();
     }
   }, [shouldAutoStart]);
@@ -54,7 +67,7 @@ export function useTicTacToe() {
   // Handle name submission from modal
   const handleNameSubmit = useCallback(
     async (name) => {
-      console.log(`[useTicTacToe] Name submitted: ${name}`);
+      // console.log(`[useTicTacToe] Name submitted: ${name}`);
       setIsLoading(true);
       setError(null);
 
@@ -64,7 +77,8 @@ export function useTicTacToe() {
         if (result.success) {
           setPlayerName(name);
           setShowNameModal(false);
-          console.log(`[useTicTacToe] Successfully joined as: ${name}`);
+          // console.log(`[useTicTacToe] Successfully joined as: ${name}`);
+          await refreshData(); // Ensure participants list is up to date for the joining user
         } else {
           setError(result.error || "Failed to join session");
         }
@@ -75,12 +89,12 @@ export function useTicTacToe() {
         setIsLoading(false);
       }
     },
-    [session]
+    [session, refreshData]
   );
 
   // Handle auto-start game logic
   const handleAutoStartGame = useCallback(async () => {
-    console.log("[useTicTacToe] Starting game automatically");
+    // console.log("[useTicTacToe] Starting game automatically");
     setIsLoading(true);
     setError(null);
 
@@ -88,12 +102,12 @@ export function useTicTacToe() {
       const result = await game.startGame();
 
       if (result.success) {
-        console.log("[useTicTacToe] Game started successfully");
+        // console.log("[useTicTacToe] Game started successfully");
       } else {
         setError(result.error || "Failed to start game");
       }
     } catch (err) {
-      console.error("[useTicTacToe] Error starting game:", err);
+      // console.error("[useTicTacToe] Error starting game:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -103,7 +117,7 @@ export function useTicTacToe() {
   // Handle move with error handling
   const handleMove = useCallback(
     async (x, y) => {
-      console.log(`[useTicTacToe] Making move at (${x}, ${y})`);
+      // console.log(`[useTicTacToe] Making move at (${x}, ${y})`);
       setError(null);
 
       try {
@@ -114,7 +128,7 @@ export function useTicTacToe() {
           return false;
         }
 
-        console.log(`[useTicTacToe] Move successful at (${x}, ${y})`);
+        // console.log(`[useTicTacToe] Move successful at (${x}, ${y})`);
         return true;
       } catch (err) {
         console.error("[useTicTacToe] Error making move:", err);
@@ -124,19 +138,6 @@ export function useTicTacToe() {
     },
     [game]
   );
-
-  // Refresh all data
-  const refreshData = useCallback(async () => {
-    console.log("[useTicTacToe] Refreshing all data");
-    setError(null);
-
-    try {
-      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
-    } catch (err) {
-      console.error("[useTicTacToe] Error refreshing data:", err);
-      setError(err.message);
-    }
-  }, [session, game]);
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
   // Listen for session events (join/leave) and game events
@@ -168,9 +169,13 @@ export function useTicTacToe() {
     game.gameActive,
   ]);
 
-  // Get current player info
+  // Get current player info, but only if game has started
   const getCurrentPlayerInfo = useCallback(() => {
-    if (!game.currentPlayerId || !session.participants.length) {
+    if (
+      !game.gameStarted ||
+      !game.currentPlayerId ||
+      !session.participants.length
+    ) {
       return null;
     }
 
@@ -179,7 +184,7 @@ export function useTicTacToe() {
     );
 
     return currentParticipant || null;
-  }, [game.currentPlayerId, session.participants]);
+  }, [game.gameStarted, game.currentPlayerId, session.participants]);
 
   // Check if it's current user's turn
   const isMyTurn = useCallback(() => {
@@ -200,7 +205,7 @@ export function useTicTacToe() {
   // Log flow transitions for debugging
   useEffect(() => {
     const phase = getGamePhase();
-    console.log(`[useTicTacToe] Flow transition → ${phase}`);
+    // console.log(`[useTicTacToe] Flow transition → ${phase}`);
   }, [getGamePhase]);
 
   return {
