@@ -1,5 +1,8 @@
 import express from "express";
 import { sessionManager } from "./session-manager.js"; // Holds all active GameSession instances
+import { GameEventService } from "./game-event-service.js";
+
+import { serializeRecursively } from "../game-utility.js";
 
 const sessionRouter = express.Router();
 
@@ -27,15 +30,23 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
   const { sessionId } = req.params;
   const { participantName } = req.body;
 
-  const session = sessionManager.getSession(sessionId);
+  const gameSession = sessionManager.getSession(sessionId);
 
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
+  if (!gameSession) {
+    return res.status(404).json({ error: "Game session not found." });
   }
 
   try {
-    let participantId = session.addParticipant(participantName);
+    let participantId = gameSession.addParticipant(participantName);
+    let participant = serializeRecursively(gameSession.getParticipantById(participantId));
+    
     res.json({ success: true, participant_id: participantId });
+    
+    GameEventService.broadcastToSession(gameSession, {
+      type: "sessionParticipantJoined",
+      payload: { participant },
+    });
+    
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -45,16 +56,25 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
 sessionRouter.post("/session/:sessionId/leave", (req, res) => {
   const { sessionId } = req.params;
   const { participantId } = req.body;
+  
+  // TODO: Validate that current user that's calling leave is authorized to do so.
 
-  const session = sessionManager.getSession(sessionId);
+  const gameSession = sessionManager.getSession(sessionId);
 
-  if (!session) {
+  if (!gameSession) {
     return res.status(404).json({ error: "Session not found." });
   }
 
   try {
-    session.removeParticipant(participantId);
+    let participant = serializeRecursively(gameSession.getParticipantById(participantId));
+    gameSession.removeParticipant(participantId);
     res.json({ success: true });
+    
+    GameEventService.broadcastToSession(gameSession, {
+      type: "sessionParticipantLeft",
+      payload: { participant },
+    });
+    
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
