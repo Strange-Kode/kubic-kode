@@ -43,11 +43,11 @@ export class InactivityManager {
 
     _onTimeout() {
         this._stopBroadcastInterval();
-        this.gameInstance.handleInactivity();
+        const inactivityStatus = this.gameInstance.handleInactivity();
 
         GameEventService.broadcastToSession(this.sessionId, {
             type: 'playerInactive',
-            payload: { sessionId: this.sessionId }
+            payload: { sessionId: this.sessionId, inactivityStatus: inactivityStatus }
         });
     }
 
