@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "./useSession.js";
 import { useGame } from "./useGame.js";
+import { useGameWebSocket } from "./useGameWebSocket.js";
 
 /**
  * Main orchestration hook for Tic-Tac-Toe game
@@ -17,6 +18,12 @@ export function useTicTacToe() {
   // Hook dependencies
   const session = useSession();
   const game = useGame(session.sessionId);
+
+  useGameWebSocket(session.sessionId, (data) => {
+    if (data.type === "turnPlayed") {
+      refreshData();
+    }
+  });
 
   // Check if we need to show name modal
   const needsName =
