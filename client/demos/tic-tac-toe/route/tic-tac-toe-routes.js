@@ -22,7 +22,7 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
     type: "turnPlayed",
     payload: { roundStatus },
   });
-  res.json(round_status);
+  res.json(roundStatus);
 });
 
 export default ticTacToeRouter;
