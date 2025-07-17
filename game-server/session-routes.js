@@ -93,6 +93,60 @@ sessionRouter.get("/session/:sessionId/participants", (req, res) => {
   res.json(session.listParticipants());
 });
 
+sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+
+  gameSession.startRestartVote();
+
+  GameEventService.broadcastToSession(gameSession, {
+    type: "restartVoteStarted",
+    payload: {
+      participants: gameSession.getParticipants().map(p => p.id)
+    }
+  });
+
+  res.json({ vote_inited: true });
+});
+
+sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, voteYes } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  try {
+    gameSession.registerRestartVote(participantId, voteYes === true);
+
+    GameEventService.broadcastToSession(gameSession, {
+      type: "restartVoteUpdate",
+      payload: {
+        participantId,
+        vote: voteYes === true
+      }
+    });
+
+    if (gameSession.isRestartVoteComplete()) {
+      const allAgreed = gameSession.getRestartVoteResult();
+
+      GameEventService.broadcastToSession(gameSession, {
+        type: "restartVoteResult",
+        payload: {
+          allAgreed,
+          votes: gameSession.restartVote.votes
+        }
+      });
+
+      gameSession.clearRestartVote();
+    }
+
+    res.json({ success: true });
+
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Test session routes
 sessionRouter.get("/session/test", (req, res) => {
   res.json({
