@@ -1,5 +1,6 @@
 import express from "express";
 import { sessionManager } from "./session-manager.js"; // Holds all active GameSession instances
+import { InactivityManager } from '../game-utility/inactivity-manager.js';
 
 const gameRouter = express.Router();
 
@@ -15,7 +16,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   if (gameInstance.getGameEngine().isGameStarted()) {
     const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
     return res.json({
-      current_player_id: currentPlayer.id,
+      current_player_id: currentPlayer.getPlayerId(),
       game_started: true,
       status: "game already previously started",
     });
@@ -36,7 +37,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   // Step 4: Return the current player
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   res.json({
-    current_player_id: currentPlayer.id,
+    current_player_id: currentPlayer.getPlayerId(),
     game_started: true,
     status: "new game created",
   });
@@ -48,9 +49,7 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   const gameInstance = gameSession.getGameInstance();
 
   if (!gameInstance.getGameEngine().isGameStarted()) {
-    throw new Error(
-      `Attempting to stop unstarted game with session id: ${sessionId}`
-    );
+    throw new Error(`Attempting to stop unstarted game with session id: ${sessionId}`);
   }
 
   // Step 1: End the game session
@@ -60,7 +59,7 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   gameInstance.getGameEngine().stopGame();
 
   res.json({
-    game_stopped: true,
+    game_stopped: true
   });
 });
 

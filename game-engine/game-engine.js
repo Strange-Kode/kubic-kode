@@ -11,20 +11,22 @@ export class GameEngine {
     this.gameStarted = false;
   }
 
-  registerEntity(entity) {
-    this.player_entities.push(entity);
-  }
-
-  deregisterEntity(entityId) {
-    this.player_entities = this.player_entities.filter(
-      (e) => e.id !== entityId
-    );
-  }
-
   getEntities() {
     return this.player_entities;
   }
 
+  registerPlayerEntity(entity) {
+    this.player_entities.push(entity);
+  }
+
+  deregisterPlayerEntity(entityId) {
+    this.player_entities = this.player_entities.filter(e => e.id !== entityId);
+  }
+  
+  getPlayerEntities() {
+    return this.player_entities;
+  }
+  
   startGame() {
     if (this.gameStarted === true) {
       throw new Error(`Game is already started.`);
@@ -73,27 +75,21 @@ export class GameEngine {
     const componentName = componentFunc.componentName;
 
     if (!componentName) {
-      throw new Error(
-        "Component function missing static componentName property."
-      );
+      throw new Error("Component function missing static componentName property.");
     }
 
     if (this.registeredComponents.has(componentFunc)) {
-      throw new Error(
-        `Component function already registered as "${componentName}".`
-      );
+      throw new Error(`Component function already registered as "${componentName}".`);
     }
 
     if (this.componentNames.has(componentName)) {
-      throw new Error(
-        `Component name "${componentName}" is already registered.`
-      );
+      throw new Error(`Component name "${componentName}" is already registered.`);
     }
 
     this.registeredComponents.set(componentFunc, componentName);
     this.componentNames.add(componentName);
   }
-
+  
   applyComponent(entity, componentFunc, ...args) {
     const componentName = this.registeredComponents.get(componentFunc);
 
