@@ -11,6 +11,8 @@ import { useGameWebSocket } from "./useGameWebSocket.js";
 export function useTicTacToe() {
   // UI state
   const [showNameModal, setShowNameModal] = useState(false);
+  const [showWinModal, setShowWinModal] = useState(false);
+  const [winner, setWinner] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [playerName, setPlayerName] = useState(null);
@@ -139,17 +141,50 @@ export function useTicTacToe() {
     [game]
   );
 
+  // Handle win modal actions
+  const handleWinModalClose = useCallback(() => {
+    setShowWinModal(false);
+    setWinner(null);
+  }, []);
+
+  // Handle WebSocket events including win conditions
+  const handleWebSocketEvent = useCallback(
+    (data) => {
+      console.log("[useTicTacToe] WebSocket event received:", data);
+
+      if (
+        data.type === "turnPlayed" &&
+        data.payload?.roundStatus?.player_has_won
+      ) {
+        // Find the winner participant
+        const winnerParticipant = session.participants.find(
+          (p) => p.id === data.payload.roundStatus.player_id
+        );
+
+        if (winnerParticipant) {
+          console.log("[useTicTacToe] Game won by:", winnerParticipant.name);
+          setWinner(winnerParticipant);
+          setShowWinModal(true);
+        }
+      }
+
+      if (
+        data.type === "turnPlayed" ||
+        data.type === "sessionParticipantJoined" ||
+        data.type === "sessionParticipantLeft"
+      ) {
+        refreshData();
+      }
+    },
+    [session.participants, refreshData]
+  );
+
   // Only connect WebSocket after game has started (must be after refreshData is defined)
   // Listen for session events (join/leave) and game events
-  useGameWebSocket(session.sessionId ? session.sessionId : null, (data) => {
-    if (
-      data.type === "turnPlayed" ||
-      data.type === "sessionParticipantJoined" ||
-      data.type === "sessionParticipantLeft"
-    ) {
-      refreshData();
-    }
-  });
+  useGameWebSocket(
+    session.sessionId ? session.sessionId : null,
+    handleWebSocketEvent
+  );
 
   // Determine current game phase
   const getGamePhase = useCallback(() => {
@@ -216,6 +251,8 @@ export function useTicTacToe() {
 
     // UI state
     showNameModal,
+    showWinModal,
+    winner,
 
     // Player info
     playerName,
@@ -239,6 +276,7 @@ export function useTicTacToe() {
     handleNameSubmit,
     handleMove,
     refreshData,
+    handleWinModalClose,
 
     // Pass-through game helpers
     getTile: game.getTile,
