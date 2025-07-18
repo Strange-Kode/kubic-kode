@@ -15,6 +15,7 @@ import {
 } from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
 import Container from "./components/Container";
+import GameModal from "./components/GameModal";
 import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
@@ -24,6 +25,8 @@ function AppContent() {
     isLoading,
     error,
     showNameModal,
+    showWinModal,
+    winner,
     playerName,
     participants,
     currentPlayer,
@@ -39,6 +42,7 @@ function AppContent() {
     handleNameSubmit,
     handleMove,
     refreshData,
+    handleWinModalClose,
     getTile,
     getGridDimensions,
     // Pass-through for advanced use
@@ -382,6 +386,37 @@ function AppContent() {
           </Container>
         </VStack>
       </ChakraContainer>
+
+      {/* Win Modal */}
+      <GameModal
+        isOpen={showWinModal}
+        onClose={handleWinModalClose}
+        title={
+          winner?.id === participantId
+            ? "You Won!"
+            : `${winner?.name || "Player"} Won!`
+        }
+        message={
+          winner?.id === participantId
+            ? "Congratulations! You have won the game!"
+            : `${
+                winner?.name || "Your opponent"
+              } has won this round. Better luck next time!`
+        }
+        type={winner?.id === participantId ? "success" : "info"}
+        primaryButton={{
+          text: "Okay",
+          onClick: () => {
+            handleWinModalClose();
+            // Could add restart game logic here
+            refreshData();
+          },
+        }}
+        secondaryButton={{
+          text: "Close",
+          onClick: handleWinModalClose,
+        }}
+      />
     </Box>
   );
 }
