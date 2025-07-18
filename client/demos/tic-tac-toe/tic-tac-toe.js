@@ -13,6 +13,7 @@ class TicTacToeGame {
     this.gridSize = gridSize;
     this.winCondition = winCondition;
     this.consumeMarkTypes = ["X", "O"];
+    this.winner = null;
   }
 
   addPlayer(name) {
@@ -22,16 +23,16 @@ class TicTacToeGame {
   }
 
   startGame() {
-    if (this.engine.getEntities().length < 2) {
+    if (this.engine.getPlayerEntities().length < 2) {
       throw new Error("At least two players are required to start the game.");
     }
     this.engine.startGame();
   }
-
+  
   getGameEngine() {
     return this.engine;
   }
-
+  
   playTurn(x, y) {
     const currentPlayer = this.engine.getCurrentPlayer();
     if (this.engine.getTileMap().getTile(x, y)) {
@@ -48,6 +49,8 @@ class TicTacToeGame {
     this.engine.getTileMap().setTile(x, y, mark);
 
     if (this.checkWinCondition(mark)) {
+      this.winner = currentPlayer;
+      this.engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
       // this.engine.stopGame();
       return {
@@ -69,7 +72,7 @@ class TicTacToeGame {
       { dx: 1, dy: 0 }, // horizontal
       { dx: 0, dy: 1 }, // vertical
       { dx: 1, dy: 1 }, // diagonal \
-      { dx: 1, dy: -1 }, // diagonal /
+      { dx: 1, dy: -1 } // diagonal /
     ];
 
     const { x, y } = lastMark.position;
@@ -105,6 +108,27 @@ class TicTacToeGame {
 
     return count;
   }
+  
+  getInactivityTimeout() {
+    return 30_000; // 30 seconds
+  }
+
+  getWinner() {
+    return this.winner;
+  }
+
+  handleInactivity() {
+    const players = this.engine.getPlayerEntities();
+    const currentPlayerId = this.engine.getCurrentPlayer().getPlayerId();
+
+    const winner = players.find(player => player.getPlayerId() !== currentPlayerId);
+    this.winner = winner || null;
+    return {
+      inactivePlayerId: currentPlayerId,
+      winnerPlayerId: this.winner?.getPlayerId()
+    }
+  }
+  
 }
 
 export { TicTacToeGame, ticTacToeRouter };

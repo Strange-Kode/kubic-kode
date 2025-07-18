@@ -1,3 +1,5 @@
+import { InactivityManager } from '../game-utility/inactivity-manager.js';
+
 export class GameSession {
   constructor(sessionId, gameInstance, maxParticipants = 2) {
     this.sessionId = sessionId;
@@ -6,8 +8,9 @@ export class GameSession {
     this.participants = []; // { id, name }
     this.started = false;
     this.participant_alloc_idx = 0;
+    this.inactivityManager = null;
   }
-
+      
   allocateParticipantId() {
     this.participant_alloc_idx++;
     return this.participant_alloc_idx;
@@ -22,10 +25,9 @@ export class GameSession {
       throw new Error("Cannot join. Game has already started.");
     }
 
-    // Check for duplicate names (not IDs, since ID doesn't exist yet)
-    const existing = this.participants.find((p) => p.name === name);
+    const existing = this.participants.find(p => p.id === id);
     if (existing) {
-      throw new Error("Participant with this name already exists.");
+      throw new Error("Participant with this ID already exists.");
     }
 
     const participantId = this.allocateParticipantId();
@@ -51,7 +53,7 @@ export class GameSession {
   listParticipants() {
     return this.participants.map((p) => ({ id: p.id, name: p.name }));
   }
-
+  
   getParticipants() {
     return this.participants;
   }
@@ -61,12 +63,18 @@ export class GameSession {
       throw new Error("Cannot start game. Not enough participants.");
     }
     this.started = true;
+    const inactivityManager = new InactivityManager(this.sessionId, this.gameInstance);
+    this.inactivityManager = inactivityManager;
+    inactivityManager.startTimer();
   }
-
+  
   markEnded() {
     this.started = false;
+    if (this.inactivityManager) {
+      this.inactivityManager.clearTimer();
+    }
   }
-
+  
   getGameInstance() {
     return this.gameInstance;
   }
@@ -77,5 +85,9 @@ export class GameSession {
   
   getSessionId() {
     return this.sessionId;
+  }
+  
+  getInactivityManager() {
+    return this.inactivityManager;
   }
 }
