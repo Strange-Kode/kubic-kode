@@ -25,18 +25,18 @@ export class GameSession {
       throw new Error("Cannot join. Game has already started.");
     }
 
-    const existing = this.participants.find(p => p.id === id);
+    const participantId = this.allocateParticipantId();
+    
+    const existing = this.participants.find(p => p.id === participantId);
     if (existing) {
       throw new Error("Participant with this ID already exists.");
     }
 
-    const participantId = this.allocateParticipantId();
     this.participants.push({
       id: participantId,
       name: name,
     });
 
-    // Return the participant ID (was missing!)
     return participantId;
   }
 

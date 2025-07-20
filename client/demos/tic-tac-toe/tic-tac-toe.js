@@ -19,7 +19,7 @@ class TicTacToeGame {
   addPlayer(name) {
     let markType = this.consumeMarkTypes.shift();
     const player = new PlayerEntity(name, markType);
-    this.engine.registerEntity(player);
+    this.engine.registerPlayerEntity(player);
   }
 
   startGame() {

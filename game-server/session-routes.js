@@ -47,7 +47,9 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
       payload: { participant },
     });
     
-  } catch (err) {
+  }
+  catch (err) {
+    console.error('Join session error:', err);
     res.status(400).json({ error: err.message });
   }
 });

@@ -2,6 +2,13 @@ import express from "express";
 const app = express();
 const PORT = 3000;
 
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.stack || err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason.stack || reason);
+});
+
 import sessionRouter from "./session-routes.js";
 import gameRouter from "./game-routes.js";
 import { gameRegistry } from "./game-registry.js";
