@@ -9,8 +9,8 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason.stack || reason);
 });
 
-import sessionRouter from "./session-routes.js";
-import gameRouter from "./game-routes.js";
+import sessionRouter from "./route/session-routes.js";
+import gameRouter from "./route/game-routes.js";
 import { gameRegistry } from "./game-registry.js";
 import {
   TicTacToeGame,
