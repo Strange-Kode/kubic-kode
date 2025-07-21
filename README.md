@@ -32,7 +32,7 @@ The project features a Node.js/Express backend for multiplayer session handling 
 ### Start the Backend
 Run the backend server (default port: 3000):
 ```sh
-npm run start-server
+npm run dev-server
 ```
 
 ### Start the Frontend Demo
