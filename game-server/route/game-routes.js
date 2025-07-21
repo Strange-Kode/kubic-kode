@@ -1,10 +1,10 @@
 import express from "express";
-import { sessionManager } from "./session-manager.js"; // Holds all active GameSession instances
-import { InactivityManager } from '../game-utility/inactivity-manager.js';
+import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
+import { InactivityManager } from "../../game-utility/inactivity-manager.js";
 
 const gameRouter = express.Router();
 
-import { serializeRecursively } from "../game-utility.js";
+import { serializeRecursively } from "../../game-utility/game-utility.js";
 
 gameRouter.get("/game/start/:sessionId", (req, res) => {
   const { sessionId } = req.params;
