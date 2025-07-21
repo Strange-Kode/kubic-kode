@@ -63,7 +63,7 @@ export class GameSession {
       throw new Error("Cannot start game. Not enough participants.");
     }
     this.started = true;
-    const inactivityManager = new InactivityManager(this.sessionId, this.gameInstance);
+    const inactivityManager = new InactivityManager(this, this.gameInstance);
     this.inactivityManager = inactivityManager;
     inactivityManager.startTimer();
   }
