@@ -9,13 +9,13 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason.stack || reason);
 });
 
-import sessionRouter from "./session-routes.js";
-import gameRouter from "./game-routes.js";
+import sessionRouter from "./route/session-routes.js";
+import gameRouter from "./route/game-routes.js";
 import { gameRegistry } from "./game-registry.js";
 import {
   TicTacToeGame,
   ticTacToeRouter,
-} from "../client/demos/tic-tac-toe/tic-tac-toe.js";
+} from "../client/demos/backend-tic-tac-toe/tic-tac-toe.js";
 import { GameEventService } from "./game-event-service.js";
 
 function TicTacToeClassicFactory(sessionId) {

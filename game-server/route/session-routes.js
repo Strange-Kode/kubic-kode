@@ -1,8 +1,8 @@
 import express from "express";
-import { sessionManager } from "./session-manager.js"; // Holds all active GameSession instances
-import { GameEventService } from "./game-event-service.js";
+import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
+import { GameEventService } from "../game-event-service.js";
 
-import { serializeRecursively } from "../game-utility.js";
+import { serializeRecursively } from "../../game-utility/game-utility.js";
 
 const sessionRouter = express.Router();
 
