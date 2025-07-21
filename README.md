@@ -4,6 +4,12 @@
 
 The project features a Node.js/Express backend for multiplayer session handling and real-time communication via WebSockets, alongside a React-based frontend demo (e.g., tic-tac-toe) to illustrate integration and usage. kubic-kode is designed for extensibility, enabling developers to prototype and deploy custom turn-based games with minimal setup.
 
+## Requirements
+
+- [Node.js](https://nodejs.org/) (version 20.x or later recommended)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
+- Git (for cloning the repository)
+
 ## Installation
 
 1. Clone the repository:
@@ -14,6 +20,11 @@ The project features a Node.js/Express backend for multiplayer session handling 
 2. Install dependencies:
    ```sh
    npm install
+   ```
+3. Copy and configure the environment file for the React demo:
+   ```sh
+   cp client/demos/react-tic-tac-toe/.env.example client/demos/react-tic-tac-toe/.env
+   # Edit client/demos/react-tic-tac-toe/.env as needed
    ```
 
 ## Usage
