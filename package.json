@@ -2,12 +2,18 @@
   "name": "kubic-kode",
   "version": "1.0.0",
   "description": "2D turn based tilemap game engine and related stuff",
-  "main": "index.js",
+  "main": "index.cjs",
+  "module": "index.js",
+  "exports": {
+    "import": "./index.js",
+    "require": "./index.cjs"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start-frontend": "vite --config client/demos/react-tic-tac-toe/vite.config.js",
     "build-frontend": "vite build --config client/demos/react-tic-tac-toe/vite.config.js",
-    "start-server": "node game-server/game-server.js"
+    "start-server": "node game-server/game-server.js",
+    "dev-server": "nodemon game-server/game-server.js"
   },
   "keywords": [],
   "author": "Nils & Joakim Karlsson",
@@ -33,7 +39,8 @@
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5"
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "nodemon": "^3.1.10"
   },
   "type": "module"
 }
