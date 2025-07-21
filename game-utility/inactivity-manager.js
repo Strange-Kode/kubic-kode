@@ -1,8 +1,8 @@
 import { GameEventService } from '../game-server/game-event-service.js';
 
 export class InactivityManager {
-    constructor(sessionId, gameInstance) {
-        this.sessionId = sessionId;
+    constructor(gameSession, gameInstance) {
+        this.gameSession = gameSession;
         this.gameInstance = gameInstance;
         this.timeoutMs = gameInstance.getInactivityTimeout();
         this.timer = null;
@@ -45,21 +45,21 @@ export class InactivityManager {
         this._stopBroadcastInterval();
         const inactivityStatus = this.gameInstance.handleInactivity();
 
-        GameEventService.broadcastToSession(this.sessionId, {
+        GameEventService.broadcastToSession(this.gameSession, {
             type: 'playerInactive',
-            payload: { sessionId: this.sessionId, inactivityStatus: inactivityStatus }
+            payload: { sessionId: this.gameSession.getSessionId(), inactivityStatus: inactivityStatus }
         });
     }
 
-    _startBroadcastInterval() {
+    _startBroadcastInterval(interval=5000) {
         this._stopBroadcastInterval();
 
         this.broadcastInterval = setInterval(() => {
-            GameEventService.broadcastToSession(this.sessionId, {
+            GameEventService.broadcastToSession(this.gameSession, {
                 type: 'timeLeft',
                 payload: { secondsLeft: this.getTimeRemaining() }
             });
-        }, 5000);
+        }, interval);
     }
 
     _stopBroadcastInterval() {
