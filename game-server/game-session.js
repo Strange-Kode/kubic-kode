@@ -8,6 +8,19 @@ export class GameSession {
     this.participants = []; // { id, name }
     this.started = false;
     this.participant_alloc_idx = 0;
+    this.winCounter = 0;
+  }
+
+  getWinCounter() {
+    return this.winCounter;
+  }
+
+  increaseWinCounter() {
+    this.winCounter++;
+  }
+
+  resetWinCounter() {
+    this.winCounter = 0;
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
@@ -61,6 +74,7 @@ export class GameSession {
   }
 
   markStarted() {
+    this.resetWinCounter();
     if (this.participants.length < 2) {
       throw new Error("Cannot start game. Not enough participants.");
     }
