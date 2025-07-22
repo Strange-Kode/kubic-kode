@@ -18,7 +18,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     return res.json({
       current_player_id: currentPlayer.getPlayerId(),
       game_started: true,
-      status: "game already previously started",
+      status: "Game already previously started",
     });
   }
 
@@ -39,7 +39,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   res.json({
     current_player_id: currentPlayer.getPlayerId(),
     game_started: true,
-    status: "new game created",
+    status: "New game created",
   });
 });
 
@@ -49,13 +49,16 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   const gameInstance = gameSession.getGameInstance();
 
   if (!gameInstance.getGameEngine().isGameStarted()) {
-    throw new Error(`Attempting to stop unstarted game with session id: ${sessionId}`);
+    return res.status(200).json({
+      game_stopped: true,
+      message: "Game was already stopped",
+    });
   }
-  
+
   gameInstance.getGameEngine().stopGame();
 
   res.json({
-    game_stopped: true
+    game_stopped: true,
   });
 });
 
