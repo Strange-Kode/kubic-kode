@@ -14,7 +14,7 @@ export * as gameEntityPlayer from "./game-engine/game-entity/game-entity-player.
 // export * as gameServer from "./game-server/game-server.js";
 export * as sessionManager from "./game-server/session-manager.js";
 export * as gameSession from "./game-server/game-session.js";
-export * as gameRegistry from "./game-server/game-registry.js";
+export { gameRegistry } from "./game-server/game-registry.js";
 export * as gameEventService from "./game-server/game-event-service.js";
 export { default as gameRoutes } from "./game-server/route/game-routes.js";
 export { default as sessionRoutes } from "./game-server/route/session-routes.js";
