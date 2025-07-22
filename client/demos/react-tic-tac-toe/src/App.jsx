@@ -79,7 +79,6 @@ function AppContent() {
   }
 
   const handleJoinWithName = async (name) => {
-    // console.log("[App] Attempting to join with name:", name);
     // Use the orchestration hook's handler
     await handleNameSubmit(name);
   };
@@ -93,10 +92,8 @@ function AppContent() {
   };
 
   const handleStartGame = async () => {
-    // console.log("[App] Starting game...");
     const result = await startGame();
     if (result.success) {
-      // console.log("[App] Game started successfully!");
     } else {
       console.error("[App] Failed to start game:", result.error);
       alert(`Failed to start game: ${result.error}`);
@@ -114,12 +111,10 @@ function AppContent() {
       return;
     }
 
-    // console.log(`[App] Making move at (${x}, ${y})`);
     const success = await handleMove(x, y);
 
     if (!success) {
       // Error already handled by useTicTacToe hook
-      // console.log("[App] Move was not successful");
     }
   };
 
@@ -129,8 +124,6 @@ function AppContent() {
     if (!tileMap || width === 0 || height === 0) {
       return <Text color="gray.500">No game board available</Text>;
     }
-
-    // console.log("[App-test] Rendering board - tileMap:", tileMap);
 
     return (
       <Grid templateColumns={`repeat(${width}, 1fr)`} gap={1} maxW="300px">

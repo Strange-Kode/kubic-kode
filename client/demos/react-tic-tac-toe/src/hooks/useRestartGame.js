@@ -99,25 +99,10 @@ export function useRestartVoting(session, game, refreshData) {
   // Handle restart sequence for initiator
   const handleRestartSequence = useCallback(async () => {
     try {
-      // 1. Try to stop current game (but don't fail if already stopped)
-      const stopResponse = await fetch(`/api/game/stop/${session.sessionId}`);
-      if (!stopResponse.ok) {
-        // Check if it's just because the game is already stopped
-        const errorText = await stopResponse.text();
-        if (errorText.includes("Attempting to stop unstarted game")) {
-          console.log(
-            "[useRestartVoting] Game already stopped (probably finished), proceeding with restart..."
-          );
-        } else {
-          throw new Error("Failed to stop current game: " + errorText);
-        }
-      } else {
-        console.log(
-          "[useRestartVoting] Current game stopped, starting new game..."
-        );
-      }
+      console.log("[useRestartVoting] Starting game restart sequence...");
 
-      // 2. Start new game (which will automatically call resetForRestart)
+      // Since tic-tac-toe automatically stops when someone wins,
+      // we can directly start the new game (which includes resetForRestart)
       const result = await game.startGame();
 
       if (result.success) {
@@ -128,11 +113,13 @@ export function useRestartVoting(session, game, refreshData) {
           "[useRestartVoting] Failed to restart game:",
           result.error
         );
-        setError(result.error || "Failed to restart game");
+        // Re-throw so the .catch() in handleRestartVoteEvent can handle it
+        throw new Error(result.error || "Failed to restart game");
       }
     } catch (err) {
       console.error("[useRestartVoting] Error in restart sequence:", err);
-      setError(err.message || "Failed to restart game");
+      // Re-throw so the .catch() in handleRestartVoteEvent can handle it with setError
+      throw err;
     }
   }, [session.sessionId, game, refreshData]);
 
