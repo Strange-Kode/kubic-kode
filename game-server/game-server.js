@@ -49,7 +49,7 @@ app.get("/", (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Kubic Kode Server running at http://localhost:${PORT}`);
 });
 
 GameEventService.initWebSocketServer(server);

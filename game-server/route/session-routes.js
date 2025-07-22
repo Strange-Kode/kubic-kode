@@ -98,7 +98,7 @@ sessionRouter.get("/session/:sessionId/participants", (req, res) => {
 // Test session routes
 sessionRouter.get("/session/test", (req, res) => {
   res.json({
-    status: "it works",
+    status: "session works",
   });
 });
 
