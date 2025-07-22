@@ -27,8 +27,6 @@ export function useRestartVoting(session, game, refreshData) {
         throw new Error(result.error || "Failed to request restart");
       }
 
-      console.log("[useRestartVoting] Restart vote initiated");
-
       // Automatically submit "Yes" vote for the initiator
       const voteResponse = await fetch(
         `/api/session/submit-restart-vote/${session.sessionId}`,
@@ -46,8 +44,6 @@ export function useRestartVoting(session, game, refreshData) {
 
       if (!voteResponse.ok) {
         console.error("[useRestartVoting] Failed to auto-vote for initiator");
-      } else {
-        console.log("[useRestartVoting] Auto-voted Yes for restart initiator");
       }
     } catch (err) {
       console.error("[useRestartVoting] Error requesting restart:", err);
@@ -86,8 +82,6 @@ export function useRestartVoting(session, game, refreshData) {
         if (!response.ok) {
           throw new Error(result.error || "Failed to submit vote");
         }
-
-        console.log("[useRestartVoting] Restart vote submitted:", voteYes);
       } catch (err) {
         console.error("[useRestartVoting] Error submitting restart vote:", err);
         throw err;
@@ -99,14 +93,11 @@ export function useRestartVoting(session, game, refreshData) {
   // Handle restart sequence for initiator
   const handleRestartSequence = useCallback(async () => {
     try {
-      console.log("[useRestartVoting] Starting game restart sequence...");
-
       // Since tic-tac-toe automatically stops when someone wins,
       // we can directly start the new game (which includes resetForRestart)
       const result = await game.startGame();
 
       if (result.success) {
-        console.log("[useRestartVoting] Game restarted successfully!");
         await refreshData();
       } else {
         console.error(
@@ -134,8 +125,6 @@ export function useRestartVoting(session, game, refreshData) {
   const handleRestartVoteEvent = useCallback(
     (data, setError, setShowWinModal, setWinner) => {
       if (data.type === "restartVoteStarted") {
-        console.log("[useRestartVoting] Restart vote started");
-
         // Only show modal and set initiator for non-initiators
         // The initiator already has their modal open
         if (!showRestartVoteModal) {
@@ -146,7 +135,6 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteUpdate") {
-        console.log("[useRestartVoting] Restart vote update:", data.payload);
         setRestartVotes((prev) => ({
           ...prev,
           [data.payload.participantId]: data.payload.vote,
@@ -154,12 +142,8 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteResult") {
-        console.log("[useRestartVoting] Restart vote result:", data.payload);
         if (data.payload.allAgreed) {
           // All players agreed to restart - restart the game!
-          console.log(
-            "[useRestartVoting] All players agreed! Restarting game..."
-          );
           setShowRestartVoteModal(false);
           setShowWinModal(false);
           setWinner(null);
@@ -167,9 +151,6 @@ export function useRestartVoting(session, game, refreshData) {
 
           // Only the vote initiator should handle the actual restart
           if (restartVoteInitiator === session.participantId) {
-            console.log(
-              "[useRestartVoting] I am the initiator, handling restart..."
-            );
             setRestartVoteInitiator(null);
 
             // Execute restart sequence
@@ -181,22 +162,14 @@ export function useRestartVoting(session, game, refreshData) {
               setError(err.message || "Failed to restart game");
             });
           } else {
-            console.log(
-              "[useRestartVoting] Not the initiator, waiting 2s before refreshing data after restart..."
-            );
             setRestartVoteInitiator(null);
             // Add a 2-second delay before refreshing for non-initiators
             setTimeout(() => {
-              refreshData().then(() => {
-                console.log(
-                  "[useRestartVoting] Non-initiator data refreshed after restart (with delay)"
-                );
-              });
+              refreshData();
             }, 2000);
           }
         } else {
           // Not everyone agreed
-          console.log("[useRestartVoting] Restart was not agreed upon");
           setShowRestartVoteModal(false);
           setRestartVotes({});
           setRestartVoteInitiator(null);
