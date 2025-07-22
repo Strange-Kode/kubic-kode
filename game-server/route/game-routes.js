@@ -28,7 +28,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     gameInstance.addPlayer(participant.name);
   }
 
-  // Step 2: Start the game session
+  // Step 2: Start the game session (if not already started)
   gameSession.markStarted();
 
   // Step 3: Start the game instance
@@ -51,11 +51,7 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   if (!gameInstance.getGameEngine().isGameStarted()) {
     throw new Error(`Attempting to stop unstarted game with session id: ${sessionId}`);
   }
-
-  // Step 1: End the game session
-  gameSession.markEnded();
-
-  // Step 2: Stop the game instance
+  
   gameInstance.getGameEngine().stopGame();
 
   res.json({

@@ -1,4 +1,4 @@
-import { InactivityManager } from '../game-utility/inactivity-manager.js';
+import { InactivityManager } from "../game-utility/inactivity-manager.js";
 
 export class GameSession {
   constructor(sessionId, gameInstance, maxParticipants = 2) {
@@ -8,9 +8,11 @@ export class GameSession {
     this.participants = []; // { id, name }
     this.started = false;
     this.participant_alloc_idx = 0;
+
+    this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
   }
-      
+
   allocateParticipantId() {
     this.participant_alloc_idx++;
     return this.participant_alloc_idx;
@@ -26,8 +28,8 @@ export class GameSession {
     }
 
     const participantId = this.allocateParticipantId();
-    
-    const existing = this.participants.find(p => p.id === participantId);
+
+    const existing = this.participants.find((p) => p.id === participantId);
     if (existing) {
       throw new Error("Participant with this ID already exists.");
     }
@@ -53,7 +55,7 @@ export class GameSession {
   listParticipants() {
     return this.participants.map((p) => ({ id: p.id, name: p.name }));
   }
-  
+
   getParticipants() {
     return this.participants;
   }
@@ -67,14 +69,14 @@ export class GameSession {
     this.inactivityManager = inactivityManager;
     inactivityManager.startTimer();
   }
-  
+
   markEnded() {
     this.started = false;
     if (this.inactivityManager) {
       this.inactivityManager.clearTimer();
     }
   }
-  
+
   getGameInstance() {
     return this.gameInstance;
   }
@@ -82,11 +84,45 @@ export class GameSession {
   getParticipantById(id) {
     return this.participants.find((p) => p.id === id) || null;
   }
-  
+
   getSessionId() {
     return this.sessionId;
   }
-  
+
+  startRestartVote() {
+    this.restartVote = {
+      votes: {}, // participantId => true/false
+      totalParticipants: this.participants.length,
+    };
+  }
+
+  registerRestartVote(participantId, voteYes) {
+    if (!this.restartVote) {
+      throw new Error("No active restart vote.");
+    }
+
+    this.restartVote.votes[participantId] = voteYes;
+  }
+
+  isRestartVoteComplete() {
+    if (!this.restartVote) return false;
+    return (
+      Object.keys(this.restartVote.votes).length ===
+      this.restartVote.totalParticipants
+    );
+  }
+
+  getRestartVoteResult() {
+    if (!this.isRestartVoteComplete()) {
+      throw new Error("Vote not complete.");
+    }
+    return Object.values(this.restartVote.votes).every((v) => v === true);
+  }
+
+  clearRestartVote() {
+    this.restartVote = null;
+  }
+
   getInactivityManager() {
     return this.inactivityManager;
   }
