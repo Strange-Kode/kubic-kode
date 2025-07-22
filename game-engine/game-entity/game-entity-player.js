@@ -1,4 +1,4 @@
-import { GameEntity } from './GameEngine.js';
+import { GameEntity } from './game-entity.js';
 
 export class GameEntityPlayer extends GameEntity {
     constructor(id, name, position) {
