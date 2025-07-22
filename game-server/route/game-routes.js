@@ -63,17 +63,31 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   });
 });
 
-// Used to get current turn (=> current player id)
+// Used to get current turn (=> current player id) (only used for single-set for legacy reasons)
+// @deprecated
 gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   const { sessionId } = req.params;
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
-
+  const gameEngine = gameInstance.getGameEngine();
+  const playStyle = gameEngine.playStyle;
   res.json({
-    current_player_id: gameInstance
-      .getGameEngine()
-      .getCurrentPlayer()
-      .getPlayerId(),
+    play_style: playStyle,
+    current_player_id: gameEngine.getCurrentPlayer().getPlayerId(),
+  });
+});
+
+// Used to get current turn (=> current player ids)
+gameRouter.get("/game/get-current-players/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+  const gameEngine = gameInstance.getGameEngine();
+  const playStyle = gameEngine.playStyle;
+  const currentTurnPlayers = gameEngine.getCurrentTurnPlayers();
+  res.json({
+    play_style: playStyle,
+    current_turn_players: currentTurnPlayers,
   });
 });
 

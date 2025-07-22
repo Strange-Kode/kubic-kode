@@ -15,16 +15,17 @@ class SessionManager {
     return Array.from(this.sessions.values());
   }
 
-  createSession(gameVariantId) {
+  createSession(gameVariantId, options = {}) {
     console.log("creating game session...");
     const sessionId = uuidv4(); // generate unique ID
     const gameInstance = gameRegistry.createGameInstance(
       gameVariantId,
-      sessionId
+      sessionId,
+      options
     );
     if (this.sessions.has(sessionId)) {
       // Unlikely, but just in case
-      return this.createSession(gameTypeId);
+      return this.createSession(gameVariantId, options);
     }
     console.log(
       `allocated new session id: ${sessionId} for game variant: ${gameVariantId}`

@@ -8,7 +8,9 @@ import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 
 class TicTacToeGame {
   constructor({ gridSize = 3, winCondition = 3 } = {}) {
-    this.engine = new GameEngine(gridSize, gridSize);
+    // Always use single-set play style for TicTacToe
+    const turnConfig = { playStyle: "single-set" };
+    this.engine = new GameEngine(gridSize, gridSize, turnConfig);
 
     this.gridSize = gridSize;
     this.winCondition = winCondition;
