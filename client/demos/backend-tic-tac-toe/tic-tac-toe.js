@@ -57,7 +57,7 @@ class TicTacToeGame {
   }
 
   playTurn(x, y) {
-    const currentPlayer = this.engine.getCurrentPlayer();
+    const currentPlayer = this.engine.getCurrentTurnPlayers();
     if (this.engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
       return {

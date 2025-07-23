@@ -14,13 +14,18 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
+  const response = {};
   if (gameInstance.getGameEngine().isGameStarted()) {
-    const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-    return res.json({
-      current_player_id: currentPlayer.getPlayerId(),
-      game_started: true,
-      status: "Game already previously started",
-    });
+    response.game_started = true;
+    response.status = "Game already previously started";
+    const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+    if (gameInstance.engine.getPlayStyle() === "single-set") {
+      response.current_player_id = currentPlayers.getPlayerId();
+    }
+    else {
+      response.current_turn_players = currentPlayers;
+    }
+    return res.json(response);
   }
 
   // Step 1: Add participants as players to your game
@@ -38,12 +43,14 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   gameInstance.startGame();
 
   // Step 4: Return the current player
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-  res.json({
-    current_player_id: currentPlayer.getPlayerId(),
-    game_started: true,
-    status: "New game created",
-  });
+  if (gameInstance.getGameEngine().getPlayStyle() === "single-set") {
+    response.current_player_id = currentPlayers.getPlayerId();
+  }
+  else {
+    const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+    response.current_turn_players = currentPlayers;
+  }
+  res.json(response);
 
   GameEventService.broadcastToSession(gameSession, {
     type: "gameStarted",
@@ -75,7 +82,7 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
 });
 
 // Used to get current turn (=> current player id) (only used for single-set for legacy reasons)
-// @deprecated
+// @deprecated (use /game/get-current-players/:sessionId instead)
 gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   const { sessionId } = req.params;
   const gameSession = sessionManager.getSession(sessionId);

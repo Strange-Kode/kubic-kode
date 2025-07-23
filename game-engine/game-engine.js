@@ -53,9 +53,21 @@ export class GameEngine {
     return this.player_entities;
   }
   
+  getPlayerEntity(playerId) {
+    const playerEntity = this.player_entities.find(e => e.id === playerId);
+    if (!playerEntity) {
+      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this.player_entities.map(e => e.id).join(', ')}.`);
+    }
+    return playerEntity;
+  }
+  
   startGame() {
     if (this.gameStarted === true) {
       throw new Error(`Game is already started.`);
+    }
+
+    if (this.player_entities.length === 0) {
+      throw new Error(`No player entities registered.`);
     }
     this.gameStarted = true;
   }
@@ -146,6 +158,10 @@ export class GameEngine {
   
   resetTileMap() {
     this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
+  }
+
+  getPlayStyle() {
+    return this.playStyle;
   }
 
   registerComponent(componentFunc) {
