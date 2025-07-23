@@ -180,6 +180,10 @@ export function useTicTacToe() {
         refreshData();
       }
 
+      if (data.type === "winCount") {
+        console.log("current winCount: ", data.payload.winCount);
+      }
+
       // Handle restart voting events
       if (
         data.type === "restartVoteStarted" ||
