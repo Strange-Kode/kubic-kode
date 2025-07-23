@@ -20,6 +20,7 @@ class TicTacToeGame {
     let markType = this.consumeMarkTypes.shift();
     const player = new PlayerEntity(name, markType);
     this.engine.registerPlayerEntity(player);
+    return player;
   }
 
   resetForRestart() {

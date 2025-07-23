@@ -26,6 +26,7 @@ class PlayerEntity extends GameEntity {
 
   toJSON() {
     return {
+      id: this.id,
       name: this.name,
       markType: this.markType,
       marks: this.marks,

@@ -82,8 +82,21 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
   }
 });
 
-// List participants
+// @deprecated, use next route instead
 sessionRouter.get("/session/:sessionId/participants", (req, res) => {
+  const { sessionId } = req.params;
+
+  const session = sessionManager.getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  res.json(session.listParticipants());
+});
+
+// List participants
+sessionRouter.get("/session/participants/list/:sessionId", (req, res) => {
   const { sessionId } = req.params;
 
   const session = sessionManager.getSession(sessionId);

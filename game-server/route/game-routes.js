@@ -1,5 +1,6 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
+import { GameEventService } from "../game-event-service.js";
 import { InactivityManager } from "../../game-utility/inactivity-manager.js";
 
 const gameRouter = express.Router();
@@ -23,9 +24,11 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   }
 
   // Step 1: Add participants as players to your game
+  const playerMappings = {}
   for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
-    gameInstance.addPlayer(participant.name);
+    let player = gameInstance.addPlayer(participant.name);
+    playerMappings[participant.id] = player;
   }
 
   // Step 2: Start the game session (if not already started)
@@ -40,6 +43,11 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     current_player_id: currentPlayer.getPlayerId(),
     game_started: true,
     status: "New game created",
+  });
+
+  GameEventService.broadcastToSession(gameSession, {
+    type: "gameStarted",
+    payload: { playerMappings: serializeRecursively(playerMappings) },
   });
 });
 
@@ -59,6 +67,10 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
 
   res.json({
     game_stopped: true,
+  });
+
+  GameEventService.broadcastToSession(gameSession, {
+    type: "gameStopped",
   });
 });
 
