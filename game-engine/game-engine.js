@@ -5,8 +5,10 @@ export class GameEngine {
     this.player_entities = [];
     this.registeredComponents = new Map(); // componentFunc -> componentName
     this.componentNames = new Set(); // set of all names in use
-    this.tileMap = new TileMap(tilemapWidth, tilemapHeight);
-    this.currentTurnIndex = 0; // keeps track of current player or subset
+    this.tilemapWidth = tilemapWidth;
+    this.tilemapHeight = tilemapHeight;
+    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
+    this.currentTurnIndex = 0; // keeps track of current player
     this.currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
     this.gameStarted = false;
 
@@ -140,6 +142,10 @@ export class GameEngine {
 
   getTileMap() {
     return this.tileMap;
+  }
+  
+  resetTileMap() {
+    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
   }
 
   registerComponent(componentFunc) {

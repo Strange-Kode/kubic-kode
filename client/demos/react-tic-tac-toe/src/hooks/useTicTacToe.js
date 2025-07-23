@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "./useSession.js";
 import { useGame } from "./useGame.js";
 import { useGameWebSocket } from "./useGameWebSocket.js";
+import { useRestartVoting } from "./useRestartGame.js";
 
 /**
  * Main orchestration hook for Tic-Tac-Toe game
@@ -20,6 +21,22 @@ export function useTicTacToe() {
   // Hook dependencies
   const session = useSession();
   const game = useGame(session.sessionId);
+
+  // Refresh all data function (needs to be defined before restart voting hook)
+  const refreshData = useCallback(async () => {
+    // console.log("[useTicTacToe] Refreshing all data");
+    setError(null);
+
+    try {
+      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
+    } catch (err) {
+      console.error("[useTicTacToe] Error refreshing data:", err);
+      setError(err.message);
+    }
+  }, [session, game]);
+
+  // Restart voting functionality
+  const restartVoting = useRestartVoting(session, game, refreshData);
 
   // Check if we need to show name modal
   const needsName =
@@ -44,19 +61,6 @@ export function useTicTacToe() {
       setIsLoading(false);
     }
   }, [needsName]);
-
-  // Refresh all data
-  const refreshData = useCallback(async () => {
-    // console.log("[useTicTacToe] Refreshing all data");
-    setError(null);
-
-    try {
-      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
-    } catch (err) {
-      console.error("[useTicTacToe] Error refreshing data:", err);
-      setError(err.message);
-    }
-  }, [session, game]);
 
   // Auto-start game when 2 participants are present
   useEffect(() => {
@@ -175,8 +179,22 @@ export function useTicTacToe() {
       ) {
         refreshData();
       }
+
+      // Handle restart voting events
+      if (
+        data.type === "restartVoteStarted" ||
+        data.type === "restartVoteUpdate" ||
+        data.type === "restartVoteResult"
+      ) {
+        restartVoting.handleRestartVoteEvent(
+          data,
+          setError,
+          setShowWinModal,
+          setWinner
+        );
+      }
     },
-    [session.participants, refreshData]
+    [session.participants, refreshData, restartVoting]
   );
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
@@ -277,6 +295,9 @@ export function useTicTacToe() {
     handleMove,
     refreshData,
     handleWinModalClose,
+
+    // Restart functionality
+    ...restartVoting,
 
     // Pass-through game helpers
     getTile: game.getTile,

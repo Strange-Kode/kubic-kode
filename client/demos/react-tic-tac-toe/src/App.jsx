@@ -45,6 +45,13 @@ function AppContent() {
     handleWinModalClose,
     getTile,
     getGridDimensions,
+    // Restart functionality
+    showRestartVoteModal,
+    restartVoteInitiator,
+    restartVotes,
+    requestRestart,
+    submitRestartVote,
+    handleRestartVoteModalClose,
     // Pass-through for advanced use
     joinSession,
     startGame,
@@ -72,7 +79,6 @@ function AppContent() {
   }
 
   const handleJoinWithName = async (name) => {
-    // console.log("[App] Attempting to join with name:", name);
     // Use the orchestration hook's handler
     await handleNameSubmit(name);
   };
@@ -86,10 +92,8 @@ function AppContent() {
   };
 
   const handleStartGame = async () => {
-    // console.log("[App] Starting game...");
     const result = await startGame();
     if (result.success) {
-      // console.log("[App] Game started successfully!");
     } else {
       console.error("[App] Failed to start game:", result.error);
       alert(`Failed to start game: ${result.error}`);
@@ -107,12 +111,10 @@ function AppContent() {
       return;
     }
 
-    // console.log(`[App] Making move at (${x}, ${y})`);
     const success = await handleMove(x, y);
 
     if (!success) {
       // Error already handled by useTicTacToe hook
-      // console.log("[App] Move was not successful");
     }
   };
 
@@ -122,8 +124,6 @@ function AppContent() {
     if (!tileMap || width === 0 || height === 0) {
       return <Text color="gray.500">No game board available</Text>;
     }
-
-    // console.log("[App-test] Rendering board - tileMap:", tileMap);
 
     return (
       <Grid templateColumns={`repeat(${width}, 1fr)`} gap={1} maxW="300px">
@@ -166,6 +166,164 @@ function AppContent() {
         )}
       </Grid>
     );
+  };
+
+  // Combined Win/Restart Modal helper functions
+  const getWinModalTitle = () => {
+    // If restart voting is active, show restart title
+    if (showRestartVoteModal) {
+      return "🔄 Restart Game Vote";
+    }
+
+    // Otherwise show win/loss title
+    return winner?.id === participantId
+      ? "🎉 You Won!"
+      : `🏆 ${winner?.name || "Player"} Won!`;
+  };
+
+  const getWinModalMessage = () => {
+    // If restart voting is active, show voting message with game result context
+    if (showRestartVoteModal) {
+      const voteCount = Object.keys(restartVotes).length;
+      const totalPlayers = participants.length;
+      const yesVotes = Object.values(restartVotes).filter(
+        (vote) => vote === true
+      ).length;
+
+      // Add context about who won the last game
+      const lastGameResult = winner
+        ? winner.id === participantId
+          ? "You won the last game! 🎉"
+          : `${winner.name} won the last game.`
+        : "Previous game finished.";
+
+      if (restartVoteInitiator === participantId) {
+        if (voteCount === 0) {
+          return `${lastGameResult}\n\nYou requested a restart. Waiting for other player to vote...`;
+        } else if (voteCount < totalPlayers) {
+          return `${lastGameResult}\n\nVote in progress... (${yesVotes}/${totalPlayers} voted Yes)`;
+        } else {
+          const allAgreed = Object.values(restartVotes).every(
+            (vote) => vote === true
+          );
+          return allAgreed
+            ? `${lastGameResult}\n\n🎉 All players agreed! Restarting game...`
+            : `${lastGameResult}\n\n❌ Not everyone agreed to restart.`;
+        }
+      } else {
+        if (voteCount === 0) {
+          return `${lastGameResult}\n\n${
+            restartVoteInitiator === winner?.id ? "The winner" : "Your opponent"
+          } wants to play again. Do you agree?`;
+        } else if (voteCount < totalPlayers) {
+          return `${lastGameResult}\n\nVote in progress... (${yesVotes}/${totalPlayers} voted Yes)\n\nDo you want to restart?`;
+        } else {
+          const allAgreed = Object.values(restartVotes).every(
+            (vote) => vote === true
+          );
+          return allAgreed
+            ? `${lastGameResult}\n\n🎉 All players agreed! Restarting game...`
+            : `${lastGameResult}\n\n❌ Not everyone agreed to restart.`;
+        }
+      }
+    }
+
+    // Otherwise show win/loss message
+    return winner?.id === participantId
+      ? "Congratulations! You have won the game!"
+      : `${
+          winner?.name || "Your opponent"
+        } has won this round. Better luck next time!`;
+  };
+
+  const getWinModalType = () => {
+    if (showRestartVoteModal) {
+      return "warning";
+    }
+    return winner?.id === participantId ? "success" : "info";
+  };
+
+  const getWinModalPrimaryButton = () => {
+    // If restart voting is active, use restart voting logic
+    if (showRestartVoteModal) {
+      const voteCount = Object.keys(restartVotes).length;
+      const totalPlayers = participants.length;
+      const hasVoted = restartVotes[participantId] !== undefined;
+      const allVoted = voteCount === totalPlayers;
+
+      // If all voted or if this player already voted, no primary button needed
+      if (allVoted || hasVoted) {
+        return undefined;
+      }
+
+      // If this player initiated the vote, they already auto-voted Yes
+      if (restartVoteInitiator === participantId) {
+        return undefined;
+      }
+
+      // Otherwise, show vote button
+      return {
+        text: "✅ Yes, Play Again!",
+        onClick: () => submitRestartVote(true),
+      };
+    }
+
+    // Otherwise show "Request New Game" button
+    return {
+      text: "🔄 Request New Game",
+      onClick: () => {
+        // Don't close the modal, just initiate restart voting
+        requestRestart();
+      },
+    };
+  };
+
+  const getWinModalSecondaryButton = () => {
+    // If restart voting is active, use restart voting logic
+    if (showRestartVoteModal) {
+      const voteCount = Object.keys(restartVotes).length;
+      const totalPlayers = participants.length;
+      const hasVoted = restartVotes[participantId] !== undefined;
+      const allVoted = voteCount === totalPlayers;
+
+      if (allVoted) {
+        return {
+          text: "Close",
+          onClick: () => {
+            handleWinModalClose();
+            handleRestartVoteModalClose();
+          },
+        };
+      }
+
+      if (hasVoted) {
+        return {
+          text: "Waiting for others...",
+          onClick: () => {}, // Disabled state
+        };
+      }
+
+      if (restartVoteInitiator === participantId) {
+        return {
+          text: "Cancel Vote",
+          onClick: () => {
+            handleWinModalClose();
+            handleRestartVoteModalClose();
+          },
+        };
+      }
+
+      return {
+        text: "❌ No Thanks",
+        onClick: () => submitRestartVote(false),
+      };
+    }
+
+    // Otherwise show "Close" button
+    return {
+      text: "Close",
+      onClick: handleWinModalClose,
+    };
   };
 
   return (
@@ -363,7 +521,7 @@ function AppContent() {
           {/* Bottom Actions */}
           <Container bg="gray.100" w="100%">
             <VStack spacing={2}>
-              <Heading size="sm">Debug Actions</Heading>
+              <Heading size="sm">Game Actions</Heading>
               <HStack spacing={2}>
                 <Button size="sm" onClick={refreshData}>
                   Refresh All Data
@@ -387,35 +545,15 @@ function AppContent() {
         </VStack>
       </ChakraContainer>
 
-      {/* Win Modal */}
+      {/* Combined Win/Restart Modal */}
       <GameModal
         isOpen={showWinModal}
         onClose={handleWinModalClose}
-        title={
-          winner?.id === participantId
-            ? "You Won!"
-            : `${winner?.name || "Player"} Won!`
-        }
-        message={
-          winner?.id === participantId
-            ? "Congratulations! You have won the game!"
-            : `${
-                winner?.name || "Your opponent"
-              } has won this round. Better luck next time!`
-        }
-        type={winner?.id === participantId ? "success" : "info"}
-        primaryButton={{
-          text: "Okay",
-          onClick: () => {
-            handleWinModalClose();
-            // Could add restart game logic here
-            refreshData();
-          },
-        }}
-        secondaryButton={{
-          text: "Close",
-          onClick: handleWinModalClose,
-        }}
+        title={getWinModalTitle()}
+        message={getWinModalMessage()}
+        type={getWinModalType()}
+        primaryButton={getWinModalPrimaryButton()}
+        secondaryButton={getWinModalSecondaryButton()}
       />
     </Box>
   );

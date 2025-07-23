@@ -20,8 +20,13 @@ class PlayerEntity extends GameEntity {
     return mark;
   }
 
+  clearMarks() {
+    this.marks = [];
+  }
+
   toJSON() {
     return {
+      id: this.id,
       name: this.name,
       markType: this.markType,
       marks: this.marks,
