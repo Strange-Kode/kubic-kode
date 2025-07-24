@@ -1,16 +1,24 @@
 import { InactivityManager } from "../game-utility/inactivity-manager.js";
+import { GameHistory } from "./game-history.js";
 
 export class GameSession {
-  constructor(sessionId, gameInstance, maxParticipants = 2) {
+  constructor(sessionId, maxParticipants = 2) {
     this.sessionId = sessionId;
-    this.gameInstance = gameInstance;
     this.maxParticipants = maxParticipants;
     this.participants = []; // { id, name }
     this.started = false;
     this.participant_alloc_idx = 0;
+    this.gameInstance = null;
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
+    
+    // Game history instance
+    this.gameHistory = new GameHistory(sessionId);
+  }
+
+  setGameInstance(gameInstance) {
+    this.gameInstance = gameInstance;
   }
 
   allocateParticipantId() {
@@ -39,6 +47,9 @@ export class GameSession {
       name: name,
     });
 
+    // Add to game history
+    this.gameHistory.addParticipantJoinedEvent(participantId, name);
+
     return participantId;
   }
 
@@ -49,7 +60,11 @@ export class GameSession {
       throw new Error("Participant not found.");
     }
 
+    const participant = this.participants[index];
     this.participants.splice(index, 1);
+
+    // Add to game history
+    this.gameHistory.addParticipantLeftEvent(id, participant.name);
   }
 
   listParticipants() {
@@ -68,6 +83,9 @@ export class GameSession {
     const inactivityManager = new InactivityManager(this, this.gameInstance);
     this.inactivityManager = inactivityManager;
     inactivityManager.startTimer();
+
+    // Add to game history
+    this.gameHistory.addSessionStartedEvent(this.participants);
   }
 
   markEnded() {
@@ -75,6 +93,9 @@ export class GameSession {
     if (this.inactivityManager) {
       this.inactivityManager.clearTimer();
     }
+
+    // Add to game history
+    this.gameHistory.addSessionEndedEvent(this.participants.length);
   }
 
   getGameInstance() {
@@ -94,6 +115,9 @@ export class GameSession {
       votes: {}, // participantId => true/false
       totalParticipants: this.participants.length,
     };
+
+    // Add to game history
+    this.gameHistory.addRestartVoteStartedEvent(this.participants.length);
   }
 
   registerRestartVote(participantId, voteYes) {
@@ -102,6 +126,9 @@ export class GameSession {
     }
 
     this.restartVote.votes[participantId] = voteYes;
+
+    // Add to game history
+    this.gameHistory.addRestartVoteRegisteredEvent(participantId, voteYes, Object.keys(this.restartVote.votes).length);
   }
 
   isRestartVoteComplete() {
@@ -120,7 +147,11 @@ export class GameSession {
   }
 
   clearRestartVote() {
+    const voteResult = this.restartVote ? this.getRestartVoteResult() : null;
     this.restartVote = null;
+
+    // Add to game history
+    this.gameHistory.addRestartVoteClearedEvent(voteResult);
   }
 
   getInactivityManager() {

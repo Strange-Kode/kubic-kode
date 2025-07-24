@@ -53,6 +53,10 @@ export class GameEngine {
     return this.player_entities[this.currentTurnIndex];
   }
 
+  getPlayerById(playerId) {
+    return this.player_entities.find(e => e.id === playerId);
+  }
+
   nextTurn() {
     this.currentTurnIndex =
       (this.currentTurnIndex + 1) % this.player_entities.length;

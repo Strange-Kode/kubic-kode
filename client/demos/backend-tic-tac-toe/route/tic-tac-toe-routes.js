@@ -17,11 +17,25 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
 
-  let roundStatus = gameInstance.playTurn(xPos, yPos);
+  let roundStatus = gameInstance.playTurn(playerId, xPos, yPos);
+  
+  // Broadcast the turn event to all connected clients
   GameEventService.broadcastToSession(gameSession, {
     type: "turnPlayed",
     payload: { roundStatus }
   });
+  
+  // If the player won, also broadcast a win event
+  if (roundStatus.player_has_won) {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "playerWon",
+      payload: { 
+        playerId: roundStatus.player_id,
+        winCondition: roundStatus.winCondition || 'unknown'
+      }
+    });
+  }
+  
   res.json(roundStatus);
 });
 

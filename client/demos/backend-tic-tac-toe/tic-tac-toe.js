@@ -2,10 +2,9 @@
 
 import { GameEngine } from "../../../game-engine/game-engine.js";
 import PlayerEntity from "./game-entity/player-entity.js";
-import MarkEntity from "./game-entity/mark-entity.js";
-import { TileMap } from "../../../game-engine/tile-map.js";
 import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 
+// TicTacToeGame implements the GameInterface contract
 class TicTacToeGame {
   constructor({ gridSize = 3, winCondition = 3 } = {}) {
     this.engine = new GameEngine(gridSize, gridSize);
@@ -14,6 +13,36 @@ class TicTacToeGame {
     this.winCondition = winCondition;
     this.consumeMarkTypes = ["X", "O"];
     this.winner = null;
+  }
+
+  getGameEngine() {
+    return this.engine;
+  }
+
+  getTileMap() {
+    return this.engine.getTileMap();
+  }
+
+  getCurrentPlayer() {
+    return this.engine.getCurrentPlayer();
+  }
+
+  stopGame() {
+    this.engine.stopGame();
+  }
+
+  isGameActive() {
+    return this.engine.isGameActive();
+  }
+
+  getGameStats() {
+    return {
+      gridSize: this.gridSize,
+      winCondition: this.winCondition,
+      winner: this.winner,
+      isActive: this.isGameActive(),
+      playerCount: this.engine.getPlayerEntities().length
+    };
   }
 
   addPlayer(name) {
@@ -39,10 +68,6 @@ class TicTacToeGame {
   }
 
   startGame() {
-    if (this.engine.getPlayerEntities().length < 2) {
-      throw new Error("At least two players are required to start the game.");
-    }
-
     // Reset restart-specific state before starting
     this.resetForRestart();
 
@@ -50,12 +75,10 @@ class TicTacToeGame {
     this.engine.startGame();
   }
 
-  getGameEngine() {
-    return this.engine;
-  }
+  playTurn(playerId, x, y) {
+    // const currentPlayer = this.engine.getCurrentPlayer();
+    const currentPlayer = this.engine.getPlayerById(playerId);
 
-  playTurn(x, y) {
-    const currentPlayer = this.engine.getCurrentPlayer();
     if (this.engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
       return {
@@ -69,7 +92,7 @@ class TicTacToeGame {
     const mark = currentPlayer.placeMark({ x, y });
     this.engine.getTileMap().setTile(x, y, mark);
 
-    if (this.checkWinCondition(mark)) {
+    if (this.__checkWinCondition(mark)) {
       this.winner = currentPlayer;
       this.engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
@@ -87,7 +110,7 @@ class TicTacToeGame {
     };
   }
 
-  checkWinCondition(lastMark) {
+  __checkWinCondition(lastMark) {
     const directions = [
       { dx: 1, dy: 0 }, // horizontal
       { dx: 0, dy: 1 }, // vertical
@@ -100,8 +123,8 @@ class TicTacToeGame {
 
     for (const { dx, dy } of directions) {
       let count = 1;
-      count += this.countInDirection(x, y, dx, dy, targetType);
-      count += this.countInDirection(x, y, -dx, -dy, targetType);
+      count += this.__countInDirection(x, y, dx, dy, targetType);
+      count += this.__countInDirection(x, y, -dx, -dy, targetType);
 
       if (count >= this.winCondition) {
         return true;
@@ -111,7 +134,7 @@ class TicTacToeGame {
     return false;
   }
 
-  countInDirection(startX, startY, dx, dy, type) {
+  __countInDirection(startX, startY, dx, dy, type) {
     let count = 0;
     let x = startX + dx;
     let y = startY + dy;
