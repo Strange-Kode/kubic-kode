@@ -77,7 +77,7 @@ class TicTacToeGame {
     this.engine.startGame();
   }
 
-  playTurn(playerId, x, y) {
+  playTurn(playerId, x, y, metadata = {}) {
     // TODO: get currentPlayer by id rather than using currentPlayer()
     const currentPlayer = this.engine.getCurrentTurnPlayers();
     // const currentPlayer = this.engine.getPlayerById(playerId);

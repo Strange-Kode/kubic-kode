@@ -28,9 +28,9 @@ class KubicKodeGame extends GameInterface {
   }
 
   // Proxy method - delegates to game instance and records history
-  playTurn(playerId, x, y) {
+  playTurn(playerId, x, y, metadata = {}) {
     // Delegate to the actual game
-    const result = this.gameInstance.playTurn(playerId, x, y);
+    const result = this.gameInstance.playTurn(playerId, x, y, metadata);
 
     // Only record history if the turn was valid
     if (result.status === 'ok' || result.status === 'valid') {
