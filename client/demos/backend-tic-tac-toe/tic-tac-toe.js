@@ -76,8 +76,12 @@ class TicTacToeGame {
   }
 
   playTurn(playerId, x, y) {
-    // const currentPlayer = this.engine.getCurrentPlayer();
-    const currentPlayer = this.engine.getPlayerById(playerId);
+    // TODO: get currentPlayer by id rather than using currentPlayer()
+    const currentPlayer = this.engine.getCurrentPlayer();
+    // const currentPlayer = this.engine.getPlayerById(playerId);
+
+    console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);
+    console.log(`[TicTacToeGame] Current player:`, currentPlayer);
 
     if (this.engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
@@ -90,7 +94,14 @@ class TicTacToeGame {
     }
 
     const mark = currentPlayer.placeMark({ x, y });
+    console.log(`[TicTacToeGame] Created mark:`, mark);
+    
     this.engine.getTileMap().setTile(x, y, mark);
+    console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
+    
+    // Debug: Check if tile was actually set
+    const retrievedTile = this.engine.getTileMap().getTile(x, y);
+    console.log(`[TicTacToeGame] Retrieved tile at (${x}, ${y}):`, retrievedTile);
 
     if (this.__checkWinCondition(mark)) {
       this.winner = currentPlayer;

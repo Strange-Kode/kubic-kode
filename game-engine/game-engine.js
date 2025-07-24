@@ -29,6 +29,10 @@ export class GameEngine {
     return this.player_entities;
   }
   
+  getPlayerById(playerId) {
+    return this.player_entities.find(player => player.getPlayerId() === playerId);
+  }
+  
   startGame() {
     if (this.gameStarted === true) {
       throw new Error(`Game is already started.`);

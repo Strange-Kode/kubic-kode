@@ -42,10 +42,16 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
     
     res.json({ success: true, participant_id: participantId });
     
-    GameEventService.broadcastToSession(gameSession, {
-      type: "sessionParticipantJoined",
-      payload: { participant },
-    });
+    // Broadcast the event after sending the response to avoid blocking the request
+    try {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "sessionParticipantJoined",
+        payload: { participant },
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the join was successful, just the broadcast failed
+    }
     
   }
   catch (err) {
@@ -72,10 +78,16 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
     gameSession.removeParticipant(participantId);
     res.json({ success: true });
     
-    GameEventService.broadcastToSession(gameSession, {
-      type: "sessionParticipantLeft",
-      payload: { participant },
-    });
+    // Broadcast the event after sending the response to avoid blocking the request
+    try {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "sessionParticipantLeft",
+        payload: { participant },
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the leave was successful, just the broadcast failed
+    }
     
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -114,14 +126,20 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
 
   gameSession.startRestartVote();
 
-  GameEventService.broadcastToSession(gameSession, {
-    type: "restartVoteStarted",
-    payload: {
-      participants: gameSession.getParticipants().map(p => p.id)
-    }
-  });
-
   res.json({ vote_inited: true });
+
+  // Broadcast the event after sending the response to avoid blocking the request
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "restartVoteStarted",
+      payload: {
+        participants: gameSession.getParticipants().map(p => p.id)
+      }
+    });
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the vote was started successfully, just the broadcast failed
+  }
 });
 
 sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
@@ -133,29 +151,35 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
   try {
     gameSession.registerRestartVote(participantId, voteYes === true);
 
-    GameEventService.broadcastToSession(gameSession, {
-      type: "restartVoteUpdate",
-      payload: {
-        participantId,
-        vote: voteYes === true
-      }
-    });
+    res.json({ success: true });
 
-    if (gameSession.isRestartVoteComplete()) {
-      const allAgreed = gameSession.getRestartVoteResult();
-
+    // Broadcast the event after sending the response to avoid blocking the request
+    try {
       GameEventService.broadcastToSession(gameSession, {
-        type: "restartVoteResult",
+        type: "restartVoteUpdate",
         payload: {
-          allAgreed,
-          votes: gameSession.restartVote.votes
+          participantId,
+          vote: voteYes === true
         }
       });
 
-      gameSession.clearRestartVote();
-    }
+      if (gameSession.isRestartVoteComplete()) {
+        const allAgreed = gameSession.getRestartVoteResult();
 
-    res.json({ success: true });
+        GameEventService.broadcastToSession(gameSession, {
+          type: "restartVoteResult",
+          payload: {
+            allAgreed,
+            votes: gameSession.restartVote.votes
+          }
+        });
+
+        gameSession.clearRestartVote();
+      }
+    } catch (broadcastError) {
+      console.error('Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the vote was registered successfully, just the broadcast failed
+    }
 
   } catch (error) {
     res.status(400).json({ error: error.message });
