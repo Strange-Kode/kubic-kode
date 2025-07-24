@@ -79,10 +79,16 @@ export class GameSession {
     if (this.participants.length < 2) {
       throw new Error("Cannot start game. Not enough participants.");
     }
+    
     this.started = true;
-    const inactivityManager = new InactivityManager(this, this.gameInstance);
-    this.inactivityManager = inactivityManager;
-    inactivityManager.startTimer();
+    if (this.gameInstance.handleInactivity) {
+      const inactivityManager = new InactivityManager(this, this.gameInstance);
+      this.inactivityManager = inactivityManager;
+      inactivityManager.startTimer();
+    }
+    else {
+      this.inactivityManager = null;
+    }
 
     // Add to game history
     this.gameHistory.addSessionStartedEvent(this.participants);

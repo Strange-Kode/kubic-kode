@@ -115,6 +115,9 @@ class KubicKodeGame extends GameInterface {
 
   // Handle inactivity with history recording
   handleInactivity() {
+    if (!this.gameInstance.handleInactivity) {
+      return null;
+    }
     const result = this.gameInstance.handleInactivity();
     
     // Record inactivity win event
@@ -211,7 +214,10 @@ class KubicKodeGame extends GameInterface {
   }
 
   getInactivityTimeout() {
-    return this.gameInstance.getInactivityTimeout();
+    if (this.gameInstance.getInactivityTimeout) {
+      return this.gameInstance.getInactivityTimeout();
+    }
+    return null;
   }
 
   stopGame() {

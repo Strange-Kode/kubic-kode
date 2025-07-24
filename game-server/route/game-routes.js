@@ -1,7 +1,6 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
-import { InactivityManager } from "../../game-utility/inactivity-manager.js";
 
 const gameRouter = express.Router();
 
