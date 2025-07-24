@@ -6,15 +6,37 @@ import { serializeRecursively } from "../../game-utility/game-utility.js";
 
 const sessionRouter = express.Router();
 
-// Creates and secures a singleton session for simplicity.
+// Init session, GET fallback (no turnConfig)
 sessionRouter.get("/session/init/:gameId", (req, res) => {
   const { gameId } = req.params;
   let sessionState, session_created;
   if (sessionManager.hasSessions()) {
     sessionState = sessionManager.getSessions()[0];
     session_created = false;
-  } else {
+  }
+  else {
     sessionState = sessionManager.createSession(gameId);
+    session_created = true;
+  }
+  console.log(`session-routes.js::session created: ${session_created}`);
+  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  res.json({
+    session_id: sessionState.sessionId,
+    session_created: session_created,
+  });
+});
+
+// Init session, POST: allows passing options (but NOT turnConfig)
+sessionRouter.post("/session/init/:gameId", (req, res) => {
+  const { gameId } = req.params;
+  const otherOptions = req.body || {};
+  let sessionState, session_created;
+  if (sessionManager.hasSessions()) {
+    sessionState = sessionManager.getSessions()[0];
+    session_created = false;
+  }
+  else {
+    sessionState = sessionManager.createSession(gameId, { ...otherOptions });
     session_created = true;
   }
   console.log(`session-routes.js::session created: ${session_created}`);

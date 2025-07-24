@@ -10,12 +10,12 @@ class GameRegistry {
     this.registry.set(gameVariantId, gameFactory);
   }
 
-  createGameInstance(gameVariantId, sessionId) {
+  createGameInstance(gameVariantId, sessionId, options = {}) {
     const factory = this.registry.get(gameVariantId);
     if (!factory) {
       throw new Error(`Unknown variant: ${gameVariantId}`);
     }
-    return factory(sessionId);
+    return factory(sessionId, options);
   }
 }
 

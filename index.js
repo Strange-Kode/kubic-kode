@@ -12,7 +12,7 @@ export * as gameEntityPlayer from "./game-engine/game-entity/game-entity-player.
 
 // Game Server
 // export * as gameServer from "./game-server/game-server.js";
-export * as sessionManager from "./game-server/session-manager.js";
+export { sessionManager } from "./game-server/session-manager.js";
 export * as gameSession from "./game-server/game-session.js";
 export { gameRegistry } from "./game-server/game-registry.js";
 export * as gameEventService from "./game-server/game-event-service.js";

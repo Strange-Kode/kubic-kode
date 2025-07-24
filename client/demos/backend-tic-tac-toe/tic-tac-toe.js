@@ -7,7 +7,9 @@ import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 // TicTacToeGame implements the GameInterface contract
 class TicTacToeGame {
   constructor({ gridSize = 3, winCondition = 3 } = {}) {
-    this.engine = new GameEngine(gridSize, gridSize);
+    // Always use single-set play style for TicTacToe
+    const turnConfig = { playStyle: "single-set" };
+    this.engine = new GameEngine(gridSize, gridSize, turnConfig);
 
     this.gridSize = gridSize;
     this.winCondition = winCondition;
@@ -77,7 +79,7 @@ class TicTacToeGame {
 
   playTurn(playerId, x, y) {
     // TODO: get currentPlayer by id rather than using currentPlayer()
-    const currentPlayer = this.engine.getCurrentPlayer();
+    const currentPlayer = this.engine.getCurrentTurnPlayers();
     // const currentPlayer = this.engine.getPlayerById(playerId);
 
     console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);

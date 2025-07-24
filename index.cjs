@@ -12,7 +12,7 @@ const gameEntityPlayer = require("./game-engine/game-entity/game-entity-player")
 
 // Game Server
 const gameServer = require("./game-server/game-server");
-const sessionManager = require("./game-server/session-manager");
+const { sessionManager } = require("./game-server/session-manager");
 const gameSession = require("./game-server/game-session");
 const gameRegistry = require("./game-server/game-registry");
 const gameEventService = require("./game-server/game-event-service");

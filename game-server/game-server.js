@@ -18,12 +18,12 @@ import {
 } from "../client/demos/backend-tic-tac-toe/tic-tac-toe.js";
 import { GameEventService } from "./game-event-service.js";
 
-function TicTacToeClassicFactory(sessionId) {
-  return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3 });
+function TicTacToeClassicFactory(sessionId, options = {}) {
+  return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3, ...options });
 }
 
-function TicTacToe5x5Factory(sessionId) {
-  return new TicTacToeGame({ sessionId, gridSize: 5, winCondition: 4 });
+function TicTacToe5x5Factory(sessionId, options = {}) {
+  return new TicTacToeGame({ sessionId, gridSize: 5, winCondition: 4, ...options });
 }
 
 const gameRouters = [{ path: "/api/tic-tac-toe", router: ticTacToeRouter }];
