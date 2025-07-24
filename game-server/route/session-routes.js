@@ -186,6 +186,43 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
   }
 });
 
+// Get session game history with optional filters
+sessionRouter.post("/session/history/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const filters = req.body || {};
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    // Convert string dates to Date objects if provided
+    const processedFilters = { ...filters };
+    if (filters.startTime && typeof filters.startTime === 'string') {
+      processedFilters.startTime = new Date(filters.startTime);
+    }
+    if (filters.endTime && typeof filters.endTime === 'string') {
+      processedFilters.endTime = new Date(filters.endTime);
+    }
+
+    // Get filtered game history
+    const history = gameSession.getGameHistory().getByFilters(processedFilters);
+    
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      totalEvents: history.length,
+      history: history
+    });
+    
+  } catch (err) {
+    console.error('Get session history error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Test session routes
 sessionRouter.get("/session/test", (req, res) => {
   res.json({

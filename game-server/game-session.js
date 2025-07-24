@@ -157,4 +157,8 @@ export class GameSession {
   getInactivityManager() {
     return this.inactivityManager;
   }
+
+  getGameHistory() {
+    return this.gameHistory;
+  }
 }
