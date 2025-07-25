@@ -26,7 +26,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   const playerMappings = {}
   for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
-    let player = gameInstance.addPlayer(participant.name);
+    let player = gameInstance.addPlayer(participant.name, participant.type === 'computer');
     playerMappings[participant.id] = player;
   }
 
