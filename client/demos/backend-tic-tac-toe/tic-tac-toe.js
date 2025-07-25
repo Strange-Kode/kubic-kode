@@ -155,7 +155,7 @@ class TicTacToeGame {
   }
 
   getInactivityTimeout() {
-    return 30_000; // 30 seconds
+    return 120_000; // 120 seconds
   }
 
   getWinner() {
