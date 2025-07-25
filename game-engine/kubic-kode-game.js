@@ -100,7 +100,10 @@ class KubicKodeGame extends GameInterface {
     if (this.gameInstance.getGameEngine().getPlayerEntities().length < 2) {
       throw new Error("At least two players are required to start the game.");
     }
-    const result = this.gameInstance.startGame();
+
+    const result = this.gameInstance.startGame ?
+      this.gameInstance.startGame() :
+      this.gameInstance.getGameEngine().startGame();
     
     // Record game start event
     if (this.gameSession) {
@@ -196,17 +199,31 @@ class KubicKodeGame extends GameInterface {
     return "unknown";
   }
 
+  stopGame() {
+    const result = (this.gameInstance.stopGame) ?
+      this.gameInstance.stopGame() :
+      this.gameInstance.getGameEngine().stopGame();
+
+    this.gameSession.gameHistory.addGameStateEvent('gameStopped', {
+      reason: 'manual',
+      timestamp: new Date().toISOString()
+    });
+    return result;
+  }
+
   // Expose game instance methods that don't need history
   getGameEngine() {
     return this.gameInstance.getGameEngine();
   }
 
   getTileMap() {
-    return this.gameInstance.getTileMap();
+    return this.gameInstance.getGameEngine().getTileMap();
   }
 
-  getCurrentPlayer() {
-    return this.gameInstance.getCurrentPlayer();
+  getCurrentTurnPlayers() {
+    return this.gameInstance.getCurrentTurnPlayers ?
+      this.gameInstance.getCurrentTurnPlayers() :
+      this.gameInstance.getGameEngine().getCurrentTurnPlayers();
   }
 
   getWinner() {
@@ -220,17 +237,10 @@ class KubicKodeGame extends GameInterface {
     return null;
   }
 
-  stopGame() {
-    const result = this.gameInstance.stopGame();
-    this.gameSession.gameHistory.addGameStateEvent('gameStopped', {
-      reason: 'manual',
-      timestamp: new Date().toISOString()
-    });
-    return result;
-  }
-
   isGameActive() {
-    return this.gameInstance.isGameActive();
+    return this.gameInstance.isGameActive ?
+      this.gameInstance.isGameActive() :
+      this.gameInstance.getGameEngine().isGameActive();
   }
 
   getGameStats() {

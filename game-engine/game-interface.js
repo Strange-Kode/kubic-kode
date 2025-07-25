@@ -34,8 +34,8 @@ export class GameInterface {
     throw new Error('getTileMap must be implemented');
   }
 
-  getCurrentPlayer() {
-    throw new Error('getCurrentPlayer must be implemented');
+  getCurrentTurnPlayers() {
+    throw new Error('getCurrentTurnPlayers must be implemented');
   }
 
   getWinner() {
@@ -66,7 +66,7 @@ export const GAME_INTERFACE_METHODS = [
   'handleInactivity',
   'getGameEngine',
   'getTileMap',
-  'getCurrentPlayer',
+  'getCurrentTurnPlayers',
   'getWinner',
   'getInactivityTimeout',
   'isGameActive',

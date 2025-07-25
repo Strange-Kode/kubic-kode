@@ -21,20 +21,9 @@ class TicTacToeGame {
     return this.engine;
   }
 
-  getTileMap() {
-    return this.engine.getTileMap();
-  }
-
   getCurrentPlayer() {
-    return this.engine.getCurrentPlayer();
-  }
-
-  stopGame() {
-    this.engine.stopGame();
-  }
-
-  isGameActive() {
-    return this.engine.isGameActive();
+    const currentPlayerList = this.engine.getCurrentTurnPlayers();
+    return currentPlayerList.pop();
   }
 
   getGameStats() {
