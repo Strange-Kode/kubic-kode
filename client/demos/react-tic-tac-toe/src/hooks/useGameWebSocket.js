@@ -10,9 +10,9 @@ export function useGameWebSocket(sessionId, onEvent) {
   }, [onEvent]);
 
   useEffect(() => {
-    console.log(
-      `[useGameWebSocket] useEffect triggered. sessionId: ${sessionId}`
-    );
+    // console.log(
+    //   `[useGameWebSocket] useEffect triggered. sessionId: ${sessionId}`
+    // );
     if (!sessionId) return;
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -23,21 +23,21 @@ export function useGameWebSocket(sessionId, onEvent) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log(
-        `[useGameWebSocket] WebSocket opened for session: ${sessionId}`
-      );
+      // console.log(
+      //   `[useGameWebSocket] WebSocket opened for session: ${sessionId}`
+      // );
     };
     ws.onclose = (event) => {
-      console.log(
-        `[useGameWebSocket] WebSocket closed for session: ${sessionId}`,
-        event
-      );
+      // console.log(
+      //   `[useGameWebSocket] WebSocket closed for session: ${sessionId}`,
+      //   event
+      // );
     };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log(`[useGameWebSocket] Received WebSocket message:`, data);
-      console.log(`[useGameWebSocket] Message type: ${data.type}`);
-      console.log(`[useGameWebSocket] Session ID: ${sessionId}`);
+      // console.log(`[useGameWebSocket] Received WebSocket message:`, data);
+      // console.log(`[useGameWebSocket] Message type: ${data.type}`);
+      // console.log(`[useGameWebSocket] Session ID: ${sessionId}`);
       onEventRef.current?.(data);
     };
 

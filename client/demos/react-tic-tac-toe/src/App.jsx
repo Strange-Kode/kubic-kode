@@ -12,10 +12,18 @@ import {
   GridItem,
   Badge,
   Divider,
+  Table,
+  Thead,
+  Tbody,
+  Tfoot,
+  Tr,
+  Th,
+  Td,
 } from "@chakra-ui/react";
 import LoadingScreen from "./components/LoadingScreen";
 import Container from "./components/Container";
 import GameModal from "./components/GameModal";
+import { LiveTimer } from "./components/LiveTimer";
 import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
@@ -34,6 +42,7 @@ function AppContent() {
     isMyTurn,
     gameStarted,
     gameActive,
+    gameDisabledByInactivity,
     tileMap,
     lastMoveResult,
     sessionId,
@@ -45,6 +54,12 @@ function AppContent() {
     handleWinModalClose,
     getTile,
     getGridDimensions,
+    // Player wins data
+    playerWinCounts,
+    getWinCountForPlayer,
+    getTotalGames,
+    inactivityTimer,
+    getLiveTimer,
     // Restart functionality
     showRestartVoteModal,
     restartVoteInitiator,
@@ -140,7 +155,7 @@ function AppContent() {
                   h="60px"
                   w="60px"
                   onClick={() => handleTileClick(x, y)}
-                  isDisabled={!gameActive || !isMyTurn || cellValue !== ""}
+                  isDisabled={!gameActive || !isMyTurn || cellValue !== "" || gameDisabledByInactivity}
                   colorScheme={
                     cellValue === "X"
                       ? "purple"
@@ -379,7 +394,7 @@ function AppContent() {
                 </VStack>
               </Container>
 
-              {/* Participants List */}
+              {/* Participants & Win Counter Table */}
               <Container w="100%">
                 <Heading size="md" mb={3}>
                   Participants
@@ -387,15 +402,44 @@ function AppContent() {
                 {participants.length === 0 ? (
                   <Text color="gray.500">No participants yet</Text>
                 ) : (
-                  <VStack align="start" spacing={1}>
-                    {participants.map((participant, index) => (
-                      <Text key={participant.id}>
-                        {index + 1}. {participant.name} (ID: {participant.id})
-                        {participant.id === participantId && " ← You"}
-                        {index === 0 && " (Host)"}
-                      </Text>
-                    ))}
-                  </VStack>
+                  <Table variant="simple" size="sm">
+                    <Thead>
+                      <Tr>
+                        <Th>Player</Th>
+                        <Th>ID</Th>
+                        <Th>Host</Th>
+                        <Th isNumeric>Wins</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {participants.map((participant, index) => (
+                        <Tr key={participant.id}>
+                          <Td>
+                            {participant.name}
+                            {participant.id === participantId && (
+                              <Badge ml={2} colorScheme="blue" size="sm">You</Badge>
+                            )}
+                          </Td>
+                          <Td>{participant.id}</Td>
+                          <Td>{index === 0 ? "👑" : "-"}</Td>
+                          <Td isNumeric>
+                            <Badge 
+                              colorScheme={getWinCountForPlayer(participant.id) > 0 ? "green" : "gray"}
+                              variant="solid"
+                            >
+                              {getWinCountForPlayer(participant.id)}
+                            </Badge>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                    <Tfoot>
+                      <Tr>
+                        <Th colSpan={3}>Total Games:</Th>
+                        <Th isNumeric>{getTotalGames()}</Th>
+                      </Tr>
+                    </Tfoot>
+                  </Table>
                 )}
               </Container>
 
@@ -476,6 +520,14 @@ function AppContent() {
                   <Text>
                     <strong>Opponent:</strong> {opponent?.name || "None"}
                   </Text>
+                  {inactivityTimer !== null && gameActive && (
+                    <HStack>
+                      <Text>
+                        <strong>Inactivity Timer:</strong>
+                      </Text>
+                      <LiveTimer getLiveTimer={getLiveTimer} gameActive={gameActive} />
+                    </HStack>
+                  )}
                   {error && (
                     <Text color="red.500">
                       <strong>Game Error:</strong> {error}
@@ -529,12 +581,13 @@ function AppContent() {
                 <Button
                   size="sm"
                   onClick={() =>
-                    console.log("useTicTacToe state:", {
-                      gamePhase,
-                      participants,
-                      currentPlayer,
-                      isMyTurn,
-                    })
+                    // console.log("useTicTacToe state:", {
+                    //   gamePhase,
+                    //   participants,
+                    //   currentPlayer,
+                    //   isMyTurn,
+                    // })
+                    {}
                   }
                 >
                   Log Hook State

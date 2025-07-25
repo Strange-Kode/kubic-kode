@@ -1,7 +1,6 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
-import { InactivityManager } from "../../game-utility/inactivity-manager.js";
 
 const gameRouter = express.Router();
 
@@ -45,10 +44,16 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     status: "New game created",
   });
 
-  GameEventService.broadcastToSession(gameSession, {
-    type: "gameStarted",
-    payload: { playerMappings: serializeRecursively(playerMappings) },
-  });
+  // Broadcast the event after sending the response to avoid blocking the request
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "gameStarted",
+      payload: { playerMappings: serializeRecursively(playerMappings) },
+    });
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the game was started successfully, just the broadcast failed
+  }
 });
 
 gameRouter.get("/game/stop/:sessionId", (req, res) => {
@@ -69,9 +74,15 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
     game_stopped: true,
   });
 
-  GameEventService.broadcastToSession(gameSession, {
-    type: "gameStopped",
-  });
+  // Broadcast the event after sending the response to avoid blocking the request
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "gameStopped",
+    });
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the game was stopped successfully, just the broadcast failed
+  }
 });
 
 // Used to get current turn (=> current player id)
@@ -103,7 +114,14 @@ gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
 
-  res.json(serializeRecursively(gameInstance.getGameEngine().getTileMap()));
+  const tileMap = gameInstance.getGameEngine().getTileMap();
+  console.log(`[get-tilemap] Raw tileMap:`, tileMap);
+  console.log(`[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  
+  const serializedTileMap = serializeRecursively(tileMap);
+  console.log(`[get-tilemap] Serialized tileMap:`, serializedTileMap);
+  
+  res.json(serializedTileMap);
 });
 
 export default gameRouter;
