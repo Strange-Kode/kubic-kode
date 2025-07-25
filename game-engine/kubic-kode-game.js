@@ -1,12 +1,12 @@
 // KubicKodeGame is a class that acts as a proxy for the game instance and game session.
 // It delegates method calls to the game instance and records the game history.
-import { GameInterface } from './game-interface.js';
+import { GameInterface } from "./game-interface.js";
 
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
     super();
-    this.gameInstance = gameInstance;  // Game instance
-    this.gameSession = gameSession;    // GameSession instance
+    this.gameInstance = gameInstance; // Game instance
+    this.gameSession = gameSession; // GameSession instance
 
     // Create a proxy that forwards unknown methods
     return new Proxy(this, {
@@ -23,7 +23,7 @@ class KubicKodeGame extends GameInterface {
 
         // Otherwise, throw error
         throw new Error(`Method ${prop} not found`);
-      }
+      },
     });
   }
 
@@ -33,43 +33,47 @@ class KubicKodeGame extends GameInterface {
     const result = this.gameInstance.playTurn(playerId, x, y, metadata);
 
     // Only record history if the turn was valid
-    if (result.status === 'ok' || result.status === 'valid') {
+    if (result.status === "ok" || result.status === "valid") {
       // Record the turn in history
       this.gameSession.gameHistory.addTurnPlayedEvent(
         result.player_id,
         this.getParticipantIdForPlayer(playerId),
-        { 
-          x, 
-          y, 
+        {
+          x,
+          y,
           mark: result.mark || this.getCurrentPlayerMark(),
-          status: result.status
+          status: result.status,
         }
       );
 
-      // Record win if it occurred
+      // Record win if it occurred and stop the game
       if (result.player_has_won) {
         this.gameSession.gameHistory.addPlayerWonEvent(
           result.player_id,
           this.getParticipantIdForPlayer(playerId),
           {
-            winCondition: result.winCondition || this.getWinConditionDescription(x, y),
+            winCondition:
+              result.winCondition || this.getWinConditionDescription(x, y),
             finalPosition: { x, y },
-            gameState: 'completed'
+            gameState: "completed",
           }
         );
+
+        // Stop the game and clear inactivity timer when someone wins
+        this.gameSession.markEnded();
       }
-    }
-    else {
+    } else {
       // Record invalid turn attempt
       this.gameSession.gameHistory.addEvent({
-        type: 'invalidTurnAttempted',
+        type: "invalidTurnAttempted",
         playerId: playerId,
         participantId: this.getParticipantIdForPlayer(playerId),
         payload: {
-          x, y,
-          reason: result.type || 'invalid_move',
-          status: result.status
-        }
+          x,
+          y,
+          reason: result.type || "invalid_move",
+          status: result.status,
+        },
       });
     }
 
@@ -79,20 +83,20 @@ class KubicKodeGame extends GameInterface {
   // Proxy other methods with history recording
   addPlayer(name) {
     const player = this.gameInstance.addPlayer(name);
-    
+
     // Record player addition event
     if (this.gameSession) {
       this.gameSession.gameHistory.addEvent({
-        type: 'playerAdded',
+        type: "playerAdded",
         playerId: player.getPlayerId(),
         participantId: this.getParticipantIdForPlayer(player.getPlayerId()),
-        payload: { 
+        payload: {
           playerName: name,
-          playerId: player.getPlayerId()
-        }
+          playerId: player.getPlayerId(),
+        },
       });
     }
-    
+
     return player;
   }
 
@@ -101,18 +105,19 @@ class KubicKodeGame extends GameInterface {
       throw new Error("At least two players are required to start the game.");
     }
 
-    const result = this.gameInstance.startGame ?
-      this.gameInstance.startGame() :
-      this.gameInstance.getGameEngine().startGame();
-    
+    const result = this.gameInstance.startGame
+      ? this.gameInstance.startGame()
+      : this.gameInstance.getGameEngine().startGame();
+
     // Record game start event
     if (this.gameSession) {
-      this.gameSession.gameHistory.addGameStateEvent('gameInstanceStarted', {
-        playerCount: this.gameInstance.getGameEngine().getPlayerEntities().length,
-        gameType: this.gameInstance.constructor.name
+      this.gameSession.gameHistory.addGameStateEvent("gameInstanceStarted", {
+        playerCount: this.gameInstance.getGameEngine().getPlayerEntities()
+          .length,
+        gameType: this.gameInstance.constructor.name,
       });
     }
-    
+
     return result;
   }
 
@@ -122,55 +127,55 @@ class KubicKodeGame extends GameInterface {
       return null;
     }
     const result = this.gameInstance.handleInactivity();
-    
+
     // Record inactivity win event
     if (this.gameSession && result.winnerPlayerId) {
       this.gameSession.gameHistory.addPlayerWonEvent(
         result.winnerPlayerId,
         this.getParticipantIdForPlayer(result.winnerPlayerId),
         {
-          winCondition: 'inactivity',
+          winCondition: "inactivity",
           inactivePlayerId: result.inactivePlayerId,
-          gameState: 'completed'
+          gameState: "completed",
         }
       );
     }
-    
+
     return result;
   }
 
   // Handle game stop with history recording
   resetForRestart() {
     const result = this.gameInstance.resetForRestart();
-    
+
     // Record game reset event
     if (this.gameSession) {
-      this.gameSession.gameHistory.addGameStateEvent('gameInstanceReset', {
+      this.gameSession.gameHistory.addGameStateEvent("gameInstanceReset", {
         gameType: this.gameInstance.constructor.name,
-        resetReason: 'restart'
+        resetReason: "restart",
       });
     }
-    
+
     return result;
   }
 
   // Helper method for participant mapping
   getParticipantIdForPlayer(playerId) {
     if (!this.gameSession) return null;
-    
+
     // Find the participant that corresponds to this player
     // This assumes the player name matches the participant name
-    const participant = this.gameSession.getParticipants().find(
-      p => p.name === this.getPlayerNameById(playerId)
-    );
-    
+    const participant = this.gameSession
+      .getParticipants()
+      .find((p) => p.name === this.getPlayerNameById(playerId));
+
     return participant ? participant.id : null;
   }
 
   // Helper method to get player name by ID
   getPlayerNameById(playerId) {
     const players = this.gameInstance.getGameEngine().getPlayerEntities();
-    const player = players.find(p => p.getPlayerId() === playerId);
+    const player = players.find((p) => p.getPlayerId() === playerId);
     return player ? player.getPlayerName() : null;
   }
 
@@ -190,9 +195,9 @@ class KubicKodeGame extends GameInterface {
         { dx: 1, dy: 0, name: "horizontal" },
         { dx: 0, dy: 1, name: "vertical" },
         { dx: 1, dy: 1, name: "diagonal" },
-        { dx: 1, dy: -1, name: "diagonal" }
+        { dx: 1, dy: -1, name: "diagonal" },
       ];
-      
+
       // For now, return a generic description
       return "line_completion";
     }
@@ -200,14 +205,18 @@ class KubicKodeGame extends GameInterface {
   }
 
   stopGame() {
-    const result = (this.gameInstance.stopGame) ?
-      this.gameInstance.stopGame() :
-      this.gameInstance.getGameEngine().stopGame();
+    const result = this.gameInstance.stopGame
+      ? this.gameInstance.stopGame()
+      : this.gameInstance.getGameEngine().stopGame();
 
-    this.gameSession.gameHistory.addGameStateEvent('gameStopped', {
-      reason: 'manual',
-      timestamp: new Date().toISOString()
+    this.gameSession.gameHistory.addGameStateEvent("gameStopped", {
+      reason: "manual",
+      timestamp: new Date().toISOString(),
     });
+
+    // Clear inactivity timer when game stops
+    this.gameSession.markEnded();
+
     return result;
   }
 
@@ -221,9 +230,9 @@ class KubicKodeGame extends GameInterface {
   }
 
   getCurrentTurnPlayers() {
-    return this.gameInstance.getCurrentTurnPlayers ?
-      this.gameInstance.getCurrentTurnPlayers() :
-      this.gameInstance.getGameEngine().getCurrentTurnPlayers();
+    return this.gameInstance.getCurrentTurnPlayers
+      ? this.gameInstance.getCurrentTurnPlayers()
+      : this.gameInstance.getGameEngine().getCurrentTurnPlayers();
   }
 
   getWinner() {
@@ -238,9 +247,9 @@ class KubicKodeGame extends GameInterface {
   }
 
   isGameActive() {
-    return this.gameInstance.isGameActive ?
-      this.gameInstance.isGameActive() :
-      this.gameInstance.getGameEngine().isGameActive();
+    return this.gameInstance.isGameActive
+      ? this.gameInstance.isGameActive()
+      : this.gameInstance.getGameEngine().isGameActive();
   }
 
   getGameStats() {
@@ -254,7 +263,7 @@ class KubicKodeGame extends GameInterface {
         type: eventType,
         playerId: playerId,
         participantId: this.getParticipantIdForPlayer(playerId),
-        payload: payload
+        payload: payload,
       });
     }
   }
