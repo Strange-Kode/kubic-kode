@@ -118,6 +118,7 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
 
 // @deprecated, use next route instead
 sessionRouter.get("/session/:sessionId/participants", (req, res) => {
+  console.warn("session-routes.js::get /session/:sessionId/participants is deprecated, use /session/participants/list/:sessionId instead");
   const { sessionId } = req.params;
 
   const session = sessionManager.getSession(sessionId);

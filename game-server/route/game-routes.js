@@ -6,20 +6,25 @@ const gameRouter = express.Router();
 
 import { serializeRecursively } from "../../game-utility/game-utility.js";
 
-gameRouter.get("/game/start/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
+// Shared function to handle game start logic
+const handleGameStart = (sessionId, options = {}) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
+  // Apply gridSize option if provided and game hasn't started yet
+  if (options.gridSize && !gameInstance.getGameEngine().isGameStarted()) {
+    const tileMap = gameInstance.getGameEngine().getTileMap();
+    tileMap.resize(options.gridSize, options.gridSize);
+  }
+
   if (gameInstance.getGameEngine().isGameStarted()) {
     const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-    return res.json({
+    return {
       current_player_id: currentPlayer.getPlayerId(),
       game_started: true,
       status: "Game already previously started",
-    });
+    };
   }
 
   // Step 1: Add participants as players to your game
@@ -38,11 +43,11 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
 
   // Step 4: Return the current player
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-  res.json({
+  const result = {
     current_player_id: currentPlayer.getPlayerId(),
     game_started: true,
     status: "New game created",
-  });
+  };
 
   // Broadcast the event after sending the response to avoid blocking the request
   try {
@@ -54,6 +59,25 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     console.error('Broadcast error (non-blocking):', broadcastError);
     // Don't throw here - the game was started successfully, just the broadcast failed
   }
+
+  return result;
+};
+
+// Use the GET method if you want to start the game with default options, otherwise use POST.
+gameRouter.get("/game/start/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const result = handleGameStart(sessionId);
+  res.json(result);
+});
+
+
+// Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
+gameRouter.post("/game/start/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const options = req.body || {}; // Extract options from request body (e.g., { gridSize: 5 })
+  // Options like gridSize will be applied to the tile map if the game hasn't started yet
+  const result = handleGameStart(sessionId, options);
+  res.json(result);
 });
 
 gameRouter.get("/game/stop/:sessionId", (req, res) => {
