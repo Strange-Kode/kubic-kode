@@ -2,7 +2,7 @@
   "name": "kubic-kode",
   "version": "1.0.0",
   "description": "2D turn based tilemap game engine and related stuff",
-  "main": "index.cjs",
+  "main": "index.js",
   "module": "index.js",
   "exports": {
     "import": "./index.js",

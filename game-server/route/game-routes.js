@@ -1,6 +1,6 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
-import { InactivityManager } from "../../game-utility/inactivity-manager.js";
+import { GameEventService } from "../game-event-service.js";
 
 const gameRouter = express.Router();
 
@@ -23,9 +23,11 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
   }
 
   // Step 1: Add participants as players to your game
+  const playerMappings = {}
   for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
-    gameInstance.addPlayer(participant.name);
+    let player = gameInstance.addPlayer(participant.name);
+    playerMappings[participant.id] = player;
   }
 
   // Step 2: Start the game session (if not already started)
@@ -41,6 +43,17 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     game_started: true,
     status: "New game created",
   });
+
+  // Broadcast the event after sending the response to avoid blocking the request
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "gameStarted",
+      payload: { playerMappings: serializeRecursively(playerMappings) },
+    });
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the game was started successfully, just the broadcast failed
+  }
 });
 
 gameRouter.get("/game/stop/:sessionId", (req, res) => {
@@ -60,6 +73,16 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
   res.json({
     game_stopped: true,
   });
+
+  // Broadcast the event after sending the response to avoid blocking the request
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "gameStopped",
+    });
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the game was stopped successfully, just the broadcast failed
+  }
 });
 
 // Used to get current turn (=> current player id)
@@ -91,7 +114,14 @@ gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
 
-  res.json(serializeRecursively(gameInstance.getGameEngine().getTileMap()));
+  const tileMap = gameInstance.getGameEngine().getTileMap();
+  console.log(`[get-tilemap] Raw tileMap:`, tileMap);
+  console.log(`[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  
+  const serializedTileMap = serializeRecursively(tileMap);
+  console.log(`[get-tilemap] Serialized tileMap:`, serializedTileMap);
+  
+  res.json(serializedTileMap);
 });
 
 export default gameRouter;

@@ -2,13 +2,14 @@
 
 import { GameEngine } from "../../../game-engine/game-engine.js";
 import PlayerEntity from "./game-entity/player-entity.js";
-import MarkEntity from "./game-entity/mark-entity.js";
-import { TileMap } from "../../../game-engine/tile-map.js";
 import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 
+// TicTacToeGame implements the GameInterface contract
 class TicTacToeGame {
   constructor({ gridSize = 3, winCondition = 3 } = {}) {
-    this.engine = new GameEngine(gridSize, gridSize);
+    // Always use single-set play style for TicTacToe
+    const turnConfig = { playStyle: "single-set" };
+    this.engine = new GameEngine(gridSize, gridSize, turnConfig);
 
     this.gridSize = gridSize;
     this.winCondition = winCondition;
@@ -16,10 +17,30 @@ class TicTacToeGame {
     this.winner = null;
   }
 
+  getGameEngine() {
+    return this.engine;
+  }
+
+  getCurrentPlayer() {
+    const currentPlayerList = this.engine.getCurrentTurnPlayers();
+    return currentPlayerList.pop();
+  }
+
+  getGameStats() {
+    return {
+      gridSize: this.gridSize,
+      winCondition: this.winCondition,
+      winner: this.winner,
+      isActive: this.isGameActive(),
+      playerCount: this.engine.getPlayerEntities().length
+    };
+  }
+
   addPlayer(name) {
     let markType = this.consumeMarkTypes.shift();
     const player = new PlayerEntity(name, markType);
     this.engine.registerPlayerEntity(player);
+    return player;
   }
 
   resetForRestart() {
@@ -38,10 +59,6 @@ class TicTacToeGame {
   }
 
   startGame() {
-    if (this.engine.getPlayerEntities().length < 2) {
-      throw new Error("At least two players are required to start the game.");
-    }
-
     // Reset restart-specific state before starting
     this.resetForRestart();
 
@@ -49,12 +66,14 @@ class TicTacToeGame {
     this.engine.startGame();
   }
 
-  getGameEngine() {
-    return this.engine;
-  }
+  playTurn(playerId, x, y, metadata = {}) {
+    // TODO: get currentPlayer by id rather than using currentPlayer()
+    const currentPlayer = this.engine.getCurrentTurnPlayers();
+    // const currentPlayer = this.engine.getPlayerById(playerId);
 
-  playTurn(x, y) {
-    const currentPlayer = this.engine.getCurrentPlayer();
+    console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);
+    console.log(`[TicTacToeGame] Current player:`, currentPlayer);
+
     if (this.engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
       return {
@@ -66,9 +85,16 @@ class TicTacToeGame {
     }
 
     const mark = currentPlayer.placeMark({ x, y });
+    console.log(`[TicTacToeGame] Created mark:`, mark);
+    
     this.engine.getTileMap().setTile(x, y, mark);
+    console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
+    
+    // Debug: Check if tile was actually set
+    const retrievedTile = this.engine.getTileMap().getTile(x, y);
+    console.log(`[TicTacToeGame] Retrieved tile at (${x}, ${y}):`, retrievedTile);
 
-    if (this.checkWinCondition(mark)) {
+    if (this.__checkWinCondition(mark)) {
       this.winner = currentPlayer;
       this.engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
@@ -86,7 +112,7 @@ class TicTacToeGame {
     };
   }
 
-  checkWinCondition(lastMark) {
+  __checkWinCondition(lastMark) {
     const directions = [
       { dx: 1, dy: 0 }, // horizontal
       { dx: 0, dy: 1 }, // vertical
@@ -99,8 +125,8 @@ class TicTacToeGame {
 
     for (const { dx, dy } of directions) {
       let count = 1;
-      count += this.countInDirection(x, y, dx, dy, targetType);
-      count += this.countInDirection(x, y, -dx, -dy, targetType);
+      count += this.__countInDirection(x, y, dx, dy, targetType);
+      count += this.__countInDirection(x, y, -dx, -dy, targetType);
 
       if (count >= this.winCondition) {
         return true;
@@ -110,7 +136,7 @@ class TicTacToeGame {
     return false;
   }
 
-  countInDirection(startX, startY, dx, dy, type) {
+  __countInDirection(startX, startY, dx, dy, type) {
     let count = 0;
     let x = startX + dx;
     let y = startY + dy;
