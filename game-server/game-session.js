@@ -13,7 +13,7 @@ export class GameSession {
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
-    
+
     // Game history instance
     this.gameHistory = new GameHistory(sessionId);
   }
@@ -93,14 +93,18 @@ export class GameSession {
     if (this.participants.length < 2) {
       throw new Error("Cannot start game. Not enough participants.");
     }
-    
+
+    if (this.inactivityManager) {
+      this.inactivityManager.clearTimer();
+      this.inactivityManager = null;
+    }
+
     this.started = true;
     if (this.gameInstance.handleInactivity) {
       const inactivityManager = new InactivityManager(this, this.gameInstance);
       this.inactivityManager = inactivityManager;
       inactivityManager.startTimer();
-    }
-    else {
+    } else {
       this.inactivityManager = null;
     }
 
@@ -148,7 +152,11 @@ export class GameSession {
     this.restartVote.votes[participantId] = voteYes;
 
     // Add to game history
-    this.gameHistory.addRestartVoteRegisteredEvent(participantId, voteYes, Object.keys(this.restartVote.votes).length);
+    this.gameHistory.addRestartVoteRegisteredEvent(
+      participantId,
+      voteYes,
+      Object.keys(this.restartVote.votes).length
+    );
   }
 
   isRestartVoteComplete() {
