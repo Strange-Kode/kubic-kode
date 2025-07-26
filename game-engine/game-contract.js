@@ -22,13 +22,16 @@ export class GameContract {
       'stopGame',
       'handleInactivity',
       'initializeGameOptions',
-      'applyGameOptions'
+      'calculateComputerMove'
     ]);
 
     // Methods that are always provided by KubicKodeGame wrapper
+    // These methods are bound to the game instance and can be called from within the game
     this.wrapperMethods = new Set([
       'getGameOptions',
+      'getOptionValue',
       'resetGameOptions',
+      'applyGameOptions',
       'recordCustomEvent'
     ]);
   }
@@ -107,7 +110,12 @@ export class GameContract {
       description: {
         required: 'Methods that game implementations MUST provide',
         optional: 'Methods that game implementations CAN provide (defaults provided by wrapper)',
-        wrapper: 'Methods always provided by KubicKodeGame wrapper'
+        wrapper: 'Methods always provided by KubicKodeGame wrapper and bound to game instance'
+      },
+      notes: {
+        wrapperMethods: 'Wrapper methods are bound to the game instance and can be called from within the game using this.methodName()',
+        gameOptions: 'Game options are managed exclusively through getGameOptions() and accessed via getOptionValue()',
+        noBoilerplate: 'Games should NOT implement wrapper methods - they are provided automatically'
       }
     };
   }

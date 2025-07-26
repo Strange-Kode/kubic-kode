@@ -17,9 +17,18 @@ class KubicKodeGame extends GameInterface {
       throw new Error(`Game instance validation failed: ${validation.error}`);
     }
 
+    // Bind wrapper methods to the game instance so they can be called from within the game
+    gameInstance.getOptionValue = this.getOptionValue.bind(this);
+    gameInstance.getGameOptions = this.getGameOptions.bind(this);
+
     // Create a proxy that forwards unknown methods
     const proxy = new Proxy(this, {
       get(target, prop) {
+        // Special handling for getOptionValue - always use the wrapper's implementation
+        if (prop === 'getOptionValue') {
+          return target.getOptionValue.bind(target);
+        }
+        
         // If method exists on wrapper, use it
         if (prop in target) {
           return target[prop];
