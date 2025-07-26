@@ -12,34 +12,9 @@ const handleGameStart = (sessionId, options = {}) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
-  // Apply game options if provided and game hasn't started yet
-  if (Object.keys(options).length > 0 && !gameInstance.getGameEngine().isGameStarted()) {
-    const gameOptions = gameInstance.getGameOptions();
-    if (gameOptions) {
-      const validation = gameOptions.validateAndApply(options);
-      
-      if (!validation.valid) {
-        return {
-          error: true,
-          message: "Invalid game options",
-          details: validation.errors,
-          ignored: validation.ignored
-        };
-      }
+  const result = {};
 
-      // Apply valid options
-      for (const [key, value] of Object.entries(validation.applied)) {
-        if (key === 'gridSize') {
-          const tileMap = gameInstance.getGameEngine().getTileMap();
-          tileMap.resize(value, value);
-        }
-        else {
-          throw new Error(`Invalid or not implemented game option: ${key}`);
-        }
-      }
-    }
-  }
-
+  // Check if game is already started
   if (gameInstance.getGameEngine().isGameStarted()) {
     const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
     return {
@@ -63,13 +38,50 @@ const handleGameStart = (sessionId, options = {}) => {
   // Step 3: Start the game instance
   gameInstance.startGame();
 
-  // Step 4: Return the current player
+  // Step 4: Apply game options AFTER the game has started
+  if (Object.keys(options).length > 0) {
+    const gameOptions = gameInstance.getGameOptions();
+    if (gameOptions) {
+      result.applied_game_options = [];
+      const validation = gameOptions.validateAndApply(options);
+      
+      if (!validation.valid) {
+        return {
+          error: true,
+          message: "Invalid game options",
+          details: validation.errors,
+          ignored: validation.ignored
+        };
+      }
+
+      // Apply valid options
+      for (const [key, value] of Object.entries(validation.applied)) {
+        if (key === 'gridSize') {
+          // Don't resize tile map here - let KubicKodeGame handle it in applyGameOptions
+          // The tile map will be resized after the game starts
+        }
+        else {
+          throw new Error(`Invalid or not implemented game option: ${key}`);
+        }
+        result.applied_game_options.push({
+          key: key,
+          value: value
+        });
+      }
+
+      // Call applyGameOptions on the game instance if it exists
+      // This allows the game to update its internal state (like gridSize property)
+      if (typeof gameInstance.applyGameOptions === 'function') {
+        gameInstance.applyGameOptions(validation.applied);
+      }
+    }
+  }
+
+  // Step 5: Return the current player
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-  const result = {
-    current_player_id: currentPlayer.getPlayerId(),
-    game_started: true,
-    status: "New game created",
-  };
+  result.current_player_id = currentPlayer.getPlayerId();
+  result.game_started = true;
+  result.status = "New game created";
 
   // Broadcast the event after sending the response to avoid blocking the request
   try {

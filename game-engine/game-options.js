@@ -4,23 +4,29 @@ export class GameOptions {
     this.configurable = new Map(); // Options that can be changed
     this.frozen = new Map(); // Options that cannot be changed
     this.defaults = new Map(); // Default values for all options
+    this.applied = new Map(); // Currently applied values
     
     // Initialize with provided options
     if (options.configurable) {
       for (const [key, value] of Object.entries(options.configurable)) {
         this.configurable.set(key, value);
+        this.defaults.set(key, value);
+        this.applied.set(key, value); // Initialize applied with default
       }
     }
     
     if (options.frozen) {
       for (const [key, value] of Object.entries(options.frozen)) {
         this.frozen.set(key, value);
+        this.defaults.set(key, value);
+        this.applied.set(key, value); // Initialize applied with default
       }
     }
     
     if (options.defaults) {
       for (const [key, value] of Object.entries(options.defaults)) {
         this.defaults.set(key, value);
+        this.applied.set(key, value); // Initialize applied with default
       }
     }
   }
@@ -29,12 +35,14 @@ export class GameOptions {
   addConfigurable(key, defaultValue, validator = null) {
     this.configurable.set(key, { defaultValue, validator });
     this.defaults.set(key, defaultValue);
+    this.applied.set(key, defaultValue); // Initialize applied with default
   }
 
   // Add a frozen option
   addFrozen(key, value) {
     this.frozen.set(key, value);
     this.defaults.set(key, value);
+    this.applied.set(key, value); // Initialize applied with default
   }
 
   // Get all available options (configurable + frozen)
@@ -43,12 +51,12 @@ export class GameOptions {
     
     // Add configurable options
     for (const [key, config] of this.configurable) {
-      allOptions[key] = config.defaultValue;
+      allOptions[key] = this.applied.get(key);
     }
     
     // Add frozen options
     for (const [key, value] of this.frozen) {
-      allOptions[key] = value;
+      allOptions[key] = this.applied.get(key);
     }
     
     return allOptions;
@@ -58,7 +66,7 @@ export class GameOptions {
   getConfigurableOptions() {
     const configurable = {};
     for (const [key, config] of this.configurable) {
-      configurable[key] = config.defaultValue;
+      configurable[key] = this.applied.get(key);
     }
     return configurable;
   }
@@ -67,7 +75,7 @@ export class GameOptions {
   getFrozenOptions() {
     const frozen = {};
     for (const [key, value] of this.frozen) {
-      frozen[key] = value;
+      frozen[key] = this.applied.get(key);
     }
     return frozen;
   }
@@ -90,6 +98,7 @@ export class GameOptions {
           result.valid = false;
         } else {
           result.applied[key] = value;
+          this.applied.set(key, value); // Store the applied value
         }
         continue;
       }
@@ -109,6 +118,7 @@ export class GameOptions {
         }
         
         result.applied[key] = value;
+        this.applied.set(key, value); // Store the applied value
       } else {
         // Unknown option
         result.ignored.push(`Unknown option '${key}'`);
@@ -184,5 +194,31 @@ export class GameOptions {
     }
     
     return metadata;
+  }
+
+  // Reset applied values back to defaults
+  resetAppliedValues() {
+    for (const [key, defaultValue] of this.defaults) {
+      this.applied.set(key, defaultValue);
+    }
+  }
+
+  // Get currently applied values (for debugging)
+  getAppliedOptions() {
+    const applied = {};
+    for (const [key, value] of this.applied) {
+      applied[key] = value;
+    }
+    return applied;
+  }
+
+  // Get the current applied value for a specific option
+  getCurrentValue(key) {
+    return this.applied.get(key);
+  }
+
+  // Get the default value for a specific option
+  getDefaultValue(key) {
+    return this.defaults.get(key);
   }
 } 

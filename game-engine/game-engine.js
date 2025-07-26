@@ -165,6 +165,14 @@ export class GameEngine {
     this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
   }
 
+  // Method to update tile map dimensions
+  // Note: tileMap is completely reset, so all existing tiles are lost
+  updateTileMapDimensions(newWidth, newHeight) {
+    this.tilemapWidth = newWidth;
+    this.tilemapHeight = newHeight;
+    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
+  }
+
   getPlayStyle() {
     return this.playStyle;
   }

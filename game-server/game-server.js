@@ -28,19 +28,19 @@ class ConfigurableTicTacToeGame extends TicTacToeGame {
   constructor({ gridSize = 3, winCondition = 3 } = {}) {
     super();
     
-    // Update the grid size and win condition
-    this.gridSize = gridSize;
-    this.winCondition = winCondition;
+    // Don't store options as instance properties
+    // this.gridSize = gridSize; // WRONG!
+    // this.winCondition = winCondition; // WRONG!
     
-    // Recreate the engine with the new grid size
+    // Recreate the engine with the provided grid size
     const turnConfig = { playStyle: "single-set" };
-    this.engine = new GameEngine(gridSize, gridSize, turnConfig);
+    this._engine = new GameEngine(gridSize, gridSize, turnConfig);
   }
 
   // Override initializeGameOptions to allow configurable options
   initializeGameOptions() {
     // Grid size is configurable with validation
-    this.getGameOptions().addConfigurable('gridSize', this.gridSize, (value) => {
+    this.getGameOptions().addConfigurable('gridSize', 3, (value) => {
       if (typeof value !== 'number' || value < 3 || value > 10) {
         return 'Grid size must be a number between 3 and 10';
       }
@@ -48,12 +48,13 @@ class ConfigurableTicTacToeGame extends TicTacToeGame {
     });
     
     // Win condition is configurable but must be <= grid size
-    this.getGameOptions().addConfigurable('winCondition', this.winCondition, (value) => {
+    this.getGameOptions().addConfigurable('winCondition', 3, (value) => {
       if (typeof value !== 'number' || value < 3) {
         return 'Win condition must be at least 3';
       }
-      if (value > this.gridSize) {
-        return `Win condition cannot be greater than grid size (${this.gridSize})`;
+      const currentGridSize = this.getOptionValue('gridSize');
+      if (value > currentGridSize) {
+        return `Win condition cannot be greater than grid size (${currentGridSize})`;
       }
       return true;
     });

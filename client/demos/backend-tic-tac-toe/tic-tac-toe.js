@@ -7,58 +7,56 @@ import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 // TicTacToeGame implements methods as defined in GameContract (game-contract.js)
 class TicTacToeGame {
   constructor() {
-    // Always use single-set play style for TicTacToe
-    const turnConfig = { playStyle: "single-set" };
+    // Don't store options as instance properties
+    // this.gridSize = 3; // WRONG!
+    // this.winCondition = 3; // WRONG!
     
-    // Default values for TicTacToe
-    this.gridSize = 3;
-    this.winCondition = 3;
-    
-    this.engine = new GameEngine(this.gridSize, this.gridSize, turnConfig);
-    this.consumeMarkTypes = ["X", "O"];
-    this.winner = null;
+    // Create engine with default values (will be updated via options)
+    this._engine = new GameEngine(3, 3, { playStyle: "single-set" });
+    this._consumeMarkTypes = ["X", "O"];
+    this._winner = null;
   }
 
   getGameEngine() {
-    return this.engine;
+    return this._engine;
   }
 
   getCurrentPlayer() {
-    const currentPlayerList = this.engine.getCurrentTurnPlayers();
+    const currentPlayerList = this._engine.getCurrentTurnPlayers();
     return currentPlayerList.pop();
   }
 
   getGameStats() {
     return {
-      gridSize: this.gridSize,
-      winCondition: this.winCondition,
-      winner: this.winner,
+      gridSize: this.getOptionValue('gridSize'),
+      winCondition: this.getOptionValue('winCondition'),
+      winner: this._winner,
       isActive: this.isGameActive(),
-      playerCount: this.engine.getPlayerEntities().length
+      playerCount: this._engine.getPlayerEntities().length
     };
   }
   
   initializeGameOptions() {
-    this.getGameOptions().addFrozen('gridSize', this.gridSize); // TicTacToe is always 3x3
-    this.getGameOptions().addFrozen('winCondition', this.winCondition); // TicTacToe always requires 3 in a row
+    this.getGameOptions().addFrozen('gridSize', 3); // TicTacToe (classic) is always 3x3
+    this.getGameOptions().addFrozen('winCondition', 3); // TicTacToe (classic) always requires 3 in a row
   }
 
   addPlayer(name, isComputer = false) {
-    let markType = this.consumeMarkTypes.shift();
+    let markType = this._consumeMarkTypes.shift();
     const player = new PlayerEntity(name, markType, isComputer);
-    this.engine.registerPlayerEntity(player);
+    this._engine.registerPlayerEntity(player);
     return player;
   }
 
   resetForRestart() {
     // Reset winner state
-    this.winner = null;
+    this._winner = null;
 
     // Restore mark types for player re-addition
-    this.consumeMarkTypes = ["X", "O"];
+    this._consumeMarkTypes = ["X", "O"];
 
     // Clear player mark histories
-    this.engine.getPlayerEntities().forEach((player) => {
+    this._engine.getPlayerEntities().forEach((player) => {
       if (typeof player.clearMarks === "function") {
         player.clearMarks();
       }
@@ -69,19 +67,19 @@ class TicTacToeGame {
     // Reset restart-specific state before starting
     this.resetForRestart();
 
-    this.engine.resetTileMap();
-    this.engine.startGame();
+    this._engine.resetTileMap();
+    this._engine.startGame();
   }
 
   playTurn(playerId, x, y, metadata = {}) {
     // TODO: get currentPlayer by id rather than using currentPlayer()
-    const currentPlayer = this.engine.getCurrentTurnPlayers();
+    const currentPlayer = this._engine.getCurrentTurnPlayers();
     // const currentPlayer = this.engine.getPlayerById(playerId);
 
     console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);
     console.log(`[TicTacToeGame] Current player:`, currentPlayer);
 
-    if (this.engine.getTileMap().getTile(x, y)) {
+    if (this._engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
       return {
         status: "invalid",
@@ -94,16 +92,16 @@ class TicTacToeGame {
     const mark = currentPlayer.placeMark({ x, y });
     console.log(`[TicTacToeGame] Created mark:`, mark);
     
-    this.engine.getTileMap().setTile(x, y, mark);
+    this._engine.getTileMap().setTile(x, y, mark);
     console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
     
     // Debug: Check if tile was actually set
-    const retrievedTile = this.engine.getTileMap().getTile(x, y);
+    const retrievedTile = this._engine.getTileMap().getTile(x, y);
     console.log(`[TicTacToeGame] Retrieved tile at (${x}, ${y}):`, retrievedTile);
 
     if (this.__checkWinCondition(mark)) {
-      this.winner = currentPlayer;
-      this.engine.stopGame();
+      this._winner = currentPlayer;
+      this._engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
       return {
         status: "ok",
@@ -111,7 +109,7 @@ class TicTacToeGame {
         player_id: currentPlayer.getPlayerId(),
       };
     }
-    this.engine.nextTurn();
+    this._engine.nextTurn();
     return {
       status: "ok",
       player_has_won: false,
@@ -135,7 +133,7 @@ class TicTacToeGame {
       count += this.__countInDirection(x, y, dx, dy, targetType);
       count += this.__countInDirection(x, y, -dx, -dy, targetType);
 
-      if (count >= this.winCondition) {
+      if (count >= this.getOptionValue('winCondition')) {
         return true;
       }
     }
@@ -148,8 +146,8 @@ class TicTacToeGame {
     let x = startX + dx;
     let y = startY + dy;
 
-    while (this.engine.getTileMap().inBounds(x, y)) {
-      const tile = this.engine.getTileMap().getTile(x, y);
+    while (this._engine.getTileMap().inBounds(x, y)) {
+      const tile = this._engine.getTileMap().getTile(x, y);
       if (!tile || tile.type !== type) {
         break;
       }
@@ -166,26 +164,26 @@ class TicTacToeGame {
   }
 
   getWinner() {
-    return this.winner;
+    return this._winner;
   }
 
   handleInactivity() {
-    const players = this.engine.getPlayerEntities();
-    const currentPlayerId = this.engine.getCurrentPlayer().getPlayerId();
+    const players = this._engine.getPlayerEntities();
+    const currentPlayerId = this._engine.getCurrentPlayer().getPlayerId();
 
     const winner = players.find(
       (player) => player.getPlayerId() !== currentPlayerId
     );
-    this.winner = winner || null;
+    this._winner = winner || null;
     return {
       inactivePlayerId: currentPlayerId,
-      winnerPlayerId: this.winner?.getPlayerId(),
+      winnerPlayerId: this._winner?.getPlayerId(),
     };
   }
 
   calculateComputerMove() {
-    const currentPlayer = this.engine.getCurrentPlayer();
-    const tileMap = this.engine.getTileMap();
+    const currentPlayer = this._engine.getCurrentPlayer();
+    const tileMap = this._engine.getTileMap();
     const opponentMark = currentPlayer.getMarkType() === 'X' ? 'O' : 'X';
 
     // Collect all empty tiles

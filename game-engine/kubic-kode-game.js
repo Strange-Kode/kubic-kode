@@ -298,12 +298,101 @@ class KubicKodeGame extends GameInterface {
     return this.gameOptions;
   }
 
+  // Helper method to get the current value of a game option
+  getOptionValue(key) {
+    return this.gameOptions.getCurrentValue(key);
+  }
+
+  /**
+   * Game Options Pattern for Game Implementations:
+   * 
+   * 1. In initializeGameOptions(), register your options:
+   *    this.getGameOptions().addConfigurable('gridSize', 5, (value) => {
+   *      if (value < 3 || value > 10) return 'Grid size must be 3-10';
+   *      return true;
+   *    });
+   * 
+   * 2. KubicKodeGame automatically handles common game options:
+   *    - gridSize: Automatically resizes tile map via updateTileMapDimensions()
+   *    - No need to implement applyGameOptions() for common operations!
+   * 
+   * 3. For custom logic, implement applyGameOptions() (optional):
+   *    applyGameOptions(options) {
+   *      // Handle custom option logic that can't be automated
+   *      if (options.customOption) {
+   *        // Custom handling
+   *      }
+   *    }
+   * 
+   * 4. Access current values via getOptionValue():
+   *    const currentGridSize = this.getOptionValue('gridSize');
+   * 
+   * 5. The GameOptions system automatically:
+   *    - Validates options when applied
+   *    - Stores applied values
+   *    - Returns correct values via /game/options
+   *    - Handles frozen vs configurable options
+   *    - Updates common game properties automatically
+   * 
+   * IMPORTANT: Game options are stored exclusively in this.getGameOptions().
+   * Do NOT store option values as instance properties (this.gridSize, etc.).
+   * Always use this.getOptionValue('gridSize') to access current values.
+   * 
+   * Example - Simple Configurable Game:
+   * 
+   * class SimpleGame {
+   *   constructor() {
+   *     this._engine = new GameEngine(5, 5, { playStyle: "single-set" });
+   *   }
+   * 
+   *   initializeGameOptions() {
+   *     this.getGameOptions().addConfigurable('gridSize', 5, (value) => {
+   *       if (value < 3 || value > 10) return 'Grid size must be 3-10';
+   *       return true;
+   *     });
+   *   }
+   *   
+   *   // No applyGameOptions() needed! KubicKodeGame handles gridSize automatically.
+   *   
+   *   getGameStats() {
+   *     return {
+   *       gridSize: this.getOptionValue('gridSize'), // Use GameOptions
+   *       // ... other stats
+   *     };
+   *   }
+   * }
+   */
+
   resetGameOptions() {
     this.gameOptions = new GameOptions();
   }
 
   applyGameOptions(options) {
-    return this.gameOptions.validateAndApply(options);
+    // First validate the options
+    const validation = this.gameOptions.validateAndApply(options);
+    
+    if (validation.valid) {
+      // Automatically handle common game option updates
+      this._handleCommonGameOptions(validation.applied);
+      
+      // Call the game instance's applyGameOptions method if it exists
+      // This allows games to handle custom option logic that can't be automated
+      if (typeof this.gameInstance.applyGameOptions === 'function') {
+        this.gameInstance.applyGameOptions(validation.applied);
+      }
+    }
+    
+    return validation;
+  }
+
+  _handleCommonGameOptions(appliedOptions) {
+    // Handle gridSize changes automatically
+    if (appliedOptions.gridSize) {
+      const gameEngine = this.gameInstance.getGameEngine();
+      if (gameEngine && typeof gameEngine.updateTileMapDimensions === 'function') {
+        gameEngine.updateTileMapDimensions(appliedOptions.gridSize, appliedOptions.gridSize);
+      }
+    }
   }
 
   // Method to record custom events
