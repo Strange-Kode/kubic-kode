@@ -9,16 +9,14 @@ class TicTacToeGame {
   constructor() {
     // Always use single-set play style for TicTacToe
     const turnConfig = { playStyle: "single-set" };
-    this.engine = new GameEngine(gridSize, gridSize, turnConfig);
-
-    this.gridSize = gridSize;
-    this.winCondition = winCondition;
+    
+    // Default values for TicTacToe
+    this.gridSize = 3;
+    this.winCondition = 3;
+    
+    this.engine = new GameEngine(this.gridSize, this.gridSize, turnConfig);
     this.consumeMarkTypes = ["X", "O"];
     this.winner = null;
-
-    // Initialize game options
-    this.getGameOptions().addFrozen('gridSize', 3); // TicTacToe is always 3x3
-    this.getGameOptions().addFrozen('winCondition', 3); // TicTacToe always requires 3 in a row
   }
 
   getGameEngine() {
@@ -38,6 +36,11 @@ class TicTacToeGame {
       isActive: this.isGameActive(),
       playerCount: this.engine.getPlayerEntities().length
     };
+  }
+  
+  initializeGameOptions() {
+    this.getGameOptions().addFrozen('gridSize', this.gridSize); // TicTacToe is always 3x3
+    this.getGameOptions().addFrozen('winCondition', this.winCondition); // TicTacToe always requires 3 in a row
   }
 
   addPlayer(name, isComputer = false) {

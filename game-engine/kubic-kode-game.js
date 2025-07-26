@@ -11,7 +11,7 @@ class KubicKodeGame extends GameInterface {
     this.gameOptions = new GameOptions();
 
     // Create a proxy that forwards unknown methods
-    return new Proxy(this, {
+    const proxy = new Proxy(this, {
       get(target, prop) {
         // If method exists on wrapper, use it
         if (prop in target) {
@@ -27,6 +27,14 @@ class KubicKodeGame extends GameInterface {
         throw new Error(`Method ${prop} not found`);
       },
     });
+
+    // Initialize game options after the proxy is created
+    if (typeof this.gameInstance.initializeGameOptions === 'function') {
+      // Call initializeGameOptions on the proxy so getGameOptions() is available
+      proxy.initializeGameOptions();
+    }
+
+    return proxy;
   }
 
   // Proxy methods
