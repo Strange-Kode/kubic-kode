@@ -42,3 +42,124 @@ npm run start-frontend
 ```
 
 The frontend will be available at [http://localhost:3001](http://localhost:3001) and will communicate with the backend at [http://localhost:3000](http://localhost:3000).
+
+## Game Options System
+
+kubic-kode includes a flexible game options system that allows games to define which options are configurable and which are frozen (constant).
+
+### Game Options Types
+
+1. **Configurable Options**: Can be changed by clients through the API
+2. **Frozen Options**: Cannot be changed and are part of the game's core rules
+
+### Available Game Variants
+
+- **tic-tac-toe-classic**: Standard 3x3 TicTacToe (gridSize and winCondition are frozen)
+- **tic-tac-toe-configurable**: Configurable grid size (3-10) and win condition
+
+### API Endpoints
+
+#### Get Game Options
+```bash
+GET /api/game/options/:sessionId
+```
+
+Returns information about available game options:
+```json
+{
+  "available": true,
+  "configurable": {
+    "gridSize": 3,
+    "winCondition": 3
+  },
+  "frozen": {},
+  "metadata": {
+    "gridSize": {
+      "type": "configurable",
+      "defaultValue": 3,
+      "validator": "function(value) { ... }"
+    }
+  }
+}
+```
+
+#### Start Game with Options
+```bash
+POST /api/game/start/:sessionId
+Content-Type: application/json
+
+{
+  "gridSize": 5,
+  "winCondition": 4
+}
+```
+
+### Example Usage
+
+1. **Create a session with configurable TicTacToe**:
+   ```bash
+   POST /api/session/init/tic-tac-toe-configurable
+   ```
+
+2. **Check available options**:
+   ```bash
+   GET /api/game/options/:sessionId
+   ```
+
+3. **Start game with custom options**:
+   ```bash
+   POST /api/game/start/:sessionId
+   {
+     "gridSize": 5,
+     "winCondition": 4
+   }
+   ```
+
+### Error Handling
+
+If invalid options are provided, the API returns:
+```json
+{
+  "error": true,
+  "message": "Invalid game options",
+  "details": [
+    "Option 'gridSize' is frozen and cannot be changed from 3 to 5"
+  ],
+  "ignored": [
+    "Unknown option 'unknownOption'"
+  ]
+}
+```
+
+## Architecture
+
+### Core Components
+
+- **Game Engine**: Manages turn sequencing, player entities, and tile maps
+- **Game Interface**: Contract that all games must implement
+- **Game Options**: System for managing configurable and frozen game options
+- **Session Management**: Handles multiplayer sessions and participant management
+- **WebSocket Communication**: Real-time game state updates
+
+### Game Development
+
+To create a new game:
+
+1. Implement the `GameInterface` contract
+2. Define game options using the `GameOptions` class
+3. Register the game with the `GameRegistry`
+4. Create game-specific routes if needed
+
+Example game options definition:
+```javascript
+// Frozen options (cannot be changed)
+this.gameOptions.addFrozen('gridSize', 3);
+
+// Configurable options with validation
+this.gameOptions.addConfigurable('maxRounds', 10, (value) => {
+  if (value < 1 || value > 100) {
+    return 'Max rounds must be between 1 and 100';
+  }
+  return true;
+});
+```

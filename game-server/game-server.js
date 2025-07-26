@@ -19,18 +19,47 @@ import {
 import { GameEventService } from "./game-event-service.js";
 
 function TicTacToeClassicFactory(sessionId, options = {}) {
-  return new TicTacToeGame({ sessionId, gridSize: 3, winCondition: 3, ...options });
+  return new TicTacToeGame();
 }
 
-function TicTacToe5x5Factory(sessionId, options = {}) {
-  return new TicTacToeGame({ sessionId, gridSize: 5, winCondition: 4, ...options });
+// Create a configurable TicTacToe variant
+class ConfigurableTicTacToeGame extends TicTacToeGame {
+  constructor({ gridSize = 3, winCondition = 3 } = {}) {
+    super();
+    
+    // Override game options to allow configurable grid size
+    this.resetGameOptions();
+    
+    // Grid size is configurable with validation
+    this.getGameOptions().addConfigurable('gridSize', 3, (value) => {
+      if (typeof value !== 'number' || value < 3 || value > 10) {
+        return 'Grid size must be a number between 3 and 10';
+      }
+      return true;
+    });
+    
+    // Win condition is configurable but must be <= grid size
+    this.getGameOptions().addConfigurable('winCondition', 3, (value) => {
+      if (typeof value !== 'number' || value < 3) {
+        return 'Win condition must be at least 3';
+      }
+      if (value > this.gridSize) {
+        return `Win condition cannot be greater than grid size (${this.gridSize})`;
+      }
+      return true;
+    });
+  }
+}
+
+function ConfigurableTicTacToeFactory(sessionId, options = {}) {
+  return new ConfigurableTicTacToeGame({ sessionId, ...options });
 }
 
 const gameRouters = [{ path: "/api/tic-tac-toe", router: ticTacToeRouter }];
 
 // List of known games
 gameRegistry.register("tic-tac-toe-classic", TicTacToeClassicFactory);
-gameRegistry.register("tic-tac-toe-5x5", TicTacToe5x5Factory);
+gameRegistry.register("tic-tac-toe-configurable", ConfigurableTicTacToeFactory);
 
 // Middleware to parse JSON bodies
 app.use(express.json());

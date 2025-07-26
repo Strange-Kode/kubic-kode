@@ -12,10 +12,32 @@ const handleGameStart = (sessionId, options = {}) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
-  // Apply gridSize option if provided and game hasn't started yet
-  if (options.gridSize && !gameInstance.getGameEngine().isGameStarted()) {
-    const tileMap = gameInstance.getGameEngine().getTileMap();
-    tileMap.resize(options.gridSize, options.gridSize);
+  // Apply game options if provided and game hasn't started yet
+  if (Object.keys(options).length > 0 && !gameInstance.getGameEngine().isGameStarted()) {
+    const gameOptions = gameInstance.getGameOptions();
+    if (gameOptions) {
+      const validation = gameOptions.validateAndApply(options);
+      
+      if (!validation.valid) {
+        return {
+          error: true,
+          message: "Invalid game options",
+          details: validation.errors,
+          ignored: validation.ignored
+        };
+      }
+
+      // Apply valid options
+      for (const [key, value] of Object.entries(validation.applied)) {
+        if (key === 'gridSize') {
+          const tileMap = gameInstance.getGameEngine().getTileMap();
+          tileMap.resize(value, value);
+        }
+        else {
+          throw new Error(`Invalid or not implemented game option: ${key}`);
+        }
+      }
+    }
   }
 
   if (gameInstance.getGameEngine().isGameStarted()) {
@@ -75,7 +97,7 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
 gameRouter.post("/game/start/:sessionId", (req, res) => {
   const { sessionId } = req.params;
   const options = req.body || {}; // Extract options from request body (e.g., { gridSize: 5 })
-  // Options like gridSize will be applied to the tile map if the game hasn't started yet
+  // Game options will be validated and applied according to the game's configuration
   const result = handleGameStart(sessionId, options);
   res.json(result);
 });
@@ -146,6 +168,28 @@ gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
   console.log(`[get-tilemap] Serialized tileMap:`, serializedTileMap);
   
   res.json(serializedTileMap);
+});
+
+// Get game options information
+gameRouter.get("/game/options/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+
+  const gameOptions = gameInstance.getGameOptions();
+  if (!gameOptions) {
+    return res.json({
+      available: false,
+      message: "This game does not support options"
+    });
+  }
+
+  res.json({
+    available: true,
+    configurable: gameOptions.getConfigurableOptions(),
+    frozen: gameOptions.getFrozenOptions(),
+    metadata: gameOptions.getOptionsMetadata()
+  });
 });
 
 export default gameRouter;

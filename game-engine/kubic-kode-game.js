@@ -1,12 +1,14 @@
 // KubicKodeGame is a class that acts as a proxy for the game instance and game session.
 // It delegates method calls to the game instance and records the game history.
 import { GameInterface } from "./game-interface.js";
+import { GameOptions } from "./game-options.js";
 
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
     super();
     this.gameInstance = gameInstance; // Game instance
     this.gameSession = gameSession; // GameSession instance
+    this.gameOptions = new GameOptions();
 
     // Create a proxy that forwards unknown methods
     return new Proxy(this, {
@@ -27,7 +29,9 @@ class KubicKodeGame extends GameInterface {
     });
   }
 
-  // Proxy method - delegates to game instance and records history
+  // Proxy methods
+  // -------------
+
   playTurn(playerId, x, y, metadata = {}) {
     // Delegate to the actual game
     const result = this.gameInstance.playTurn(playerId, x, y, metadata);
@@ -79,8 +83,7 @@ class KubicKodeGame extends GameInterface {
 
     return result;
   }
-
-  // Proxy other methods with history recording
+  
   addPlayer(name) {
     const player = this.gameInstance.addPlayer(name);
 
@@ -254,6 +257,18 @@ class KubicKodeGame extends GameInterface {
 
   getGameStats() {
     return this.gameInstance.getGameStats();
+  }
+
+  getGameOptions() {
+    return this.gameOptions;
+  }
+
+  resetGameOptions() {
+    this.gameOptions = new GameOptions();
+  }
+
+  applyGameOptions(options) {
+    return this.gameOptions.validateAndApply(options);
   }
 
   // Method to record custom events

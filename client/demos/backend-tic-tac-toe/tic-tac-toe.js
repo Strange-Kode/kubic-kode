@@ -6,7 +6,7 @@ import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 
 // TicTacToeGame implements the GameInterface contract
 class TicTacToeGame {
-  constructor({ gridSize = 3, winCondition = 3 } = {}) {
+  constructor() {
     // Always use single-set play style for TicTacToe
     const turnConfig = { playStyle: "single-set" };
     this.engine = new GameEngine(gridSize, gridSize, turnConfig);
@@ -15,6 +15,10 @@ class TicTacToeGame {
     this.winCondition = winCondition;
     this.consumeMarkTypes = ["X", "O"];
     this.winner = null;
+
+    // Initialize game options
+    this.getGameOptions().addFrozen('gridSize', 3); // TicTacToe is always 3x3
+    this.getGameOptions().addFrozen('winCondition', 3); // TicTacToe always requires 3 in a row
   }
 
   getGameEngine() {
@@ -198,7 +202,7 @@ class TicTacToeGame {
 
     // 80% "best move"
     // Look for a blocking move first
-    const bestMove = this.findBlockingMove(tileMap, opponentMark);
+    const bestMove = this._findBlockingMove(tileMap, opponentMark);
     if (bestMove) {
       return bestMove;
     }
@@ -207,8 +211,8 @@ class TicTacToeGame {
     return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
   }
 
-  findBlockingMove(tileMap, opponentMark) {
-    const lines = this.getAllLines(tileMap);
+  _findBlockingMove(tileMap, opponentMark) {
+    const lines = this._getAllLines(tileMap);
 
     for (const line of lines) {
       const opponentMarks = line.filter(tile => tile.tile && tile.tile.type === opponentMark);
@@ -222,7 +226,7 @@ class TicTacToeGame {
     return null;
   }
 
-  getAllLines(tileMap) {
+  _getAllLines(tileMap) {
     const lines = [];
 
     // Rows

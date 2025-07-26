@@ -54,6 +54,21 @@ export class GameInterface {
   getGameStats() {
     throw new Error('getGameStats must be implemented');
   }
+
+  // Game options methods
+  getGameOptions() {
+    // Default implementation returns null - games should override this
+    return null;
+  }
+
+  applyGameOptions(options) {
+    // Default implementation does nothing - games should override this
+    return { valid: true, applied: {}, errors: [], ignored: [] };
+  }
+
+  resetGameOptions() {
+    throw new Error('resetGameOptions must be implemented');
+  }
 }
 
 // Game Interface Type - for documentation and type checking
@@ -70,5 +85,8 @@ export const GAME_INTERFACE_METHODS = [
   'getWinner',
   'getInactivityTimeout',
   'isGameActive',
-  'getGameStats'
+  'getGameStats',
+  'getGameOptions',
+  'applyGameOptions',
+  'resetGameOptions'
 ]; 
