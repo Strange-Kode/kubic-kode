@@ -2,6 +2,7 @@
 // It delegates method calls to the game instance and records the game history.
 import { GameInterface } from "./game-interface.js";
 import { GameOptions } from "./game-options.js";
+import { gameContract } from "./game-contract.js";
 
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
@@ -9,6 +10,12 @@ class KubicKodeGame extends GameInterface {
     this.gameInstance = gameInstance; // Game instance
     this.gameSession = gameSession; // GameSession instance
     this.gameOptions = new GameOptions();
+
+    // Validate that the game instance implements the required contract
+    const validation = gameContract.validateGameInstance(gameInstance, gameInstance.constructor.name);
+    if (!validation.valid) {
+      throw new Error(`Game instance validation failed: ${validation.error}`);
+    }
 
     // Create a proxy that forwards unknown methods
     const proxy = new Proxy(this, {
@@ -237,34 +244,54 @@ class KubicKodeGame extends GameInterface {
   }
 
   getTileMap() {
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.getTileMap === 'function') {
+      return this.gameInstance.getTileMap();
+    }
     return this.gameInstance.getGameEngine().getTileMap();
   }
 
   getCurrentTurnPlayers() {
-    return this.gameInstance.getCurrentTurnPlayers
-      ? this.gameInstance.getCurrentTurnPlayers()
-      : this.gameInstance.getGameEngine().getCurrentTurnPlayers();
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.getCurrentTurnPlayers === 'function') {
+      return this.gameInstance.getCurrentTurnPlayers();
+    }
+    return this.gameInstance.getGameEngine().getCurrentTurnPlayers();
   }
 
   getWinner() {
-    return this.gameInstance.getWinner();
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.getWinner === 'function') {
+      return this.gameInstance.getWinner();
+    }
+    return null; // Default: no winner
   }
 
   getInactivityTimeout() {
-    if (this.gameInstance.getInactivityTimeout) {
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.getInactivityTimeout === 'function') {
       return this.gameInstance.getInactivityTimeout();
     }
-    return null;
+    return null; // Default: no inactivity timeout
   }
 
   isGameActive() {
-    return this.gameInstance.isGameActive
-      ? this.gameInstance.isGameActive()
-      : this.gameInstance.getGameEngine().isGameActive();
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.isGameActive === 'function') {
+      return this.gameInstance.isGameActive();
+    }
+    return this.gameInstance.getGameEngine().isGameStarted();
   }
 
   getGameStats() {
-    return this.gameInstance.getGameStats();
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.getGameStats === 'function') {
+      return this.gameInstance.getGameStats();
+    }
+    return {
+      isActive: this.isGameActive(),
+      playerCount: this.gameInstance.getGameEngine().getPlayerEntities().length
+    };
   }
 
   getGameOptions() {

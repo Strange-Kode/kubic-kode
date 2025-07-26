@@ -4,7 +4,7 @@ import { GameEngine } from "../../../game-engine/game-engine.js";
 import PlayerEntity from "./game-entity/player-entity.js";
 import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 
-// TicTacToeGame implements the GameInterface contract
+// TicTacToeGame implements methods as defined in GameContract (game-contract.js)
 class TicTacToeGame {
   constructor() {
     // Always use single-set play style for TicTacToe

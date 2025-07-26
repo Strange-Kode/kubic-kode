@@ -39,7 +39,7 @@ export class GameSession {
     return this.participant_alloc_idx;
   }
 
-  addParticipant(name, participant_type) {
+  addParticipant(name, participant_type = 'human') {
     if (this.participants.length >= this.maxParticipants) {
       throw new Error("Game session is full.");
     }
@@ -48,15 +48,16 @@ export class GameSession {
       throw new Error("Cannot join. Game session has already started.");
     }
 
+    // Validate participant type
+    if (!['human', 'computer'].includes(participant_type)) {
+      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'human' or 'computer'`);
+    }
+
     const participantId = this.allocateParticipantId();
 
     const existing = this.participants.find((p) => p.id === participantId);
     if (existing) {
       throw new Error("Participant with this ID already exists.");
-    }
-    
-    if (!['human', 'computer'].includes(participant_type)) {
-      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'human' or 'computer'`)
     }
 
     this.participants.push({
@@ -86,7 +87,7 @@ export class GameSession {
   }
 
   listParticipants() {
-    return this.participants.map((p) => ({ id: p.id, name: p.name }));
+    return this.participants.map((p) => ({ id: p.id, name: p.name, type: p.type || 'human' }));
   }
 
   getParticipants() {

@@ -141,14 +141,93 @@ If invalid options are provided, the API returns:
 - **Session Management**: Handles multiplayer sessions and participant management
 - **WebSocket Communication**: Real-time game state updates
 
-### Game Development
+## Game Development
 
 To create a new game:
 
-1. Implement the `GameInterface` contract
-2. Define game options using the `GameOptions` class
-3. Register the game with the `GameRegistry`
-4. Create game-specific routes if needed
+1. Implement the required methods from the **Game Contract**
+2. Optionally implement additional methods for custom behavior
+3. Define game options using the `GameOptions` class
+4. Register the game with the `GameRegistry`
+5. Create game-specific routes if needed
+
+### Game Contract
+
+The **Game Contract** defines what methods your game implementation must provide:
+
+#### Required Methods (MUST implement)
+- `getGameEngine()` - Return the game engine instance
+- `playTurn(playerId, x, y, metadata)` - Handle a player's turn
+- `addPlayer(name, isComputer)` - Add a player to the game
+- `startGame()` - Start the game
+- `resetForRestart()` - Reset game state for restart
+
+#### Optional Methods (CAN implement)
+- `getTileMap()` - Return the tile map (default: engine's tile map)
+- `getCurrentTurnPlayers()` - Return current turn players (default: engine's players)
+- `getWinner()` - Return the winner (default: null)
+- `getInactivityTimeout()` - Return inactivity timeout (default: null)
+- `isGameActive()` - Check if game is active (default: engine's started state)
+- `getGameStats()` - Return game statistics (default: basic stats)
+- `stopGame()` - Stop the game (default: engine's stop)
+- `handleInactivity()` - Handle player inactivity (default: null)
+- `initializeGameOptions()` - Initialize game options
+- `applyGameOptions(options)` - Apply game options
+
+#### Wrapper Methods (provided by KubicKodeGame)
+- `getGameOptions()` - Get game options instance
+- `resetGameOptions()` - Reset game options
+- `recordCustomEvent()` - Record custom game events
+
+### Example Game Implementation
+
+```javascript
+import { GameEngine } from "kubic-kode";
+
+class MyGame {
+  constructor() {
+    this.engine = new GameEngine(5, 5, { playStyle: "single-set" });
+    this.winner = null;
+  }
+
+  // Required methods
+  getGameEngine() {
+    return this.engine;
+  }
+
+  addPlayer(name, isComputer = false) {
+    const player = new PlayerEntity(name);
+    this.engine.registerPlayerEntity(player);
+    return player;
+  }
+
+  startGame() {
+    this.engine.startGame();
+  }
+
+  resetForRestart() {
+    this.winner = null;
+    this.engine.resetTileMap();
+  }
+
+  playTurn(playerId, x, y, metadata = {}) {
+    // Your game logic here
+    return { status: "ok", player_has_won: false };
+  }
+
+  // Optional methods
+  getWinner() {
+    return this.winner;
+  }
+
+  initializeGameOptions() {
+    this.getGameOptions().addFrozen('gridSize', 5);
+    this.getGameOptions().addConfigurable('maxTurns', 25, (value) => {
+      return value > 0 ? true : 'Max turns must be positive';
+    });
+  }
+}
+```
 
 Example game options definition:
 ```javascript

@@ -50,7 +50,7 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
 // Join session
 sessionRouter.post("/session/:sessionId/join", (req, res) => {
   const { sessionId } = req.params;
-  const { participantName } = req.body;
+  const { participantName, participantType = 'human' } = req.body;
 
   const gameSession = sessionManager.getSession(sessionId);
 
@@ -59,7 +59,7 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
   }
 
   try {
-    let participantId = gameSession.addParticipant(participantName);
+    let participantId = gameSession.addParticipant(participantName, participantType);
     let participant = serializeRecursively(gameSession.getParticipantById(participantId));
     
     res.json({ success: true, participant_id: participantId });
