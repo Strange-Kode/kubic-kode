@@ -2,28 +2,80 @@
  * KubicKode Helper - Client-side game development helper
  * Provides a clean API for interacting with KubicKode game server
  * Eliminates HTTP boilerplate and manages session state automatically
+ * 
+ * Available as:
+ * - ES6 module: import { KubicKode, KubicKodeHelper } from './kubic-kode-helper.js'
+ * - Browser global: window.KubicKode, window.KubicKodeHelper
  */
 
+(function (global, factory) {
+  // UMD pattern to support multiple module systems
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    // CommonJS
+    module.exports = factory();
+  } else if (typeof define === 'function' && define.amd) {
+    // AMD
+    define(factory);
+  } else if (typeof exports !== 'undefined') {
+    // ES6 module environment
+    const result = factory();
+    exports.KubicKode = result.KubicKode;
+    exports.KubicKodeHelper = result.KubicKodeHelper;
+  } else {
+    // Browser global
+    console.log('🔧 Setting up KubicKode for browser global usage');
+    const result = factory();
+    global.KubicKode = result.KubicKode;
+    global.KubicKodeHelper = result.KubicKodeHelper;
+    console.log('✅ KubicKode available as window.KubicKode:', global.KubicKode);
+  }
+})(typeof window !== 'undefined' ? window : this, function () {
+
 class KubicKodeHelper {
-  constructor() {
+  constructor(apiPrefix = 'http://localhost:4000/api') {
     this.config = {
-      apiPrefix: 'http://localhost:3000/api',
+      apiPrefix: apiPrefix,
       defaultGame: null,
       autoReconnect: true,
       retryAttempts: 3,
       retryDelay: 1000
     };
-    
+
     this.sessionId = null;
     this.currentGame = null;
     this.registeredGames = new Map();
     this.eventListeners = new Map();
     this.websocket = null;
-    
-    // Bind methods to maintain context
-    this.route = this.route.bind(this);
-    this.game = this.game.bind(this);
-    this.events = this.events.bind(this);
+
+    // Create game object with proper context binding
+    this.game = {
+      register: (gameId) => {
+        this.registeredGames.set(gameId, {
+          id: gameId,
+          routes: new Map()
+        });
+
+        // Create dynamic route methods for this game
+        const gameRouteKey = gameId.replace(/-/g, '_');
+        this.route[gameRouteKey] = {
+          playTurn: (x, y, options = {}) => {
+            return this._makeRequest('POST', `/${gameId}/play-turn/${this.sessionId}`, { xPos: x, yPos: y, ...options });
+          },
+          restartGame: (options = {}) => {
+            return this._makeRequest('POST', `/${gameId}/restart-game/${this.sessionId}`, options);
+          }
+          // Add more game-specific methods as needed
+          // These will be available as: KubicKode.route.rps.playTurn(x, y)
+        };
+
+        return this;
+      },
+
+      use: (gameId) => {
+        this.currentGame = gameId;
+        return this;
+      }
+    };
   }
 
   /**
@@ -36,41 +88,8 @@ class KubicKodeHelper {
 
   /**
    * Game registration and management
+   * (Defined in constructor with proper context binding)
    */
-  game = {
-    /**
-     * Register a game type
-     */
-    register: (gameId) => {
-      const helper = this;
-      helper.registeredGames.set(gameId, {
-        id: gameId,
-        routes: new Map()
-      });
-      
-      // Create dynamic route methods for this game
-      helper[gameId.replace(/-/g, '_')] = {
-        playTurn: (x, y, options = {}) => 
-          helper.route[gameId.replace(/-/g, '_')]('play-turn', { x, y, ...options }),
-        getTileMap: () => 
-          helper.route.game('get-tilemap'),
-        getCurrentPlayer: () => 
-          helper.route.game('get-current-player'),
-        isActive: () => 
-          helper.route.game('is-active')
-      };
-      
-      return helper;
-    },
-
-    /**
-     * Set the current game context
-     */
-    use: (gameId) => {
-      this.currentGame = gameId;
-      return this;
-    }
-  };
 
   /**
    * Route management for API calls
@@ -81,7 +100,7 @@ class KubicKodeHelper {
      */
     session: async (action, data = {}) => {
       const helper = this;
-      
+
       switch (action) {
         case 'init':
           return await helper._makeRequest('GET', `/session/init/${helper.currentGame}`);
@@ -107,11 +126,11 @@ class KubicKodeHelper {
      */
     game: async (action, data = {}) => {
       const helper = this;
-      
+
       if (!helper.sessionId) {
         throw new Error('No active session. Call session.init() first.');
       }
-      
+
       switch (action) {
         case 'start':
           return await helper._makeRequest('POST', `/game/start/${helper.sessionId}`, data);
@@ -176,11 +195,25 @@ class KubicKodeHelper {
       this.websocket.close();
     }
 
-    const wsUrl = this.config.apiPrefix.replace('/api', '').replace('http', 'ws') + '/ws';
+    // Construct WebSocket URL more flexibly
+    let wsUrl;
+    try {
+      const url = new URL(this.config.apiPrefix);
+      // Remove /api from pathname if it exists
+      const pathname = url.pathname.replace('/api', '');
+      wsUrl = `ws://${url.hostname}:${url.port}${pathname}/?sessionId=${this.sessionId}`;
+    } catch (error) {
+      console.error('Error constructing WebSocket URL:', error);
+      // Fallback to simple replacement
+      wsUrl = this.config.apiPrefix.replace('/api', '').replace(/^http/, 'ws') + `/?sessionId=${this.sessionId}`;
+    }
+
+    console.log('🔌 Attempting WebSocket connection to:', wsUrl);
     this.websocket = new WebSocket(wsUrl);
 
+    // Send participant name when WebSocket opens
     this.websocket.onopen = () => {
-      console.log('🔌 WebSocket connected');
+      console.log('🔌 WebSocket connected successfully');
       this.events.emit('websocketConnected');
     };
 
@@ -193,11 +226,13 @@ class KubicKodeHelper {
       }
     };
 
-    this.websocket.onclose = () => {
-      console.log('🔌 WebSocket disconnected');
-      this.events.emit('websocketDisconnected');
-      
-      if (this.config.autoReconnect) {
+    this.websocket.onclose = (event) => {
+      console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+      this.events.emit('websocketDisconnected', event);
+
+      // Only reconnect if autoReconnect is enabled and it's not a manual close
+      if (this.config.autoReconnect && event.code !== 1000) {
+        console.log('🔄 Attempting to reconnect in 1 second...');
         setTimeout(() => this.connectWebSocket(), 1000);
       }
     };
@@ -207,6 +242,19 @@ class KubicKodeHelper {
       this.events.emit('websocketError', error);
     };
 
+    return this;
+  }
+
+  /**
+   * Disconnect WebSocket connection
+   */
+  disconnectWebSocket() {
+    if (this.websocket) {
+      console.log('🔌 Manually disconnecting WebSocket');
+      this.config.autoReconnect = false; // Prevent auto-reconnection
+      this.websocket.close(1000, 'Manual disconnect');
+      this.websocket = null;
+    }
     return this;
   }
 
@@ -227,38 +275,38 @@ class KubicKodeHelper {
     }
 
     let lastError;
-    
+
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
       try {
         const response = await fetch(url, options);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
-        
+
         // Auto-set sessionId from init response
         if (endpoint.includes('/session/init/') && result.session_id) {
           this.sessionId = result.session_id;
           this.events.emit('sessionInitialized', { sessionId: this.sessionId });
         }
-        
+
         return {
           success: true,
           data: result
         };
-        
+
       } catch (error) {
         lastError = error;
         console.warn(`Request attempt ${attempt} failed:`, error.message);
-        
+
         if (attempt < this.config.retryAttempts) {
           await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
         }
       }
     }
-    
+
     throw lastError;
   }
 
@@ -284,9 +332,13 @@ class KubicKodeHelper {
     if (!this.currentGame) {
       throw new Error('No game selected. Call game.use() first.');
     }
-    
+
     const gameRoute = this.currentGame.replace(/-/g, '_');
-    return await this.route[gameRoute]('play-turn', { x, y, ...additionalData });
+    if (this.route[gameRoute] && this.route[gameRoute].playTurn) {
+      return await this.route[gameRoute].playTurn(x, y, additionalData);
+    } else {
+      throw new Error(`Game '${this.currentGame}' not registered. Call game.register('${this.currentGame}') first.`);
+    }
   }
 
   /**
@@ -302,8 +354,14 @@ class KubicKodeHelper {
   }
 }
 
-// Create and export the singleton instance
-export const KubicKode = new KubicKodeHelper();
+// Create the singleton instance
+const KubicKode = new KubicKodeHelper();
+console.log('🔧 Created KubicKode instance:', KubicKode);
 
-// Also export the class for testing/custom instances
-export { KubicKodeHelper }; 
+// Return exports for UMD pattern
+return {
+  KubicKode: KubicKode,
+  KubicKodeHelper: KubicKodeHelper
+};
+
+}); 
