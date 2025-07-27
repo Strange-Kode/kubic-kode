@@ -13,7 +13,7 @@ This directory contains examples of how to use the `KubicKodeHelper` with Alpine
 
 ### 1. Complete Working Example
 
-Open `rps-example.html` in your browser to see a fully functional Rock-Paper-Scissors game that demonstrates:
+`rps-example.html` demonstrates a fully functional Rock-Paper-Scissors game. It contains:
 
 - Session management
 - Real-time WebSocket communication
@@ -198,13 +198,6 @@ The helper automatically handles WebSocket connections and provides these events
 - `gameEnded` - Game finished
 - `playerJoined` - Player joined session
 - `playerLeft` - Player left session
-
-## Running the Examples
-
-1. Make sure your KubicKode server is running on `http://localhost:3000`
-2. Open `rps-example.html` in a web browser
-3. Enter your name and join the game
-4. Start playing Rock-Paper-Scissors!
 
 ## Customization
 
