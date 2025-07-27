@@ -23,6 +23,10 @@ export class TileMap {
     return x >= 0 && y >= 0 && x < this.width && y < this.height;
   }
 
+  getTotalTiles() {
+    return this.width * this.height;
+  }
+
   resize(newWidth, newHeight) {
     // Create new tiles array with the new dimensions
     const newTiles = Array.from({ length: newHeight }, () =>
@@ -43,6 +47,18 @@ export class TileMap {
     this.width = newWidth;
     this.height = newHeight;
     this.tiles = newTiles;
+  }
+
+  *[Symbol.iterator]() {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        yield {
+          x,
+          y,
+          value: this.tiles[y][x]
+        };
+      }
+    }
   }
 
   toJSON() {
