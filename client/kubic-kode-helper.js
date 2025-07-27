@@ -84,7 +84,7 @@ class KubicKodeHelper {
       
       switch (action) {
         case 'init':
-          return await helper._makeRequest('GET', `/session/init/${helper.currentGame || 'tic-tac-toe-classic'}`);
+          return await helper._makeRequest('GET', `/session/init/${helper.currentGame}`);
         case 'join':
           return await helper._makeRequest('POST', `/session/${helper.sessionId}/join`, data);
         case 'leave':
