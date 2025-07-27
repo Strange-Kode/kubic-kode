@@ -74,6 +74,9 @@ gameRegistry.register("tic-tac-toe-configurable", ConfigurableTicTacToeFactory);
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+// Serve static files (including KubicKode helper)
+app.use("/static", express.static("../client"));
+
 // Register the routers
 app.use("/api", sessionRouter);
 app.use("/api", gameRouter);
