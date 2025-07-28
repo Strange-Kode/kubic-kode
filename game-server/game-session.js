@@ -1,5 +1,5 @@
 import { InactivityManager } from "../game-utility/inactivity-manager.js";
-import { GameHistory } from "./game-history.js";
+import { gameHistoryManager } from "./game-history-manager.js";
 
 export class GameSession {
   constructor(sessionId, maxParticipants = 2) {
@@ -14,8 +14,8 @@ export class GameSession {
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
 
-    // Game history instance
-    this.gameHistory = new GameHistory(sessionId);
+    // Get game history from the manager (returns a proxy)
+    this.gameHistory = gameHistoryManager.getGameHistory(sessionId);
   }
 
   setGameInstance(gameInstance) {
@@ -194,5 +194,41 @@ export class GameSession {
 
   getGameHistory() {
     return this.gameHistory;
+  }
+
+  // Subscription management methods
+  // ------------------------------
+
+  /**
+   * Subscribe to game history event types
+   * @param {Array<string>} eventTypes - Array of game history event types to subscribe to
+   */
+  subscribeToGameHistoryEvents(eventTypes) {
+    gameHistoryManager.subscribe(this.sessionId, eventTypes);
+  }
+
+  /**
+   * Unsubscribe from game history event types
+   * @param {Array<string>} eventTypes - Array of game history event types to unsubscribe from
+   */
+  unsubscribeFromGameHistoryEvents(eventTypes) {
+    gameHistoryManager.unsubscribe(this.sessionId, eventTypes);
+  }
+
+  /**
+   * Get current game history event subscriptions
+   * @returns {Array<string>} Array of subscribed event types
+   */
+  getGameHistorySubscriptions() {
+    return gameHistoryManager.getSubscriptions(this.sessionId);
+  }
+
+  /**
+   * Check if subscribed to a specific game history event type
+   * @param {string} eventType - The event type to check
+   * @returns {boolean} True if subscribed, false otherwise
+   */
+  isSubscribedToGameHistoryEvent(eventType) {
+    return gameHistoryManager.isSubscribed(this.sessionId, eventType);
   }
 }

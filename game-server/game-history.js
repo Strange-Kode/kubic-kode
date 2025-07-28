@@ -1,4 +1,27 @@
 export class GameHistory {
+  // Define all possible game history event types
+  static GAME_HISTORY_EVENT_TYPES = {
+    TURN_PLAYED: 'turnPlayed',
+    PLAYER_WON: 'playerWon',
+    GAME_STARTED: 'gameStarted',
+    GAME_ENDED: 'gameEnded',
+    PARTICIPANT_JOINED: 'participantJoined',
+    PARTICIPANT_LEFT: 'participantLeft',
+    RESTART_VOTE_STARTED: 'restartVoteStarted',
+    RESTART_VOTE_REGISTERED: 'restartVoteRegistered',
+    RESTART_VOTE_CLEARED: 'restartVoteCleared'
+  };
+
+  // Get all valid game history event type strings
+  static getValidEventTypes() {
+    return Object.values(GameHistory.GAME_HISTORY_EVENT_TYPES);
+  }
+
+  // Check if an event type is a valid game history event
+  static isValidEventType(eventType) {
+    return GameHistory.getValidEventTypes().includes(eventType);
+  }
+
   constructor(sessionId) {
     this.sessionId = sessionId;
     this._gameHistory = [];
@@ -12,13 +35,19 @@ export class GameHistory {
   /**
    * Add an event to the game history
    * @param {Object} event - The event object to add
-   * @param {string} event.type - Type of event (e.g., 'turnPlayed', 'gameStarted', 'playerWon', etc.)
+   * @param {string} event.type - Type of event (must be one of the valid game history event types)
    * @param {string} event.playerId - ID of the player who triggered the event (optional)
    * @param {string} event.participantId - ID of the participant (optional)
    * @param {Object} event.payload - Additional event data (optional)
    * @param {Date} event.timestamp - Timestamp of the event (auto-generated if not provided)
+   * @returns {Object} The event that was added to the history
    */
   addEvent(event) {
+    // Validate that the event type is a valid game history event type
+    if (!GameHistory.isValidEventType(event.type)) {
+      throw new Error(`Invalid game history event type: ${event.type}. Valid types are: ${GameHistory.getValidEventTypes().join(', ')}`);
+    }
+
     const historyEvent = {
       type: event.type,
       playerId: event.playerId || null,
@@ -29,6 +58,9 @@ export class GameHistory {
     };
     
     this._gameHistory.push(historyEvent);
+    
+    // Return the event that was added
+    return historyEvent;
   }
 
   /**
@@ -98,7 +130,7 @@ export class GameHistory {
    */
   getPlayerWins(playerId) {
     return this._gameHistory.filter(event => 
-      event.type === 'playerWon' && event.playerId === playerId
+      event.type === GameHistory.GAME_HISTORY_EVENT_TYPES.PLAYER_WON && event.playerId === playerId
     );
   }
 
@@ -109,7 +141,7 @@ export class GameHistory {
    */
   getParticipantWins(participantId) {
     return this._gameHistory.filter(event => 
-      event.type === 'playerWon' && event.participantId === participantId
+      event.type === GameHistory.GAME_HISTORY_EVENT_TYPES.PLAYER_WON && event.participantId === participantId
     );
   }
 
@@ -135,10 +167,11 @@ export class GameHistory {
    * @param {string} playerId - ID of the player who played the turn
    * @param {string} participantId - ID of the participant (optional)
    * @param {Object} turnData - Additional turn data (position, result, etc.)
+   * @returns {Object} The event that was added
    */
   addTurnPlayedEvent(playerId, participantId = null, turnData = {}) {
-    this.addEvent({
-      type: 'turnPlayed',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.TURN_PLAYED,
       playerId: playerId,
       participantId: participantId,
       payload: turnData
@@ -150,10 +183,11 @@ export class GameHistory {
    * @param {string} playerId - ID of the winning player
    * @param {string} participantId - ID of the winning participant (optional)
    * @param {Object} winData - Additional win data (win condition, final state, etc.)
+   * @returns {Object} The event that was added
    */
   addPlayerWonEvent(playerId, participantId = null, winData = {}) {
-    this.addEvent({
-      type: 'playerWon',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.PLAYER_WON,
       playerId: playerId,
       participantId: participantId,
       payload: winData
@@ -164,9 +198,10 @@ export class GameHistory {
    * Add a game state change event to game history
    * @param {string} eventType - Type of state change (e.g., 'gamePaused', 'gameResumed', 'timeout')
    * @param {Object} stateData - Additional state data
+   * @returns {Object} The event that was added
    */
   addGameStateEvent(eventType, stateData = {}) {
-    this.addEvent({
+    return this.addEvent({
       type: eventType,
       payload: stateData
     });
@@ -176,10 +211,11 @@ export class GameHistory {
    * Add a participant joined event to game history
    * @param {string} participantId - ID of the participant who joined
    * @param {string} name - Name of the participant
+   * @returns {Object} The event that was added
    */
   addParticipantJoinedEvent(participantId, name) {
-    this.addEvent({
-      type: 'participantJoined',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.PARTICIPANT_JOINED,
       participantId: participantId,
       payload: { name: name }
     });
@@ -189,10 +225,11 @@ export class GameHistory {
    * Add a participant left event to game history
    * @param {string} participantId - ID of the participant who left
    * @param {string} name - Name of the participant
+   * @returns {Object} The event that was added
    */
   addParticipantLeftEvent(participantId, name) {
-    this.addEvent({
-      type: 'participantLeft',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.PARTICIPANT_LEFT,
       participantId: participantId,
       payload: { name: name }
     });
@@ -201,10 +238,11 @@ export class GameHistory {
   /**
    * Add a game started event to game history
    * @param {Array} participants - Array of participants
+   * @returns {Object} The event that was added
    */
   addSessionStartedEvent(participants) {
-    this.addEvent({
-      type: 'gameStarted',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_STARTED,
       payload: { 
         participantCount: participants.length,
         participants: participants.map(p => ({ id: p.id, name: p.name }))
@@ -215,10 +253,11 @@ export class GameHistory {
   /**
    * Add a game ended event to game history
    * @param {number} participantCount - Number of participants
+   * @returns {Object} The event that was added
    */
   addSessionEndedEvent(participantCount) {
-    this.addEvent({
-      type: 'gameEnded',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_ENDED,
       payload: { 
         participantCount: participantCount,
         totalEvents: this._gameHistory.length
@@ -229,10 +268,11 @@ export class GameHistory {
   /**
    * Add a restart vote started event to game history
    * @param {number} totalParticipants - Total number of participants
+   * @returns {Object} The event that was added
    */
   addRestartVoteStartedEvent(totalParticipants) {
-    this.addEvent({
-      type: 'restartVoteStarted',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.RESTART_VOTE_STARTED,
       payload: { 
         totalParticipants: totalParticipants
       }
@@ -244,10 +284,11 @@ export class GameHistory {
    * @param {string} participantId - ID of the participant who voted
    * @param {boolean} vote - The vote (true/false)
    * @param {number} totalVotes - Total number of votes cast
+   * @returns {Object} The event that was added
    */
   addRestartVoteRegisteredEvent(participantId, vote, totalVotes) {
-    this.addEvent({
-      type: 'restartVoteRegistered',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.RESTART_VOTE_REGISTERED,
       participantId: participantId,
       payload: { 
         vote: vote,
@@ -259,10 +300,11 @@ export class GameHistory {
   /**
    * Add a restart vote cleared event to game history
    * @param {boolean|null} voteResult - The result of the vote
+   * @returns {Object} The event that was added
    */
   addRestartVoteClearedEvent(voteResult) {
-    this.addEvent({
-      type: 'restartVoteCleared',
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.RESTART_VOTE_CLEARED,
       payload: { 
         voteResult: voteResult
       }
