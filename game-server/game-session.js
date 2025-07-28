@@ -39,7 +39,7 @@ export class GameSession {
     return this.participant_alloc_idx;
   }
 
-  addParticipant(name, participant_type = 'human') {
+  addParticipant(name, participant_type = 'user') {
     if (this.participants.length >= this.maxParticipants) {
       throw new Error("Game session is full.");
     }
@@ -49,8 +49,8 @@ export class GameSession {
     }
 
     // Validate participant type
-    if (!['human', 'computer'].includes(participant_type)) {
-      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'human' or 'computer'`);
+    if (!['user', 'computer', 'spectator'].includes(participant_type)) {
+      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'user', 'computer', or 'spectator'`);
     }
 
     const participantId = this.allocateParticipantId();
@@ -87,7 +87,12 @@ export class GameSession {
   }
 
   listParticipants() {
-    return this.participants.map((p) => ({ id: p.id, name: p.name, type: p.type || 'human' }));
+    return this.participants.map((p) => ({ 
+      id: p.id, 
+      name: p.name, 
+      type: p.type || 'user',
+      isPlayable: this.isParticipantPlayable(p)
+    }));
   }
 
   getParticipants() {
@@ -96,8 +101,11 @@ export class GameSession {
 
   markStarted() {
     this.resetWinCounter();
-    if (this.participants.length < 2) {
-      throw new Error("Cannot start game. Not enough participants.");
+    
+    // Count only playable participants for game start requirement
+    const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
+    if (playableParticipants.length < 2) {
+      throw new Error("Cannot start game. Not enough players (need at least 2 playable participants).");
     }
 
     if (this.inactivityManager) {
@@ -133,7 +141,21 @@ export class GameSession {
   }
 
   getParticipantById(id) {
-    return this.participants.find((p) => p.id === id) || null;
+    // Convert id to number if it's a string, since participant IDs are numbers
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    return this.participants.find((p) => p.id === numericId) || null;
+  }
+
+  getPlayableParticipants() {
+    return this.participants.filter(p => this.isParticipantPlayable(p));
+  }
+
+  getSpectatorParticipants() {
+    return this.participants.filter(p => p.type === 'spectator');
+  }
+
+  isParticipantPlayable(participant) {
+    return ['user', 'computer'].includes(participant.type);
   }
 
   getSessionId() {

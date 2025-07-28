@@ -99,7 +99,7 @@ export function useKubicKode(gameId = null) {
     return await apiCall(KubicKode.initSession, gameType);
   }, [apiCall, gameId]);
 
-  const joinSession = useCallback(async (participantName, participantType = 'human') => {
+  const joinSession = useCallback(async (participantName, participantType = 'user') => {
     const result = await apiCall(KubicKode.joinSession, participantName, participantType);
     if (result.success) {
       setParticipantId(result.data.participant_id);

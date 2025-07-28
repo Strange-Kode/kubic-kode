@@ -4,7 +4,10 @@ import { GameEventService } from "../game-event-service.js";
 
 const gameRouter = express.Router();
 
-import { serializeRecursively } from "../../game-utility/game-utility.js";
+import { serializeRecursively, checkPlayableAccess } from "../../game-utility/game-utility.js";
+
+// Create middleware instance with session manager
+const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 
 // Shared function to handle game start logic
 const handleGameStart = (sessionId, options = {}) => {
@@ -24,12 +27,20 @@ const handleGameStart = (sessionId, options = {}) => {
     };
   }
 
-  // Step 1: Add participants as players to your game
+  // Step 1: Add playable participants as players to your game
   const playerMappings = {}
   for (let i = 0; i < sessionParticipants.length; i++) {
     let participant = sessionParticipants[i];
-    let player = gameInstance.addPlayer(participant.name, participant.type === 'computer');
-    playerMappings[participant.id] = player;
+    // Only convert playable participants to players
+    if (gameSession.isParticipantPlayable(participant)) {
+      let player = gameInstance.addPlayer(participant.name, participant.type === 'computer');
+      playerMappings[participant.id] = player.getPlayerId();
+    }
+  }
+
+  // Store the player mappings in the game instance for later use
+  if (typeof gameInstance.setPlayerMappings === 'function') {
+    gameInstance.setPlayerMappings(playerMappings);
   }
 
   // Step 2: Start the game session (if not already started)
@@ -100,15 +111,36 @@ const handleGameStart = (sessionId, options = {}) => {
 // Use the GET method if you want to start the game with default options, otherwise use POST.
 gameRouter.get("/game/start/:sessionId", (req, res) => {
   const { sessionId } = req.params;
+  const { participantId } = req.query;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required" });
+  }
+
+  // Check if participant is playable
+  const gameSession = sessionManager.getSession(sessionId);
+  if (!gameSession) {
+    return res.status(404).json({ error: "Game session not found." });
+  }
+
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!gameSession.isParticipantPlayable(participant)) {
+    return res.status(403).json({ error: "This participant cannot start games." });
+  }
+
   const result = handleGameStart(sessionId);
   res.json(result);
 });
 
 
 // Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
-gameRouter.post("/game/start/:sessionId", (req, res) => {
+gameRouter.post("/game/start/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
   const { sessionId } = req.params;
-  const options = req.body || {}; // Extract options from request body (e.g., { gridSize: 5 })
+  const { participantId, ...options } = req.body || {}; // Extract participantId and options from request body
   // Game options will be validated and applied according to the game's configuration
   const result = handleGameStart(sessionId, options);
   res.json(result);
@@ -116,7 +148,27 @@ gameRouter.post("/game/start/:sessionId", (req, res) => {
 
 gameRouter.get("/game/stop/:sessionId", (req, res) => {
   const { sessionId } = req.params;
+  const { participantId } = req.query;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required" });
+  }
+
+  // Check if participant is playable
   const gameSession = sessionManager.getSession(sessionId);
+  if (!gameSession) {
+    return res.status(404).json({ error: "Game session not found." });
+  }
+
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!gameSession.isParticipantPlayable(participant)) {
+    return res.status(403).json({ error: "This participant cannot stop games." });
+  }
+
   const gameInstance = gameSession.getGameInstance();
 
   if (!gameInstance.getGameEngine().isGameStarted()) {

@@ -10,6 +10,7 @@ class KubicKodeGame extends GameInterface {
     this.gameInstance = gameInstance; // Game instance
     this.gameSession = gameSession; // GameSession instance
     this.gameOptions = new GameOptions();
+    this.playerMappings = {}; // Store participantId -> playerId mappings
 
     // Validate that the game instance implements the required contract
     const validation = gameContract.validateGameInstance(gameInstance, gameInstance.constructor.name);
@@ -204,6 +205,16 @@ class KubicKodeGame extends GameInterface {
       .find((p) => p.name === this.getPlayerNameById(playerId));
 
     return participant ? participant.id : null;
+  }
+
+  // Set player mappings (participantId -> playerId)
+  setPlayerMappings(mappings) {
+    this.playerMappings = mappings;
+  }
+
+  // Get player mappings (participantId -> playerId)
+  getPlayerMappings() {
+    return this.playerMappings;
   }
 
   // Helper method to get player name by ID

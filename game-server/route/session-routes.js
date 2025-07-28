@@ -50,7 +50,7 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
 // Join session
 sessionRouter.post("/session/:sessionId/join", (req, res) => {
   const { sessionId } = req.params;
-  const { participantName, participantType = 'human' } = req.body;
+  const { participantName, participantType = 'user' } = req.body;
 
   const gameSession = sessionManager.getSession(sessionId);
 
@@ -60,7 +60,7 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
 
   try {
     let participantId = gameSession.addParticipant(participantName, participantType);
-    let participant = serializeRecursively(gameSession.getParticipantById(participantId));
+    let participant = gameSession.getParticipantById(participantId);
     
     res.json({ success: true, participant_id: participantId });
     
@@ -68,7 +68,7 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
     try {
       GameEventService.broadcastToSession(gameSession, {
         type: "sessionParticipantJoined",
-        payload: { participant },
+        payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
       console.error('Broadcast error (non-blocking):', broadcastError);
@@ -78,6 +78,41 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
   }
   catch (err) {
     console.error('Join session error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Join session as spectator
+sessionRouter.post("/session/:sessionId/spectate", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantName } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Game session not found." });
+  }
+
+  try {
+    let participantId = gameSession.addParticipant(participantName, 'spectator');
+    let participant = gameSession.getParticipantById(participantId);
+    
+    res.json({ success: true, participant_id: participantId });
+    
+    // Broadcast the event after sending the response to avoid blocking the request
+    try {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "sessionSpectatorJoined",
+        payload: { participant: serializeRecursively(participant) },
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the join was successful, just the broadcast failed
+    }
+    
+  }
+  catch (err) {
+    console.error('Join session as spectator error:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -96,7 +131,7 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
   }
 
   try {
-    let participant = serializeRecursively(gameSession.getParticipantById(participantId));
+    let participant = gameSession.getParticipantById(participantId);
     gameSession.removeParticipant(participantId);
     res.json({ success: true });
     
@@ -104,7 +139,7 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
     try {
       GameEventService.broadcastToSession(gameSession, {
         type: "sessionParticipantLeft",
-        payload: { participant },
+        payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
       console.error('Broadcast error (non-blocking):', broadcastError);
@@ -141,6 +176,28 @@ sessionRouter.get("/session/participants/list/:sessionId", (req, res) => {
   }
 
   res.json(session.listParticipants());
+});
+
+// Get participant statistics
+sessionRouter.get("/session/participants/stats/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  const allParticipants = gameSession.listParticipants();
+  const playableParticipants = gameSession.getPlayableParticipants();
+  const spectatorParticipants = gameSession.getSpectatorParticipants();
+
+  res.json({
+    total: allParticipants.length,
+    players: playableParticipants.length,
+    spectators: spectatorParticipants.length,
+    canStart: playableParticipants.length >= 2
+  });
 });
 
 sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {

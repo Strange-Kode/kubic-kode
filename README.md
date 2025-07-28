@@ -43,6 +43,92 @@ npm run start-frontend
 
 The frontend will be available at [http://localhost:3001](http://localhost:3001) and will communicate with the backend at [http://localhost:3000](http://localhost:3000).
 
+## Spectator System
+
+kubic-kode supports **spectators** - special session participants who can observe games but cannot interact with them. This feature enables tournament viewing, learning experiences, and streaming integration.
+
+### Participant Types
+
+The system supports three participant types:
+- **`user`** - Regular human participant (can perform all game actions)
+- **`computer`** - AI participant (can perform all game actions)
+- **`spectator`** - Observer (can only view games, cannot perform actions)
+
+Each participant's playability is determined by the `isParticipantPlayable()` method:
+- Returns `true` for 'user' and 'computer' types
+- Returns `false` for 'spectator' type
+
+### Spectator Capabilities
+
+✅ **Spectators can:**
+- Join sessions and observe games
+- Receive all game broadcasts and updates via WebSocket
+- View game state, tile maps, and participant lists
+- Access read-only game information
+
+❌ **Spectators cannot:**
+- Start or stop games
+- Make moves or perform game actions
+- Vote on restart requests
+- Access protected game routes
+
+### API Usage
+
+#### Join as Spectator
+```javascript
+// Using KubicKode helper
+const result = await KubicKode.spectateSession('Charlie');
+
+// Direct API call
+POST /api/session/:sessionId/spectate
+{
+  "participantName": "Charlie"
+}
+```
+
+#### Get Participant Statistics
+```javascript
+// Using KubicKode helper
+const stats = await KubicKode.route.session('participant-stats');
+
+// Direct API call
+GET /api/session/participants/stats/:sessionId
+// Returns: { total: 4, players: 2, spectators: 2, canStart: true }
+```
+
+#### Participant Playability Check
+```javascript
+// Check if a participant can perform game actions
+const participant = gameSession.getParticipantById(participantId);
+if (gameSession.isParticipantPlayable(participant)) {
+  // Participant can start games, make moves, etc.
+}
+
+// Direct method call
+const isPlayable = gameSession.isParticipantPlayable(participant);
+```
+
+#### Error Handling
+```javascript
+try {
+  // This will fail for spectators
+  await KubicKode.startGame();
+} catch (error) {
+  if (error.message.includes('cannot perform game actions')) {
+    console.log('Spectators cannot start games');
+  }
+}
+```
+
+### Benefits
+
+1. **Enhanced Viewing Experience** - Multiple people can watch games
+2. **Tournament Support** - Spectators can observe competitive matches
+3. **Learning Tool** - New players can watch experienced players
+4. **Scalable Architecture** - Spectators don't consume game resources
+
+For detailed implementation information, see [SPECTATOR_FUNCTIONALITY.md](SPECTATOR_FUNCTIONALITY.md).
+
 ## Game Options System
 
 kubic-kode includes a flexible game options system that allows games to define which options are configurable and which are frozen (constant).
@@ -176,8 +262,12 @@ The **Game Contract** defines what methods your game implementation must provide
 
 #### Wrapper Methods (provided by KubicKodeGame)
 - `getGameOptions()` - Get game options instance
+- `getOptionValue(key)` - Get value of a game option
 - `resetGameOptions()` - Reset game options
-- `recordCustomEvent()` - Record custom game events
+- `applyGameOptions(options)` - Apply game options to the game
+- `recordCustomEvent(eventType, playerId, payload)` - Record custom game events
+- `setPlayerMappings(mappings)` - Set participant ID to player ID mappings
+- `getPlayerMappings()` - Get participant ID to player ID mappings
 
 ### Example Game Implementation
 

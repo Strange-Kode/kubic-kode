@@ -3,25 +3,46 @@ import { sessionManager } from "../../../../game-server/session-manager.js"; // 
 import { gameRegistry } from "../../../../game-server/game-registry.js";
 
 import { GameEventService } from "../../../../game-server/game-event-service.js";
+import { checkPlayableAccess } from "../../../../game-utility/game-utility.js";
 
 const ticTacToeRouter = express.Router();
 
+// Create middleware instance with session manager
+const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+
 // Plays turn and returns game state of the player round (e.g. did current player win?)
 // round status also contains if move is invalid
-ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", (req, res) => {
+ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
   const { sessionId } = req.params;
-  // TODO: pass playerId to req.body
-  const { xPos, yPos } = req.body;
-
-  // TODO: validate that playerId is the current player
+  const { participantId, xPos, yPos } = req.body;
 
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
   
   // Get the current player from the game engine
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  
+  // Validate that the participant is the current player
+  // We need to map participantId to playerId to check if it's their turn
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+  
+  // Find the player that corresponds to this participant
+  const playerMappings = gameInstance.getPlayerMappings();
+  const playerId = playerMappings[participantId];
+  
+  if (!playerId) {
+    return res.status(400).json({ error: "Participant is not a player in this game." });
+  }
+  
+  // Validate that it's this player's turn
+  if (playerId !== currentPlayer.getPlayerId()) {
+    return res.status(400).json({ error: "It's not your turn." });
+  }
 
-  let roundStatus = gameInstance.playTurn(currentPlayer.getPlayerId(), xPos, yPos);
+  let roundStatus = gameInstance.playTurn(playerId, xPos, yPos);
   
   if (roundStatus.player_has_won) { // playerId has won
     gameSession.increaseWinCounter();

@@ -46,3 +46,31 @@ export function pickProperties(source, props) {
     return obj;
   }, {});
 }
+
+// Middleware to check if participant is playable (can perform game actions)
+export function checkPlayableAccess(sessionManager) {
+  return (req, res, next) => {
+    const { sessionId } = req.params;
+    const { participantId } = req.body;
+
+    if (!participantId) {
+      return res.status(400).json({ error: "participantId is required" });
+    }
+
+    const gameSession = sessionManager.getSession(sessionId);
+    if (!gameSession) {
+      return res.status(404).json({ error: "Game session not found." });
+    }
+
+    const participant = gameSession.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found." });
+    }
+
+    if (!gameSession.isParticipantPlayable(participant)) {
+      return res.status(403).json({ error: "This participant cannot perform game actions." });
+    }
+
+    next();
+  };
+}

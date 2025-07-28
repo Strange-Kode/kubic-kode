@@ -42,6 +42,7 @@ class KubicKodeHelper {
     };
 
     this.sessionId = null;
+    this.participantId = null;
     this.currentGame = null;
     this.registeredGames = new Map();
     this.eventListeners = new Map();
@@ -59,10 +60,18 @@ class KubicKodeHelper {
         const gameRouteKey = gameId.replace(/-/g, '_');
         this.route[gameRouteKey] = {
           playTurn: (x, y, options = {}) => {
-            return this._makeRequest('POST', `/${gameId}/play-turn/${this.sessionId}`, { xPos: x, yPos: y, ...options });
+            return this._makeRequest('POST', `/${gameId}/play-turn/${this.sessionId}`, { 
+              participantId: this.participantId,
+              xPos: x, 
+              yPos: y, 
+              ...options 
+            });
           },
           restartGame: (options = {}) => {
-            return this._makeRequest('POST', `/${gameId}/restart-game/${this.sessionId}`, options);
+            return this._makeRequest('POST', `/${gameId}/restart-game/${this.sessionId}`, { 
+              participantId: this.participantId,
+              ...options 
+            });
           }
           // Add more game-specific methods as needed
           // These will be available as: KubicKode.route.rps.playTurn(x, y)
@@ -112,10 +121,14 @@ class KubicKodeHelper {
           return await helper._makeRequest('GET', `/session/init/${helper.currentGame}`);
         case 'join':
           return await helper._makeRequest('POST', `/session/${helper.sessionId}/join`, data);
+        case 'spectate':
+          return await helper._makeRequest('POST', `/session/${helper.sessionId}/spectate`, data);
         case 'leave':
           return await helper._makeRequest('POST', `/session/${helper.sessionId}/leave`, data);
         case 'participants':
           return await helper._makeRequest('GET', `/session/participants/list/${helper.sessionId}`);
+        case 'participant-stats':
+          return await helper._makeRequest('GET', `/session/participants/stats/${helper.sessionId}`);
         case 'restart-vote':
           return await helper._makeRequest('GET', `/session/request-restart-vote/${helper.sessionId}`);
         case 'submit-vote':
@@ -139,9 +152,9 @@ class KubicKodeHelper {
 
       switch (action) {
         case 'start':
-          return await helper._makeRequest('POST', `/game/start/${helper.sessionId}`, data);
+          return await helper._makeRequest('POST', `/game/start/${helper.sessionId}`, { ...data, participantId: helper.participantId });
         case 'stop':
-          return await helper._makeRequest('GET', `/game/stop/${helper.sessionId}`);
+          return await helper._makeRequest('GET', `/game/stop/${helper.sessionId}?participantId=${helper.participantId || ''}`);
         case 'get-current-player':
           return await helper._makeRequest('GET', `/game/get-current-player/${helper.sessionId}`);
         case 'is-active':
@@ -326,8 +339,20 @@ class KubicKodeHelper {
     return await this.route.session('init');
   }
 
-  async joinSession(participantName, participantType = 'human') {
-    return await this.route.session('join', { participantName, participantType });
+  async joinSession(participantName, participantType = 'user') {
+    const result = await this.route.session('join', { participantName, participantType });
+    if (result.success && result.data.participant_id) {
+      this.participantId = result.data.participant_id;
+    }
+    return result;
+  }
+
+  async spectateSession(participantName) {
+    const result = await this.route.session('spectate', { participantName });
+    if (result.success && result.data.participant_id) {
+      this.participantId = result.data.participant_id;
+    }
+    return result;
   }
 
   async startGame(options = {}) {

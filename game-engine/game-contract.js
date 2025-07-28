@@ -32,7 +32,9 @@ export class GameContract {
       'getOptionValue',
       'resetGameOptions',
       'applyGameOptions',
-      'recordCustomEvent'
+      'recordCustomEvent',
+      'setPlayerMappings',
+      'getPlayerMappings'
     ]);
   }
 
@@ -115,7 +117,8 @@ export class GameContract {
       notes: {
         wrapperMethods: 'Wrapper methods are bound to the game instance and can be called from within the game using this.methodName()',
         gameOptions: 'Game options are managed exclusively through getGameOptions() and accessed via getOptionValue()',
-        noBoilerplate: 'Games should NOT implement wrapper methods - they are provided automatically'
+        noBoilerplate: 'Games should NOT implement wrapper methods - they are provided automatically',
+        playerMappings: 'Player mapping methods (setPlayerMappings, getPlayerMappings) are provided by KubicKodeGame wrapper to map participant IDs to player IDs'
       }
     };
   }

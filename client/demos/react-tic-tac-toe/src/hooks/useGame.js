@@ -5,7 +5,7 @@ import { useFetch } from "./useFetch.js";
  * Custom hook for game management
  * Handles game initialization, state fetching, move making, and game status tracking
  */
-export function useGame(sessionId) {
+export function useGame(sessionId, participantId) {
   // Game state
   const [gameStarted, setGameStarted] = useState(false);
   const [gameActive, setGameActive] = useState(false);
@@ -69,12 +69,16 @@ export function useGame(sessionId) {
       throw new Error("Session ID required to start game");
     }
 
+    if (!participantId) {
+      throw new Error("Participant ID required to start game");
+    }
+
     // console.log("[useGame] Starting game for session:", sessionId);
     setIsGameLoading(true);
     setGameError(null);
 
     try {
-      const result = await get(`/api/game/start/${sessionId}`);
+      const result = await get(`/api/game/start/${sessionId}?participantId=${participantId}`);
 
       if (result.success) {
         // console.log("[useGame] Game started successfully:", result.data);
@@ -98,7 +102,7 @@ export function useGame(sessionId) {
     } finally {
       setIsGameLoading(false);
     }
-  }, [sessionId, get, fetchGameState]);
+  }, [sessionId, participantId, get, fetchGameState]);
 
   // Check if game is active
   const checkGameStatus = useCallback(async () => {
@@ -130,6 +134,10 @@ export function useGame(sessionId) {
         throw new Error("Session ID required to make move");
       }
 
+      if (!participantId) {
+        throw new Error("Participant ID required to make move");
+      }
+
       // console.log(
       //   `[useGame] Making move at (${x}, ${y}) for player ${playerId}`
       // );
@@ -138,7 +146,7 @@ export function useGame(sessionId) {
         const result = await post(
           `/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`,
           {
-            playerId: playerId,
+            participantId: participantId,
             xPos: x,
             yPos: y,
           }
@@ -172,7 +180,7 @@ export function useGame(sessionId) {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, post, fetchGameState, fetchCurrentPlayer]
+    [sessionId, participantId, post, fetchGameState, fetchCurrentPlayer]
   );
 
   // Refresh all game data

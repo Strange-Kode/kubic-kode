@@ -72,9 +72,8 @@ class TicTacToeGame {
   }
 
   playTurn(playerId, x, y, metadata = {}) {
-    // TODO: get currentPlayer by id rather than using currentPlayer()
-    const currentPlayer = this._engine.getCurrentTurnPlayers();
-    // const currentPlayer = this.engine.getPlayerById(playerId);
+    // Get the player by ID
+    const currentPlayer = this._engine.getPlayerById(playerId);
 
     console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);
     console.log(`[TicTacToeGame] Current player:`, currentPlayer);
