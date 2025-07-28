@@ -9,7 +9,12 @@ export class GameHistory {
     PARTICIPANT_LEFT: 'participantLeft',
     RESTART_VOTE_STARTED: 'restartVoteStarted',
     RESTART_VOTE_REGISTERED: 'restartVoteRegistered',
-    RESTART_VOTE_CLEARED: 'restartVoteCleared'
+    RESTART_VOTE_CLEARED: 'restartVoteCleared',
+    PLAYER_ADDED: 'playerAdded',
+    GAME_INSTANCE_STARTED: 'gameInstanceStarted',
+    GAME_INSTANCE_RESET: 'gameInstanceReset',
+    GAME_STOPPED: 'gameStopped',
+    INVALID_TURN_ATTEMPTED: 'invalidTurnAttempted'
   };
 
   // Get all valid game history event type strings
@@ -308,6 +313,69 @@ export class GameHistory {
       payload: { 
         voteResult: voteResult
       }
+    });
+  }
+
+  /**
+   * Add a player added event to game history
+   * @param {string} playerId - ID of the player who was added
+   * @param {string} participantId - ID of the participant (optional)
+   * @param {Object} playerData - Additional player data (name, etc.)
+   */
+  addPlayerAddedEvent(playerId, participantId = null, playerData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.PLAYER_ADDED,
+      playerId: playerId,
+      participantId: participantId,
+      payload: playerData
+    });
+  }
+
+  /**
+   * Add a game instance started event to game history
+   * @param {Object} gameData - Additional game data (playerCount, gameType, etc.)
+   */
+  addGameInstanceStartedEvent(gameData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_INSTANCE_STARTED,
+      payload: gameData
+    });
+  }
+
+  /**
+   * Add a game instance reset event to game history
+   * @param {Object} resetData - Additional reset data (gameType, resetReason, etc.)
+   */
+  addGameInstanceResetEvent(resetData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_INSTANCE_RESET,
+      payload: resetData
+    });
+  }
+
+  /**
+   * Add a game stopped event to game history
+   * @param {Object} stopData - Additional stop data (reason, etc.)
+   */
+  addGameStoppedEvent(stopData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_STOPPED,
+      payload: stopData
+    });
+  }
+
+  /**
+   * Add an invalid turn attempted event to game history
+   * @param {string} playerId - ID of the player who attempted the invalid turn
+   * @param {string} participantId - ID of the participant (optional)
+   * @param {Object} turnData - Additional turn data (reason, attempted move, etc.)
+   */
+  addInvalidTurnAttemptedEvent(playerId, participantId = null, turnData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.INVALID_TURN_ATTEMPTED,
+      playerId: playerId,
+      participantId: participantId,
+      payload: turnData
     });
   }
 } 
