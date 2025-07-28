@@ -62,6 +62,13 @@ class KubicKodeGame extends GameInterface {
 
     // Only record history if the turn was valid
     if (result.status === "ok" || result.status === "valid") {
+      // Reset inactivity timer back to the game's timeout value
+      const inactivityManager = this.gameSession.getInactivityManager();
+      if (inactivityManager) {
+        inactivityManager.resetTimer();
+        result.time_left = inactivityManager.getTimeRemaining();
+      }
+
       // Record the turn in history
       this.gameSession.gameHistory.addTurnPlayedEvent(
         result.player_id,

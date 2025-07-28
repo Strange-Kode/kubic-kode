@@ -2,106 +2,106 @@ import { TileMap } from "./tile-map.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, turnConfig = {}) {
-    this.player_entities = [];
-    this.registeredComponents = new Map(); // componentFunc -> componentName
-    this.componentNames = new Set(); // set of all names in use
-    this.tilemapWidth = tilemapWidth;
-    this.tilemapHeight = tilemapHeight;
-    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
-    this.currentTurnIndex = 0; // keeps track of current player
-    this.currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
-    this.gameStarted = false;
+    this._player_entities = [];
+    this._registeredComponents = new Map(); // componentFunc -> componentName
+    this._componentNames = new Set(); // set of all names in use
+    this._tilemapWidth = tilemapWidth;
+    this._tilemapHeight = tilemapHeight;
+    this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    this._currentTurnIndex = 0; // keeps track of current player
+    this._currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
+    this._gameStarted = false;
 
     // Turn config
-    this.playStyle = turnConfig.playStyle || "single-set";
+    this._playStyle = turnConfig.playStyle || "single-set";
     // For single-set and multi-set: [id1, id2, ...]
     // For multi-subset: [[id1, id2], [id3, id4], ...]
-    this.turnOrder = turnConfig.turnOrder || [];
+    this._turnOrder = turnConfig.turnOrder || [];
     // For multi-set: track which players have acted this round
-    this.actedThisRound = new Set();
+    this._actedThisRound = new Set();
   }
 
   getEntities() {
-    return this.player_entities;
+    return this._player_entities;
   }
 
   registerPlayerEntity(entity) {
-    this.player_entities.push(entity);
+    this._player_entities.push(entity);
     // Automatically update turnOrder for single-set and multi-set
-    if (this.playStyle === "single-set" || this.playStyle === "multi-set") {
-      this.turnOrder = this.player_entities.map(e => e.id);
+    if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
+      this._turnOrder = this._player_entities.map(e => e.id);
     }
     // For multi-subset, only set turnOrder if not already set
-    if (this.playStyle === "multi-subset" && this.turnOrder.length === 0) {
-      this.turnOrder = [this.player_entities.map(e => e.id)];
+    if (this._playStyle === "multi-subset" && this._turnOrder.length === 0) {
+      this._turnOrder = [this._player_entities.map(e => e.id)];
     }
   }
 
   deregisterPlayerEntity(entityId) {
-    this.player_entities = this.player_entities.filter(e => e.id !== entityId);
+    this._player_entities = this._player_entities.filter(e => e.id !== entityId);
     // Automatically update turnOrder for single-set and multi-set
-    if (this.playStyle === "single-set" || this.playStyle === "multi-set") {
-      this.turnOrder = this.player_entities.map(e => e.id);
+    if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
+      this._turnOrder = this._player_entities.map(e => e.id);
     }
     // For multi-subset, only update if turnOrder was default
-    if (this.playStyle === "multi-subset" && this.turnOrder.length === 1) {
-      this.turnOrder = [this.player_entities.map(e => e.id)];
+    if (this._playStyle === "multi-subset" && this._turnOrder.length === 1) {
+      this._turnOrder = [this._player_entities.map(e => e.id)];
     }
   }
   
   getPlayerEntities() {
-    return this.player_entities;
+    return this._player_entities;
   }
   
   getPlayerEntity(playerId) {
-    const playerEntity = this.player_entities.find(e => e.id === playerId);
+    const playerEntity = this._player_entities.find(e => e.id === playerId);
     if (!playerEntity) {
-      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this.player_entities.map(e => e.id).join(', ')}.`);
+      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.id).join(', ')}.`);
     }
     return playerEntity;
   }
   
   startGame() {
-    if (this.gameStarted === true) {
+    if (this._gameStarted === true) {
       throw new Error(`Game is already started.`);
     }
 
-    if (this.player_entities.length === 0) {
+    if (this._player_entities.length === 0) {
       throw new Error(`No player entities registered.`);
     }
-    this.gameStarted = true;
+    this._gameStarted = true;
   }
 
   isGameStarted() {
-    return this.gameStarted;
+    return this._gameStarted;
   }
 
   stopGame() {
-    if (this.gameStarted === false) {
+    if (this._gameStarted === false) {
       throw new Error(`Game is already stopped.`);
     }
-    this.gameStarted = false;
-    this.currentTurnIndex = 0;
-    this.currentTurnNumber = 1;
-    this.actedThisRound.clear();
+    this._gameStarted = false;
+    this._currentTurnIndex = 0;
+    this._currentTurnNumber = 1;
+    this._actedThisRound.clear();
   }
 
   getCurrentTurnPlayers() {
-    if (this.playStyle === "single-set") {
-      const playerId = this.turnOrder[this.currentTurnIndex];
-      return this.player_entities.find(e => e.id === playerId);
+    if (this._playStyle === "single-set") {
+      const playerId = this._turnOrder[this._currentTurnIndex];
+      return this._player_entities.find(e => e.id === playerId);
     }
-    else if (this.playStyle === "multi-set") {
+    else if (this._playStyle === "multi-set") {
       // All players act simultaneously
-      return this.player_entities.filter(e => this.turnOrder.includes(e.id));
+      return this._player_entities.filter(e => this._turnOrder.includes(e.id));
     }
-    else if (this.playStyle === "multi-subset") {
+    else if (this._playStyle === "multi-subset") {
       // Return the current subset (array of player entities)
-      const currentSubset = this.turnOrder[this.currentTurnIndex];
-      return this.player_entities.filter(e => currentSubset.includes(e.id));
+      const currentSubset = this._turnOrder[this._currentTurnIndex];
+      return this._player_entities.filter(e => currentSubset.includes(e.id));
     }
     // Fallback: all players
-    return this.player_entities;
+    return this._player_entities;
   }
   // @deprecated (use getCurrentTurnPlayers instead)
   getCurrentPlayer() {
@@ -116,65 +116,65 @@ export class GameEngine {
   }
 
   getPlayerById(playerId) {
-    return this.player_entities.find(e => e.id === playerId);
+    return this._player_entities.find(e => e.id === playerId);
   }
 
   nextTurn(playerId = null) {
-    if (this.playStyle === "single-set") {
-      this.currentTurnIndex = (this.currentTurnIndex + 1) % this.turnOrder.length;
-      this.currentTurnNumber++;
-      this.actedThisRound.clear();
+    if (this._playStyle === "single-set") {
+      this._currentTurnIndex = (this._currentTurnIndex + 1) % this._turnOrder.length;
+      this._currentTurnNumber++;
+      this._actedThisRound.clear();
     }
-    else if (this.playStyle === "multi-set") {
+    else if (this._playStyle === "multi-set") {
       // Mark player as having acted
-      if (playerId) this.actedThisRound.add(playerId);
+      if (playerId) this._actedThisRound.add(playerId);
       // If all players have acted, advance round
-      if (this.actedThisRound.size >= this.turnOrder.length) {
-        this.currentTurnNumber++;
-        this.actedThisRound.clear();
+      if (this._actedThisRound.size >= this._turnOrder.length) {
+        this._currentTurnNumber++;
+        this._actedThisRound.clear();
       }
     }
-    else if (this.playStyle === "multi-subset") {
+    else if (this._playStyle === "multi-subset") {
       // Mark player as having acted (optional, for validation)
-      if (playerId) this.actedThisRound.add(playerId);
+      if (playerId) this._actedThisRound.add(playerId);
       // If all players in current subset have acted, advance to next subset
-      const currentSubset = this.turnOrder[this.currentTurnIndex];
-      if (currentSubset.every(id => this.actedThisRound.has(id))) {
-        this.currentTurnIndex = (this.currentTurnIndex + 1) % this.turnOrder.length;
-        this.currentTurnNumber++;
-        this.actedThisRound.clear();
+      const currentSubset = this._turnOrder[this._currentTurnIndex];
+      if (currentSubset.every(id => this._actedThisRound.has(id))) {
+        this._currentTurnIndex = (this._currentTurnIndex + 1) % this._turnOrder.length;
+        this._currentTurnNumber++;
+        this._actedThisRound.clear();
       }
     }
   }
   
   getTurnNumber() {
-    return this.currentTurnNumber;
+    return this._currentTurnNumber;
   }
 
   update() {
-    for (const player_entity of this.player_entities) {
+    for (const player_entity of this._player_entities) {
       player_entity.update();
     }
   }
 
   getTileMap() {
-    return this.tileMap;
+    return this._tileMap;
   }
   
   resetTileMap() {
-    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
+    this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
   }
 
   // Method to update tile map dimensions
   // Note: tileMap is completely reset, so all existing tiles are lost
   updateTileMapDimensions(newWidth, newHeight) {
-    this.tilemapWidth = newWidth;
-    this.tilemapHeight = newHeight;
-    this.tileMap = new TileMap(this.tilemapWidth, this.tilemapHeight);
+    this._tilemapWidth = newWidth;
+    this._tilemapHeight = newHeight;
+    this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
   }
 
   getPlayStyle() {
-    return this.playStyle;
+    return this._playStyle;
   }
 
   registerComponent(componentFunc) {
@@ -184,20 +184,20 @@ export class GameEngine {
       throw new Error("Component function missing static componentName property.");
     }
 
-    if (this.registeredComponents.has(componentFunc)) {
+    if (this._registeredComponents.has(componentFunc)) {
       throw new Error(`Component function already registered as "${componentName}".`);
     }
 
-    if (this.componentNames.has(componentName)) {
+    if (this._componentNames.has(componentName)) {
       throw new Error(`Component name "${componentName}" is already registered.`);
     }
 
-    this.registeredComponents.set(componentFunc, componentName);
-    this.componentNames.add(componentName);
+    this._registeredComponents.set(componentFunc, componentName);
+    this._componentNames.add(componentName);
   }
   
   applyComponent(entity, componentFunc, ...args) {
-    const componentName = this.registeredComponents.get(componentFunc);
+    const componentName = this._registeredComponents.get(componentFunc);
 
     if (!componentName) {
       throw new Error(`Component function not registered.`);
