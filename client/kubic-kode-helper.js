@@ -76,6 +76,12 @@ class KubicKodeHelper {
         return this;
       }
     };
+
+    // Auto-connect WebSocket when session is initialized
+    this.events.on('sessionInitialized', (data) => {
+      console.log('🔌 Auto-connecting WebSocket after session initialization');
+      this.connectWebSocket();
+    });
   }
 
   /**
@@ -191,23 +197,23 @@ class KubicKodeHelper {
    * Initialize WebSocket connection for real-time events
    */
   connectWebSocket() {
+    if (!this.sessionId) {
+      console.warn('🔌 Cannot connect WebSocket: No sessionId available');
+      return this;
+    }
+
     if (this.websocket) {
       this.websocket.close();
     }
 
-    // Construct WebSocket URL more flexibly
-    let wsUrl;
-    try {
-      const url = new URL(this.config.apiPrefix);
-      // Remove /api from pathname if it exists
-      const pathname = url.pathname.replace('/api', '');
-      wsUrl = `ws://${url.hostname}:${url.port}${pathname}/?sessionId=${this.sessionId}`;
-    } catch (error) {
-      console.error('Error constructing WebSocket URL:', error);
-      // Fallback to simple replacement
-      wsUrl = this.config.apiPrefix.replace('/api', '').replace(/^http/, 'ws') + `/?sessionId=${this.sessionId}`;
-    }
-
+    // Construct WebSocket URL using the same approach as the working implementation
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    
+    const hostIP = window.location.hostname;
+    const hostPort = window.location.port || '3000';
+    
+    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${this.sessionId}`;
+    
     console.log('🔌 Attempting WebSocket connection to:', wsUrl);
     this.websocket = new WebSocket(wsUrl);
 
