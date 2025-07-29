@@ -132,6 +132,29 @@ export function useRestartVoting(session, game, refreshData) {
           setRestartVoteInitiator("Another player");
           setRestartVotes({});
         }
+
+        // AI auto-voting: Check if there are any AI participants that need to auto-vote
+        const aiParticipants = session.participants.filter(p => p.type === 'computer');
+        aiParticipants.forEach(aiParticipant => {
+          // Add a small delay to make it feel more realistic
+          setTimeout(() => {
+            console.log(`[AI Auto-Vote] AI participant ${aiParticipant.name} (ID: ${aiParticipant.id}) automatically voting Yes`);
+            
+            // Submit AI vote directly via API call
+            fetch(`/api/session/submit-restart-vote/${session.sessionId}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                participantId: aiParticipant.id,
+                voteYes: true,
+              }),
+            }).catch(err => {
+              console.error(`[AI Auto-Vote] Failed to submit vote for AI ${aiParticipant.name}:`, err);
+            });
+          }, 500 + Math.random() * 1000); // 500-1500ms delay
+        });
       }
 
       if (data.type === "restartVoteUpdate") {
