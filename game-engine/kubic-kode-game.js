@@ -115,8 +115,8 @@ class KubicKodeGame extends GameInterface {
     return result;
   }
   
-  addPlayer(name) {
-    const player = this.gameInstance.addPlayer(name);
+  addPlayer(name, isComputer = false) {
+    const player = this.gameInstance.addPlayer(name, isComputer);
 
     // Record player addition event
     if (this.gameSession) {

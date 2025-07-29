@@ -40,8 +40,8 @@ class SessionManager {
       `allocated new session id: ${sessionId} for game variant: ${gameVariantId}`
     );
     
-    // Create the session with the pure game instance
-    const session = new GameSession(sessionId, gameInstance);
+    // Create the session with sessionId and maxParticipants (default 2)
+    const session = new GameSession(sessionId, options.maxParticipants || 2);
     
     // Create the wrapper with the session reference
     const kubicKodeGame = new KubicKodeGame(gameInstance, session);
