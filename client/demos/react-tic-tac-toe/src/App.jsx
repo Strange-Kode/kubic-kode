@@ -33,10 +33,12 @@ function AppContent() {
     isLoading,
     error,
     showNameModal,
+    showSpectatorModal,
     showWinModal,
     winner,
     playerName,
     participants,
+    maxParticipants,
     currentPlayer,
     opponent,
     isMyTurn,
@@ -49,6 +51,7 @@ function AppContent() {
     participantId,
     isHost,
     handleNameSubmit,
+    handleJoinAsSpectator,
     handleMove,
     refreshData,
     handleWinModalClose,
@@ -69,11 +72,13 @@ function AppContent() {
     handleRestartVoteModalClose,
     // Pass-through for advanced use
     joinSession,
+    addAIParticipant,
     startGame,
     checkSessionAvailability,
   } = useTicTacToe();
 
   const [testName, setTestName] = useState("");
+  const [spectatorName, setSpectatorName] = useState("");
   // Removed manualModalOpen and suppressAutoModal state
 
   // Show loading while session initializes
@@ -155,7 +160,12 @@ function AppContent() {
                   h="60px"
                   w="60px"
                   onClick={() => handleTileClick(x, y)}
-                  isDisabled={!gameActive || !isMyTurn || cellValue !== "" || gameDisabledByInactivity}
+                  isDisabled={
+                    !gameActive ||
+                    !isMyTurn ||
+                    cellValue !== "" ||
+                    gameDisabledByInactivity
+                  }
                   colorScheme={
                     cellValue === "X"
                       ? "purple"
@@ -389,7 +399,12 @@ function AppContent() {
                     <strong>Are you the host?:</strong> {isHost ? "Yes" : "No"}
                   </Text>
                   <Text>
-                    <strong>Total Participants:</strong> {participants.length}/2
+                    <strong>Players:</strong> {participants.filter(p => p.type === "user" || p.type === "computer").length}/{maxParticipants}
+                    {participants.filter(p => p.type === "spectator").length > 0 && (
+                      <Text as="span" ml={2} color="gray.600">
+                        (+{participants.filter(p => p.type === "spectator").length} spectator{participants.filter(p => p.type === "spectator").length > 1 ? 's' : ''})
+                      </Text>
+                    )}
                   </Text>
                 </VStack>
               </Container>
@@ -417,14 +432,30 @@ function AppContent() {
                           <Td>
                             {participant.name}
                             {participant.id === participantId && (
-                              <Badge ml={2} colorScheme="blue" size="sm">You</Badge>
+                              <Badge ml={2} colorScheme="blue" size="sm">
+                                You
+                              </Badge>
+                            )}
+                            {participant.type === "computer" && (
+                              <Badge ml={2} colorScheme="orange" size="sm">
+                                🤖 AI
+                              </Badge>
+                            )}
+                            {participant.type === "spectator" && (
+                              <Badge ml={2} colorScheme="gray" size="sm">
+                                👁️ Spectator
+                              </Badge>
                             )}
                           </Td>
                           <Td>{participant.id}</Td>
                           <Td>{index === 0 ? "👑" : "-"}</Td>
                           <Td isNumeric>
-                            <Badge 
-                              colorScheme={getWinCountForPlayer(participant.id) > 0 ? "green" : "gray"}
+                            <Badge
+                              colorScheme={
+                                getWinCountForPlayer(participant.id) > 0
+                                  ? "green"
+                                  : "gray"
+                              }
                               variant="solid"
                             >
                               {getWinCountForPlayer(participant.id)}
@@ -442,6 +473,45 @@ function AppContent() {
                   </Table>
                 )}
               </Container>
+
+              {/* Add AI Opponent */}
+              {(() => {
+                const playableCount = participants.filter(
+                  (p) => p.type === "user" || p.type === "computer"
+                ).length;
+                console.log("AI Button Debug:", { 
+                  participantId, 
+                  participants, 
+                  playableCount, 
+                  maxParticipants, 
+                  gameStarted,
+                  shouldShow: participantId && playableCount < maxParticipants && !gameStarted
+                });
+                return participantId && playableCount < maxParticipants && !gameStarted;
+              })() && (
+                  <Container bg="orange.50" w="100%">
+                    <VStack spacing={3}>
+                      <Heading size="md">Play vs AI</Heading>
+                      <Button
+                        colorScheme="orange"
+                        onClick={async () => {
+                          try {
+                            const result = await addAIParticipant();
+                            if (!result.success) {
+                              alert(
+                                `Failed to add AI opponent: ${result.error}`
+                              );
+                            }
+                          } catch (error) {
+                            alert(`Error adding AI opponent: ${error.message}`);
+                          }
+                        }}
+                      >
+                        Add AI Opponent
+                      </Button>
+                    </VStack>
+                  </Container>
+                )}
 
               {/* Join Controls */}
               {!participantId && (
@@ -468,20 +538,32 @@ function AppContent() {
                 <Text>
                   <strong>Session Status:</strong>
                 </Text>
-                {participants.length === 0 && (
-                  <Text>🔄 Waiting for participants...</Text>
-                )}
-                {participants.length === 1 && (
-                  <Text>👤 1 player joined, waiting for 2nd player...</Text>
-                )}
-                {participants.length === 2 && (
-                  <Text>
-                    🎉 2 players joined! Game has now started automatically.
-                  </Text>
-                )}
-                {participants.length > 2 && (
-                  <Text>⚠️ Too many participants ({participants.length})</Text>
-                )}
+                {(() => {
+                  const playableCount = participants.filter(
+                    (p) => p.type === "user" || p.type === "computer"
+                  ).length;
+                  const spectatorCount = participants.filter(
+                    (p) => p.type === "spectator"
+                  ).length;
+
+                  if (playableCount === 0) {
+                    return <Text>🔄 Waiting for participants...</Text>;
+                  } else if (playableCount === 1) {
+                    return (
+                      <Text>
+                        👤 1 player joined, waiting for 2nd player...
+                        {spectatorCount > 0 && ` (${spectatorCount} spectator${spectatorCount > 1 ? 's' : ''})`}
+                      </Text>
+                    );
+                  } else if (playableCount >= 2) {
+                    return (
+                      <Text>
+                        🎉 {playableCount} players joined! Game has now started automatically.
+                        {spectatorCount > 0 && ` (${spectatorCount} spectator${spectatorCount > 1 ? 's' : ''})`}
+                      </Text>
+                    );
+                  }
+                })()}
               </Container>
             </VStack>
 
@@ -525,7 +607,10 @@ function AppContent() {
                       <Text>
                         <strong>Inactivity Timer:</strong>
                       </Text>
-                      <LiveTimer getLiveTimer={getLiveTimer} gameActive={gameActive} />
+                      <LiveTimer
+                        getLiveTimer={getLiveTimer}
+                        gameActive={gameActive}
+                      />
                     </HStack>
                   )}
                   {error && (
@@ -598,7 +683,33 @@ function AppContent() {
         </VStack>
       </ChakraContainer>
 
-      {/* Combined Win/Restart Modal */}
+      {/* Spectator Modal */}
+      <GameModal
+        isOpen={showSpectatorModal}
+        onClose={() => {}} // Can't close - must choose
+        title="Game is Full"
+        message="This game session is full. Would you like to join as a spectator to watch the game?"
+        type="info"
+        showInput={true}
+        inputPlaceholder="Enter your name to join as spectator"
+        inputValue={spectatorName}
+        onInputChange={setSpectatorName}
+        primaryButton={{
+          text: "Join as Spectator",
+          onClick: () => {
+            if (spectatorName.trim()) {
+              handleJoinAsSpectator(spectatorName.trim());
+            } else {
+              alert("Please enter your name first");
+            }
+          },
+        }}
+        secondaryButton={{
+          text: "Cancel",
+          onClick: () => window.location.reload(), // Go back to start
+        }}
+      />
+
       <GameModal
         isOpen={showWinModal}
         onClose={handleWinModalClose}

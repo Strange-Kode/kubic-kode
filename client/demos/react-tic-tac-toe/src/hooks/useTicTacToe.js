@@ -13,6 +13,7 @@ import { usePlayerWins } from "./usePlayerWins.js";
 export function useTicTacToe() {
   // UI state
   const [showNameModal, setShowNameModal] = useState(false);
+  const [showSpectatorModal, setShowSpectatorModal] = useState(false);
   const [showWinModal, setShowWinModal] = useState(false);
   const [winner, setWinner] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +21,8 @@ export function useTicTacToe() {
   const [playerName, setPlayerName] = useState(null);
   const [inactivityTimer, setInactivityTimer] = useState(null);
   const [lastTimerUpdate, setLastTimerUpdate] = useState(null);
-  const [gameDisabledByInactivity, setGameDisabledByInactivity] = useState(false);
+  const [gameDisabledByInactivity, setGameDisabledByInactivity] =
+    useState(false);
 
   // Hook dependencies
   const session = useSession();
@@ -33,10 +35,7 @@ export function useTicTacToe() {
     setError(null);
 
     try {
-      await Promise.all([
-        session.fetchParticipants(), 
-        game.refreshGameData()
-      ]);
+      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
     } catch (err) {
       console.error("[useTicTacToe] Error refreshing data:", err);
       setError(err.message);
@@ -46,27 +45,36 @@ export function useTicTacToe() {
   // Live timer calculation with interpolation - always sync to backend authority
   const getLiveTimer = useCallback(() => {
     if (inactivityTimer === null || lastTimerUpdate === null) return null;
-    
+
     // Calculate elapsed time since last backend update
     const elapsedMs = Date.now() - lastTimerUpdate;
     const elapsedSeconds = Math.floor(elapsedMs / 1000);
-    
+
     // Start from backend's authoritative time and subtract local elapsed time
     const liveTimer = Math.max(0, inactivityTimer - elapsedSeconds);
-    
+
     return liveTimer;
   }, [inactivityTimer, lastTimerUpdate]);
 
   // Restart voting functionality
   const restartVoting = useRestartVoting(session, game, refreshData);
 
-  // Check if we need to show name modal
+  // Check if we need to show name modal or spectator modal
   const needsName =
     session.sessionId && !session.participantId && !session.isSessionLoading;
 
-  // Check if game should auto-start
+  // Check if game should auto-start (only count playable participants)
+  const playableParticipants = session.participants.filter(
+    (p) => p.type === "user" || p.type === "computer"
+  );
+
+  // Check if session is full and should show spectator modal instead
+  const sessionIsFull = playableParticipants.length >= session.maxParticipants;
+  const shouldShowSpectator = needsName && sessionIsFull;
+
   const shouldAutoStart =
-    session.participants.length === 2 && !game.gameStarted;
+    playableParticipants.length === session.maxParticipants &&
+    !game.gameStarted;
 
   // Overall loading state
   const overallLoading =
@@ -75,14 +83,20 @@ export function useTicTacToe() {
   // Combined error state
   const combinedError = error || session.sessionError || game.gameError;
 
-  // Show name modal when session is ready but user hasn't joined
+  // Show name modal or spectator modal when session is ready but user hasn't joined
   useEffect(() => {
-    if (needsName) {
-      // console.log("[useTicTacToe] Session ready, showing name modal");
+    if (shouldShowSpectator) {
+      // Session is full, show spectator modal
+      setShowSpectatorModal(true);
+      setShowNameModal(false);
+      setIsLoading(false);
+    } else if (needsName) {
+      // Session has space, show name modal
       setShowNameModal(true);
+      setShowSpectatorModal(false);
       setIsLoading(false);
     }
-  }, [needsName]);
+  }, [needsName, shouldShowSpectator]);
 
   // Auto-start game when 2 participants are present
   useEffect(() => {
@@ -112,6 +126,32 @@ export function useTicTacToe() {
         }
       } catch (err) {
         console.error("[useTicTacToe] Error joining session:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [session, refreshData]
+  );
+
+  // Handle joining as spectator
+  const handleJoinAsSpectator = useCallback(
+    async (name) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const result = await session.joinAsSpectator(name);
+
+        if (result.success) {
+          setPlayerName(name);
+          setShowSpectatorModal(false);
+          await refreshData();
+        } else {
+          setError(result.error || "Failed to join as spectator");
+        }
+      } catch (err) {
+        console.error("[useTicTacToe] Error joining as spectator:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
@@ -191,7 +231,7 @@ export function useTicTacToe() {
           console.log("[useTicTacToe] Game won by:", winnerParticipant.name);
           setWinner(winnerParticipant);
           setShowWinModal(true);
-          
+
           // Refresh win counts after someone wins (with small delay to allow backend processing)
           setTimeout(() => {
             playerWins.fetchPlayerWins();
@@ -206,7 +246,6 @@ export function useTicTacToe() {
       ) {
         refreshData();
       }
-
 
       // Handle restart voting events
       if (
@@ -233,11 +272,13 @@ export function useTicTacToe() {
       // Handle inactivity timer updates - reset baseline on each backend update
       if (data.type === "timeLeft") {
         const backendTimeLeft = data.payload?.secondsLeft;
-        if (typeof backendTimeLeft === 'number') {
+        if (typeof backendTimeLeft === "number") {
           // Always use backend time as authoritative source
           setInactivityTimer(backendTimeLeft);
           setLastTimerUpdate(Date.now());
-          console.log(`[Timer Sync] Backend reports ${backendTimeLeft}s left, frontend baseline reset`);
+          console.log(
+            `[Timer Sync] Backend reports ${backendTimeLeft}s left, frontend baseline reset`
+          );
         }
       }
 
@@ -246,7 +287,7 @@ export function useTicTacToe() {
         setInactivityTimer(null);
         setLastTimerUpdate(null);
         setGameDisabledByInactivity(true);
-        
+
         // Handle the win condition from inactivity
         const inactivityStatus = data.payload?.inactivityStatus;
         if (inactivityStatus?.winnerPlayerId) {
@@ -254,12 +295,15 @@ export function useTicTacToe() {
           const winnerParticipant = session.participants.find(
             (p) => p.id === inactivityStatus.winnerPlayerId
           );
-          
+
           if (winnerParticipant) {
-            console.log("[useTicTacToe] Game won by inactivity:", winnerParticipant.name);
+            console.log(
+              "[useTicTacToe] Game won by inactivity:",
+              winnerParticipant.name
+            );
             setWinner(winnerParticipant);
             setShowWinModal(true);
-            
+
             // Refresh data and win counts after inactivity win
             refreshData();
             setTimeout(() => {
@@ -344,12 +388,14 @@ export function useTicTacToe() {
 
     // UI state
     showNameModal,
+    showSpectatorModal,
     showWinModal,
     winner,
 
     // Player info
     playerName,
     participants: session.participants,
+    maxParticipants: session.maxParticipants,
     currentPlayer: getCurrentPlayerInfo(),
     opponent: getOpponentInfo(),
     isMyTurn: isMyTurn(),
@@ -375,6 +421,7 @@ export function useTicTacToe() {
 
     // Actions
     handleNameSubmit,
+    handleJoinAsSpectator,
     handleMove,
     refreshData,
     handleWinModalClose,
@@ -388,6 +435,8 @@ export function useTicTacToe() {
 
     // Pass-through session actions (for advanced use)
     joinSession: session.joinSession,
+    joinAsSpectator: session.joinAsSpectator,
+    addAIParticipant: session.addAIParticipant,
     startGame: game.startGame,
     checkSessionAvailability: session.checkSessionAvailability,
   };
