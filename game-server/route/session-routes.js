@@ -1,6 +1,7 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
+import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
 
 import { serializeRecursively } from "../../game-utility/game-utility.js";
 
@@ -299,6 +300,117 @@ sessionRouter.post("/session/history/:sessionId", (req, res) => {
     
   } catch (err) {
     console.error('Get session history error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Subscribe to game history event types
+sessionRouter.post("/session/subscribe/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const { eventTypes } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  if (!eventTypes || !Array.isArray(eventTypes) || eventTypes.length === 0) {
+    return res.status(400).json({ error: "eventTypes must be a non-empty array of game history event type strings." });
+  }
+
+  try {
+    // Validate that all requested event types are game history events
+    const validGameHistoryEventTypes = GameHistory.getValidEventTypes();
+
+    const invalidTypes = eventTypes.filter(type => !validGameHistoryEventTypes.includes(type));
+    if (invalidTypes.length > 0) {
+      return res.status(400).json({ 
+        error: `Cannot subscribe to non-game-history events: ${invalidTypes.join(', ')}. Only game history events can be subscribed to.`,
+        validGameHistoryEventTypes: validGameHistoryEventTypes
+      });
+    }
+
+    gameSession.subscribeToGameHistoryEvents(eventTypes);
+    
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      subscribedEventTypes: eventTypes,
+      message: `Successfully subscribed to game history event types: ${eventTypes.join(', ')}`
+    });
+    
+  } catch (err) {
+    console.error('Subscribe to event types error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Unsubscribe from game history event types
+sessionRouter.post("/session/unsubscribe/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const { eventTypes } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  if (!eventTypes || !Array.isArray(eventTypes)) {
+    return res.status(400).json({ error: "eventTypes must be an array of game history event type strings." });
+  }
+
+  try {
+    // Validate that all requested event types are game history events
+    const validGameHistoryEventTypes = GameHistory.getValidEventTypes();
+
+    const invalidTypes = eventTypes.filter(type => !validGameHistoryEventTypes.includes(type));
+    if (invalidTypes.length > 0) {
+      return res.status(400).json({ 
+        error: `Cannot unsubscribe from non-game-history events: ${invalidTypes.join(', ')}. Only game history events can be unsubscribed from.`,
+        validGameHistoryEventTypes: validGameHistoryEventTypes
+      });
+    }
+
+    gameSession.unsubscribeFromGameHistoryEvents(eventTypes);
+    
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      unsubscribedEventTypes: eventTypes,
+      message: `Successfully unsubscribed from game history event types: ${eventTypes.join(', ')}`
+    });
+    
+  } catch (err) {
+    console.error('Unsubscribe from event types error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get current subscriptions for a session
+sessionRouter.get("/session/subscriptions/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+
+  const gameSession = sessionManager.getSession(sessionId);
+
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    const currentSubscriptions = gameSession.getGameHistorySubscriptions();
+    
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      subscribedEventTypes: currentSubscriptions,
+      totalSubscriptions: currentSubscriptions.length,
+      note: "Subscriptions only apply to game history events. Regular session events (joins, leaves, etc.) are always broadcast."
+    });
+    
+  } catch (err) {
+    console.error('Get session subscriptions error:', err);
     res.status(400).json({ error: err.message });
   }
 });

@@ -100,17 +100,16 @@ class KubicKodeGame extends GameInterface {
       }
     } else {
       // Record invalid turn attempt
-      this.gameSession.gameHistory.addEvent({
-        type: "invalidTurnAttempted",
-        playerId: playerId,
-        participantId: this.getParticipantIdForPlayer(playerId),
-        payload: {
+      this.gameSession.gameHistory.addInvalidTurnAttemptedEvent(
+        playerId,
+        this.getParticipantIdForPlayer(playerId),
+        {
           x,
           y,
           reason: result.type || "invalid_move",
           status: result.status,
-        },
-      });
+        }
+      );
     }
 
     return result;
@@ -121,15 +120,14 @@ class KubicKodeGame extends GameInterface {
 
     // Record player addition event
     if (this.gameSession) {
-      this.gameSession.gameHistory.addEvent({
-        type: "playerAdded",
-        playerId: player.getPlayerId(),
-        participantId: this.getParticipantIdForPlayer(player.getPlayerId()),
-        payload: {
+      this.gameSession.gameHistory.addPlayerAddedEvent(
+        player.getPlayerId(),
+        this.getParticipantIdForPlayer(player.getPlayerId()),
+        {
           playerName: name,
           playerId: player.getPlayerId(),
-        },
-      });
+        }
+      );
     }
 
     return player;
@@ -146,7 +144,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record game start event
     if (this.gameSession) {
-      this.gameSession.gameHistory.addGameStateEvent("gameInstanceStarted", {
+      this.gameSession.gameHistory.addGameInstanceStartedEvent({
         playerCount: this.gameInstance.getGameEngine().getPlayerEntities()
           .length,
         gameType: this.gameInstance.constructor.name,
@@ -185,7 +183,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record game reset event
     if (this.gameSession) {
-      this.gameSession.gameHistory.addGameStateEvent("gameInstanceReset", {
+      this.gameSession.gameHistory.addGameInstanceResetEvent({
         gameType: this.gameInstance.constructor.name,
         resetReason: "restart",
       });
@@ -254,7 +252,7 @@ class KubicKodeGame extends GameInterface {
       ? this.gameInstance.stopGame()
       : this.gameInstance.getGameEngine().stopGame();
 
-    this.gameSession.gameHistory.addGameStateEvent("gameStopped", {
+    this.gameSession.gameHistory.addGameStoppedEvent({
       reason: "manual",
       timestamp: new Date().toISOString(),
     });

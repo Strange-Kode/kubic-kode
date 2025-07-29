@@ -2,6 +2,7 @@ import { GameSession } from "./game-session.js";
 import { gameRegistry } from "./game-registry.js";
 import { validateGameInstance } from "../game-engine/interface-compliance-checker.js";
 import { KubicKodeGame } from "../game-engine/kubic-kode-game.js";
+import { gameHistoryManager } from "./game-history-manager.js";
 import { v4 as uuidv4 } from "uuid";
 
 class SessionManager {
@@ -58,6 +59,33 @@ class SessionManager {
 
   hasSessions() {
     return this.sessions.size > 0;
+  }
+
+  /**
+   * Remove a session and clean up its resources
+   * @param {string} sessionId - The session ID to remove
+   * @returns {boolean} True if session was removed, false if not found
+   */
+  removeSession(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      console.log(`[SessionManager] Session ${sessionId} not found for removal`);
+      return false;
+    }
+
+    try {
+      // Clear game history manager resources for this session
+      gameHistoryManager.removeSessionHistory(sessionId);
+      
+      // Remove from sessions map
+      this.sessions.delete(sessionId);
+      
+      console.log(`[SessionManager] Successfully removed session ${sessionId}`);
+      return true;
+    } catch (error) {
+      console.error(`[SessionManager] Error removing session ${sessionId}:`, error);
+      return false;
+    }
   }
 }
 
