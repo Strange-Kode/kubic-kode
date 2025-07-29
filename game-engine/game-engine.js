@@ -1,22 +1,34 @@
 import { TileMap } from "./tile-map.js";
+import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 
 export class GameEngine {
-  constructor(tilemapWidth, tilemapHeight, turnConfig = {}) {
+  constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
     this._player_entities = [];
     this._registeredComponents = new Map(); // componentFunc -> componentName
     this._componentNames = new Set(); // set of all names in use
     this._tilemapWidth = tilemapWidth;
     this._tilemapHeight = tilemapHeight;
+    
+    // Use regular TileMap by default, scrollable tile map is opt-in
+    this._useScrollableTileMap = engineConfig.useScrollableTileMap === true; // Default to false
     this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    
+    // Initialize scrollable tile map manager if enabled
+    this._scrollableManager = null;
+    if (this._useScrollableTileMap) {
+      this._scrollableManager = new ScrollableTileMapManager(this._tilemapWidth, this._tilemapHeight);
+      this._tileMap = this._scrollableManager.getTileMap();
+    }
+    
     this._currentTurnIndex = 0; // keeps track of current player
     this._currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
     this._gameStarted = false;
 
     // Turn config
-    this._playStyle = turnConfig.playStyle || "single-set";
+    this._playStyle = engineConfig.playStyle || "single-set";
     // For single-set and multi-set: [id1, id2, ...]
     // For multi-subset: [[id1, id2], [id3, id4], ...]
-    this._turnOrder = turnConfig.turnOrder || [];
+    this._turnOrder = engineConfig.turnOrder || [];
     // For multi-set: track which players have acted this round
     this._actedThisRound = new Set();
   }
@@ -27,6 +39,12 @@ export class GameEngine {
 
   registerPlayerEntity(entity) {
     this._player_entities.push(entity);
+    
+    // Register viewport for scrollable tile map if available
+    if (this._useScrollableTileMap && this._scrollableManager && entity.viewport) {
+      this._scrollableManager.registerPlayerViewport(entity.id, entity.viewport);
+    }
+    
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
       this._turnOrder = this._player_entities.map(e => e.id);
@@ -39,6 +57,12 @@ export class GameEngine {
 
   deregisterPlayerEntity(entityId) {
     this._player_entities = this._player_entities.filter(e => e.id !== entityId);
+    
+    // Unregister viewport for scrollable tile map if available
+    if (this._useScrollableTileMap && this._scrollableManager) {
+      this._scrollableManager.unregisterPlayerViewport(entityId);
+    }
+    
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
       this._turnOrder = this._player_entities.map(e => e.id);
@@ -170,7 +194,13 @@ export class GameEngine {
   updateTileMapDimensions(newWidth, newHeight) {
     this._tilemapWidth = newWidth;
     this._tilemapHeight = newHeight;
-    this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    
+    if (this._useScrollableTileMap && this._scrollableManager) {
+      this._scrollableManager.resize(newWidth, newHeight);
+      this._tileMap = this._scrollableManager.getTileMap();
+    } else {
+      this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    }
   }
 
   getPlayStyle() {
@@ -208,5 +238,16 @@ export class GameEngine {
     }
 
     componentFunc(entity, ...args);
+  }
+
+  /**
+   * Get the scrollable tile map manager if enabled
+   * @returns {ScrollableTileMapManager|null} The scrollable manager or null if not enabled
+   */
+  getScrollable() {
+    if (!this._useScrollableTileMap) {
+      return null;
+    }
+    return this._scrollableManager;
   }
 }
