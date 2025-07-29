@@ -10,6 +10,7 @@ export function useSession() {
   const [sessionId, setSessionId] = useState(null);
   const [participantId, setParticipantId] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [maxParticipants, setMaxParticipants] = useState(2); // default fallback
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState(null);
 
@@ -49,7 +50,7 @@ export function useSession() {
 
   // Join session with participant name
   const joinSession = useCallback(
-    async (name) => {
+    async (name, participantType = "user") => {
       if (!sessionId) {
         throw new Error("Session not initialized");
       }
@@ -59,6 +60,7 @@ export function useSession() {
       try {
         const result = await post(`/api/session/${sessionId}/join`, {
           participantName: name,
+          participantType: participantType,
         });
 
         if (result.success) {
@@ -82,6 +84,87 @@ export function useSession() {
     },
     [sessionId, post]
   );
+
+  // Add AI participant to session
+  const addAIParticipant = useCallback(async () => {
+    if (!sessionId) {
+      throw new Error("Session not initialized");
+    }
+
+    try {
+      const result = await post(`/api/session/${sessionId}/join`, {
+        participantName: "AI Opponent",
+        participantType: "computer",
+      });
+
+      if (result.success) {
+        // Fetch updated participants list
+        await fetchParticipants();
+        return { success: true };
+      } else {
+        throw new Error(result.error || "Failed to add AI opponent");
+      }
+    } catch (error) {
+      console.error("[useSession] Failed to add AI opponent:", error);
+      return { success: false, error: error.message };
+    }
+  }, [sessionId, post]);
+
+  // Join session as spectator (uses dedicated /spectate endpoint)
+  const joinAsSpectator = useCallback(
+    async (name) => {
+      if (!sessionId) {
+        throw new Error("Session not initialized");
+      }
+
+      try {
+        const result = await post(`/api/session/${sessionId}/spectate`, {
+          participantName: name,
+        });
+
+        if (result.success) {
+          const newParticipantId = result.data.participant_id;
+          setParticipantId(newParticipantId);
+
+          // Fetch updated participants list
+          await fetchParticipants();
+
+          return { success: true, participantId: newParticipantId };
+        } else {
+          throw new Error(result.error || "Failed to join as spectator");
+        }
+      } catch (error) {
+        console.error("[useSession] Failed to join as spectator:", error);
+        return { success: false, error: error.message };
+      }
+    },
+    [sessionId, post]
+  );
+
+  // Fetch session stats including participants and maxParticipants
+  const fetchSessionStats = useCallback(async () => {
+    if (!sessionId) {
+      return;
+    }
+
+    try {
+      const result = await get(`/api/session/participants/stats/${sessionId}`);
+      console.log("[useSession] Session stats result:", result);
+
+      if (result.success) {
+        const { maxParticipants: maxParts } = result.data;
+        console.log("[useSession] Setting maxParticipants to:", maxParts);
+        setMaxParticipants(maxParts);
+      } else {
+        console.error(
+          "[useSession] Failed to fetch session stats:",
+          result.error
+        );
+      }
+    } catch (error) {
+      console.error("[useSession] Error fetching session stats:", error);
+    }
+  }, [sessionId, get]);
 
   // Fetch participants for the current session
   const fetchParticipants = useCallback(async () => {
@@ -117,16 +200,22 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/${sessionId}/participants`);
+      const result = await get(`/api/session/participants/stats/${sessionId}`);
 
       if (result.success) {
-        const participantsList = result.data;
-        const isFull = participantsList.length >= 2;
+        const { players, maxParticipants: maxParts, started } = result.data;
+        const isFull = players >= maxParts;
 
         return {
-          available: !isFull,
-          reason: isFull ? "Session is full" : "Available",
-          participantCount: participantsList.length,
+          available: !isFull && !started,
+          reason: started
+            ? "Game already started"
+            : isFull
+            ? "Session is full"
+            : "Available",
+          participantCount: players,
+          maxParticipants: maxParts,
+          started,
         };
       } else {
         return { available: false, reason: "Session not found" };
@@ -136,12 +225,13 @@ export function useSession() {
     }
   }, [sessionId, get]);
 
-  // Always fetch participants when sessionId changes (even before joining)
+  // Always fetch participants and session stats when sessionId changes (even before joining)
   useEffect(() => {
     if (sessionId) {
       fetchParticipants();
+      fetchSessionStats();
     }
-  }, [sessionId, fetchParticipants]);
+  }, [sessionId, fetchParticipants, fetchSessionStats]);
 
   // Auto-fetch participants when sessionId or participantId changes
   useEffect(() => {
@@ -159,6 +249,7 @@ export function useSession() {
     sessionId,
     participantId,
     participants,
+    maxParticipants,
     isSessionLoading,
     sessionError,
     isHost,
@@ -166,6 +257,8 @@ export function useSession() {
     // Session actions
     initializeSession,
     joinSession,
+    joinAsSpectator,
+    addAIParticipant,
     fetchParticipants,
     checkSessionAvailability,
   };
