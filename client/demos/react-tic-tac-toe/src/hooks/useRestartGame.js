@@ -134,6 +134,7 @@ export function useRestartVoting(session, game, refreshData) {
         }
 
         // AI auto-voting: Check if there are any AI participants that need to auto-vote
+        // Only include playable participants (users and computers) in voting
         const aiParticipants = session.participants.filter(p => p.type === 'computer');
         aiParticipants.forEach(aiParticipant => {
           // Add a small delay to make it feel more realistic
@@ -165,6 +166,13 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteResult") {
+        console.log("[useRestartVoting] Vote result received:", {
+          allAgreed: data.payload.allAgreed,
+          restartVoteInitiator,
+          sessionParticipantId: session.participantId,
+          shouldExecuteRestart: restartVoteInitiator === session.participantId
+        });
+
         if (data.payload.allAgreed) {
           // All players agreed to restart - restart the game!
           setShowRestartVoteModal(false);
@@ -174,6 +182,7 @@ export function useRestartVoting(session, game, refreshData) {
 
           // Only the vote initiator should handle the actual restart
           if (restartVoteInitiator === session.participantId) {
+            console.log("[useRestartVoting] Executing restart sequence as initiator");
             setRestartVoteInitiator(null);
 
             // Execute restart sequence
@@ -185,6 +194,7 @@ export function useRestartVoting(session, game, refreshData) {
               setError(err.message || "Failed to restart game");
             });
           } else {
+            console.log("[useRestartVoting] Not executing restart - not initiator, waiting for initiator");
             setRestartVoteInitiator(null);
             // Add a 2-second delay before refreshing for non-initiators
             setTimeout(() => {

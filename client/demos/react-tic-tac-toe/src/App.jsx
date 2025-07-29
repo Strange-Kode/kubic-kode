@@ -210,10 +210,19 @@ function AppContent() {
     // If restart voting is active, show voting message with game result context
     if (showRestartVoteModal) {
       const voteCount = Object.keys(restartVotes).length;
-      const totalPlayers = participants.length;
+      // Only count playable participants (users and computers) for voting
+      const totalPlayers = participants.filter(
+        (p) => p.type === "user" || p.type === "computer"
+      ).length;
       const yesVotes = Object.values(restartVotes).filter(
         (vote) => vote === true
       ).length;
+
+      // Check if current participant is a spectator
+      const currentParticipant = participants.find(
+        (p) => p.id === participantId
+      );
+      const isSpectator = currentParticipant?.type === "spectator";
 
       // Add context about who won the last game
       const lastGameResult = winner
@@ -221,6 +230,22 @@ function AppContent() {
           ? "You won the last game! 🎉"
           : `${winner.name} won the last game.`
         : "Previous game finished.";
+
+      // Show different message for spectators
+      if (isSpectator) {
+        if (voteCount === 0) {
+          return `${lastGameResult}\n\nPlayers are voting on whether to play again. You're watching as a spectator.`;
+        } else if (voteCount < totalPlayers) {
+          return `${lastGameResult}\n\nPlayers are voting... (${yesVotes}/${totalPlayers} voted Yes)\n\nYou're watching as a spectator.`;
+        } else {
+          const allAgreed = Object.values(restartVotes).every(
+            (vote) => vote === true
+          );
+          return allAgreed
+            ? `${lastGameResult}\n\n🎉 Players agreed to play again! New game starting...`
+            : `${lastGameResult}\n\n❌ Players decided not to restart.`;
+        }
+      }
 
       if (restartVoteInitiator === participantId) {
         if (voteCount === 0) {
@@ -254,6 +279,16 @@ function AppContent() {
     }
 
     // Otherwise show win/loss message
+    // Check if current participant is a spectator for regular win message too
+    const currentParticipant = participants.find((p) => p.id === participantId);
+    const isSpectator = currentParticipant?.type === "spectator";
+
+    if (isSpectator) {
+      return `${
+        winner?.name || "A player"
+      } won the game! Players will vote on whether to play again.`;
+    }
+
     return winner?.id === participantId
       ? "Congratulations! You have won the game!"
       : `${
@@ -272,9 +307,23 @@ function AppContent() {
     // If restart voting is active, use restart voting logic
     if (showRestartVoteModal) {
       const voteCount = Object.keys(restartVotes).length;
-      const totalPlayers = participants.length;
+      // Only count playable participants (users and computers) for voting
+      const totalPlayers = participants.filter(
+        (p) => p.type === "user" || p.type === "computer"
+      ).length;
       const hasVoted = restartVotes[participantId] !== undefined;
       const allVoted = voteCount === totalPlayers;
+
+      // Check if current participant is a spectator
+      const currentParticipant = participants.find(
+        (p) => p.id === participantId
+      );
+      const isSpectator = currentParticipant?.type === "spectator";
+
+      // Spectators can't vote, so no primary button for them
+      if (isSpectator) {
+        return undefined;
+      }
 
       // If all voted or if this player already voted, no primary button needed
       if (allVoted || hasVoted) {
@@ -293,6 +342,15 @@ function AppContent() {
       };
     }
 
+    // Check if current participant is a spectator
+    const currentParticipant = participants.find((p) => p.id === participantId);
+    const isSpectator = currentParticipant?.type === "spectator";
+
+    // Spectators can't request a new game
+    if (isSpectator) {
+      return undefined;
+    }
+
     // Otherwise show "Request New Game" button
     return {
       text: "🔄 Request New Game",
@@ -307,11 +365,31 @@ function AppContent() {
     // If restart voting is active, use restart voting logic
     if (showRestartVoteModal) {
       const voteCount = Object.keys(restartVotes).length;
-      const totalPlayers = participants.length;
+      // Only count playable participants (users and computers) for voting
+      const totalPlayers = participants.filter(
+        (p) => p.type === "user" || p.type === "computer"
+      ).length;
       const hasVoted = restartVotes[participantId] !== undefined;
       const allVoted = voteCount === totalPlayers;
 
+      // Check if current participant is a spectator
+      const currentParticipant = participants.find(
+        (p) => p.id === participantId
+      );
+      const isSpectator = currentParticipant?.type === "spectator";
+
       if (allVoted) {
+        return {
+          text: "Close",
+          onClick: () => {
+            handleWinModalClose();
+            handleRestartVoteModalClose();
+          },
+        };
+      }
+
+      // Spectators can only close the modal
+      if (isSpectator) {
         return {
           text: "Close",
           onClick: () => {
@@ -399,10 +477,27 @@ function AppContent() {
                     <strong>Are you the host?:</strong> {isHost ? "Yes" : "No"}
                   </Text>
                   <Text>
-                    <strong>Players:</strong> {participants.filter(p => p.type === "user" || p.type === "computer").length}/{maxParticipants}
-                    {participants.filter(p => p.type === "spectator").length > 0 && (
+                    <strong>Players:</strong>{" "}
+                    {
+                      participants.filter(
+                        (p) => p.type === "user" || p.type === "computer"
+                      ).length
+                    }
+                    /{maxParticipants}
+                    {participants.filter((p) => p.type === "spectator").length >
+                      0 && (
                       <Text as="span" ml={2} color="gray.600">
-                        (+{participants.filter(p => p.type === "spectator").length} spectator{participants.filter(p => p.type === "spectator").length > 1 ? 's' : ''})
+                        (+
+                        {
+                          participants.filter((p) => p.type === "spectator")
+                            .length
+                        }{" "}
+                        spectator
+                        {participants.filter((p) => p.type === "spectator")
+                          .length > 1
+                          ? "s"
+                          : ""}
+                        )
                       </Text>
                     )}
                   </Text>
@@ -450,16 +545,20 @@ function AppContent() {
                           <Td>{participant.id}</Td>
                           <Td>{index === 0 ? "👑" : "-"}</Td>
                           <Td isNumeric>
-                            <Badge
-                              colorScheme={
-                                getWinCountForPlayer(participant.id) > 0
-                                  ? "green"
-                                  : "gray"
-                              }
-                              variant="solid"
-                            >
-                              {getWinCountForPlayer(participant.id)}
-                            </Badge>
+                            {participant.type === "spectator" ? (
+                              ""
+                            ) : (
+                              <Badge
+                                colorScheme={
+                                  getWinCountForPlayer(participant.id) > 0
+                                    ? "green"
+                                    : "gray"
+                                }
+                                variant="solid"
+                              >
+                                {getWinCountForPlayer(participant.id)}
+                              </Badge>
+                            )}
                           </Td>
                         </Tr>
                       ))}
@@ -479,39 +578,41 @@ function AppContent() {
                 const playableCount = participants.filter(
                   (p) => p.type === "user" || p.type === "computer"
                 ).length;
-                console.log("AI Button Debug:", { 
-                  participantId, 
-                  participants, 
-                  playableCount, 
-                  maxParticipants, 
-                  gameStarted,
-                  shouldShow: participantId && playableCount < maxParticipants && !gameStarted
-                });
-                return participantId && playableCount < maxParticipants && !gameStarted;
+                // console.log("AI Button Debug:", {
+                //   participantId,
+                //   participants,
+                //   playableCount,
+                //   maxParticipants,
+                //   gameStarted,
+                //   shouldShow: participantId && playableCount < maxParticipants && !gameStarted
+                // });
+                return (
+                  participantId &&
+                  playableCount < maxParticipants &&
+                  !gameStarted
+                );
               })() && (
-                  <Container bg="orange.50" w="100%">
-                    <VStack spacing={3}>
-                      <Heading size="md">Play vs AI</Heading>
-                      <Button
-                        colorScheme="orange"
-                        onClick={async () => {
-                          try {
-                            const result = await addAIParticipant();
-                            if (!result.success) {
-                              alert(
-                                `Failed to add AI opponent: ${result.error}`
-                              );
-                            }
-                          } catch (error) {
-                            alert(`Error adding AI opponent: ${error.message}`);
+                <Container bg="orange.50" w="100%">
+                  <VStack spacing={3}>
+                    <Heading size="md">Play vs AI</Heading>
+                    <Button
+                      colorScheme="orange"
+                      onClick={async () => {
+                        try {
+                          const result = await addAIParticipant();
+                          if (!result.success) {
+                            alert(`Failed to add AI opponent: ${result.error}`);
                           }
-                        }}
-                      >
-                        Add AI Opponent
-                      </Button>
-                    </VStack>
-                  </Container>
-                )}
+                        } catch (error) {
+                          alert(`Error adding AI opponent: ${error.message}`);
+                        }
+                      }}
+                    >
+                      Add AI Opponent
+                    </Button>
+                  </VStack>
+                </Container>
+              )}
 
               {/* Join Controls */}
               {!participantId && (
@@ -552,14 +653,21 @@ function AppContent() {
                     return (
                       <Text>
                         👤 1 player joined, waiting for 2nd player...
-                        {spectatorCount > 0 && ` (${spectatorCount} spectator${spectatorCount > 1 ? 's' : ''})`}
+                        {spectatorCount > 0 &&
+                          ` (${spectatorCount} spectator${
+                            spectatorCount > 1 ? "s" : ""
+                          })`}
                       </Text>
                     );
                   } else if (playableCount >= 2) {
                     return (
                       <Text>
-                        🎉 {playableCount} players joined! Game has now started automatically.
-                        {spectatorCount > 0 && ` (${spectatorCount} spectator${spectatorCount > 1 ? 's' : ''})`}
+                        🎉 {playableCount} players joined! Game has now started
+                        automatically.
+                        {spectatorCount > 0 &&
+                          ` (${spectatorCount} spectator${
+                            spectatorCount > 1 ? "s" : ""
+                          })`}
                       </Text>
                     );
                   }

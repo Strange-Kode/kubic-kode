@@ -10,7 +10,7 @@ class TicTacToeGame {
     // Don't store options as instance properties
     // this.gridSize = 3; // WRONG!
     // this.winCondition = 3; // WRONG!
-    
+
     // Create engine with default values (will be updated via options)
     this._engine = new GameEngine(3, 3, { playStyle: "single-set" });
     this._consumeMarkTypes = ["X", "O"];
@@ -28,17 +28,17 @@ class TicTacToeGame {
 
   getGameStats() {
     return {
-      gridSize: this.getOptionValue('gridSize'),
-      winCondition: this.getOptionValue('winCondition'),
+      gridSize: this.getOptionValue("gridSize"),
+      winCondition: this.getOptionValue("winCondition"),
       winner: this._winner,
       isActive: this.isGameActive(),
-      playerCount: this._engine.getPlayerEntities().length
+      playerCount: this._engine.getPlayerEntities().length,
     };
   }
-  
+
   initializeGameOptions() {
-    this.getGameOptions().addFrozen('gridSize', 3); // TicTacToe (classic) is always 3x3
-    this.getGameOptions().addFrozen('winCondition', 3); // TicTacToe (classic) always requires 3 in a row
+    this.getGameOptions().addFrozen("gridSize", 3); // TicTacToe (classic) is always 3x3
+    this.getGameOptions().addFrozen("winCondition", 3); // TicTacToe (classic) always requires 3 in a row
   }
 
   addPlayer(name, isComputer = false) {
@@ -75,7 +75,9 @@ class TicTacToeGame {
     // Get the player by ID
     const currentPlayer = this._engine.getPlayerById(playerId);
 
-    console.log(`[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`);
+    console.log(
+      `[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`
+    );
     console.log(`[TicTacToeGame] Current player:`, currentPlayer);
 
     if (this._engine.getTileMap().getTile(x, y)) {
@@ -90,13 +92,16 @@ class TicTacToeGame {
 
     const mark = currentPlayer.placeMark({ x, y });
     console.log(`[TicTacToeGame] Created mark:`, mark);
-    
+
     this._engine.getTileMap().setTile(x, y, mark);
     console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
-    
+
     // Debug: Check if tile was actually set
     const retrievedTile = this._engine.getTileMap().getTile(x, y);
-    console.log(`[TicTacToeGame] Retrieved tile at (${x}, ${y}):`, retrievedTile);
+    console.log(
+      `[TicTacToeGame] Retrieved tile at (${x}, ${y}):`,
+      retrievedTile
+    );
 
     if (this.__checkWinCondition(mark)) {
       this._winner = currentPlayer;
@@ -132,7 +137,7 @@ class TicTacToeGame {
       count += this.__countInDirection(x, y, dx, dy, targetType);
       count += this.__countInDirection(x, y, -dx, -dy, targetType);
 
-      if (count >= this.getOptionValue('winCondition')) {
+      if (count >= this.getOptionValue("winCondition")) {
         return true;
       }
     }
@@ -159,7 +164,7 @@ class TicTacToeGame {
   }
 
   getInactivityTimeout() {
-    return 120_000; // 120 seconds
+    return 30_000; // 30 seconds
   }
 
   getWinner() {
@@ -174,6 +179,10 @@ class TicTacToeGame {
       (player) => player.getPlayerId() !== currentPlayerId
     );
     this._winner = winner || null;
+
+    // Stop the game engine, same as normal wins
+    this._engine.stopGame();
+
     return {
       inactivePlayerId: currentPlayerId,
       winnerPlayerId: this._winner?.getPlayerId(),
@@ -183,7 +192,7 @@ class TicTacToeGame {
   calculateComputerMove() {
     const currentPlayer = this._engine.getCurrentPlayer();
     const tileMap = this._engine.getTileMap();
-    const opponentMark = currentPlayer.getMarkType() === 'X' ? 'O' : 'X';
+    const opponentMark = currentPlayer.getMarkType() === "X" ? "O" : "X";
 
     // Collect all empty tiles
     const emptyTiles = [];
@@ -215,8 +224,10 @@ class TicTacToeGame {
     const lines = this._getAllLines(tileMap);
 
     for (const line of lines) {
-      const opponentMarks = line.filter(tile => tile.tile && tile.tile.type === opponentMark);
-      const emptyTiles = line.filter(tile => tile.tile === null);
+      const opponentMarks = line.filter(
+        (tile) => tile.tile && tile.tile.type === opponentMark
+      );
+      const emptyTiles = line.filter((tile) => tile.tile === null);
 
       if (opponentMarks.length === 2 && emptyTiles.length === 1) {
         return emptyTiles[0].position;
@@ -233,9 +244,9 @@ class TicTacToeGame {
     for (let y = 0; y < tileMap.height; y++) {
       const row = [];
       for (let x = 0; x < tileMap.width; x++) {
-        row.push({ 
-          tile: tileMap.getTile(x, y), 
-          position: { x, y } 
+        row.push({
+          tile: tileMap.getTile(x, y),
+          position: { x, y },
         });
       }
       lines.push(row);
@@ -245,9 +256,9 @@ class TicTacToeGame {
     for (let x = 0; x < tileMap.width; x++) {
       const column = [];
       for (let y = 0; y < tileMap.height; y++) {
-        column.push({ 
-          tile: tileMap.getTile(x, y), 
-          position: { x, y } 
+        column.push({
+          tile: tileMap.getTile(x, y),
+          position: { x, y },
         });
       }
       lines.push(column);
@@ -257,14 +268,14 @@ class TicTacToeGame {
     lines.push([
       { tile: tileMap.getTile(0, 0), position: { x: 0, y: 0 } },
       { tile: tileMap.getTile(1, 1), position: { x: 1, y: 1 } },
-      { tile: tileMap.getTile(2, 2), position: { x: 2, y: 2 } }
+      { tile: tileMap.getTile(2, 2), position: { x: 2, y: 2 } },
     ]);
 
     // Diagonal top-right to bottom-left
     lines.push([
       { tile: tileMap.getTile(2, 0), position: { x: 2, y: 0 } },
       { tile: tileMap.getTile(1, 1), position: { x: 1, y: 1 } },
-      { tile: tileMap.getTile(0, 2), position: { x: 0, y: 2 } }
+      { tile: tileMap.getTile(0, 2), position: { x: 0, y: 2 } },
     ]);
 
     return lines;

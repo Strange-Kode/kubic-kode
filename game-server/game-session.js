@@ -166,13 +166,15 @@ export class GameSession {
   }
 
   startRestartVote() {
+    // Only count playable participants (users and computers) for voting
+    const playableParticipants = this.getPlayableParticipants();
     this.restartVote = {
       votes: {}, // participantId => true/false
-      totalParticipants: this.participants.length,
+      totalParticipants: playableParticipants.length,
     };
 
-    // Add to game history
-    this.gameHistory.addRestartVoteStartedEvent(this.participants.length);
+    // Add to game history with playable participants count
+    this.gameHistory.addRestartVoteStartedEvent(playableParticipants.length);
   }
 
   registerRestartVote(participantId, voteYes) {
