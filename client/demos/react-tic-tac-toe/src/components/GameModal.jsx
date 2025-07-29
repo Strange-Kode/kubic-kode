@@ -8,6 +8,7 @@ import {
   Text,
   Button,
   VStack,
+  Input,
   useColorModeValue,
 } from "@chakra-ui/react";
 
@@ -19,6 +20,11 @@ const GameModal = ({
   type = "info", // "info", "success", "warning", "error"
   primaryButton = null,
   secondaryButton = null,
+  // Optional input field
+  showInput = false,
+  inputPlaceholder = "Enter text...",
+  inputValue = "",
+  onInputChange = null,
 }) => {
   const getColorScheme = () => {
     switch (type) {
@@ -83,9 +89,28 @@ const GameModal = ({
         </ModalHeader>
 
         <ModalBody textAlign="center" py={4}>
-          <Text fontSize="md" color="gray.700">
-            {message}
-          </Text>
+          <VStack spacing={4}>
+            <Text fontSize="md" color="gray.700">
+              {message}
+            </Text>
+            
+            {showInput && (
+              <Input
+                placeholder={inputPlaceholder}
+                value={inputValue}
+                onChange={(e) => onInputChange?.(e.target.value)}
+                size="lg"
+                textAlign="center"
+                bg="white"
+                border="2px"
+                borderColor="gray.200"
+                _focus={{
+                  borderColor: `${getColorScheme()}.500`,
+                  boxShadow: `0 0 0 1px ${getColorScheme()}.500`,
+                }}
+              />
+            )}
+          </VStack>
         </ModalBody>
 
         <ModalFooter justifyContent="center" pt={2}>
