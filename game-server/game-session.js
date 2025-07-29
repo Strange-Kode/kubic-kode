@@ -40,11 +40,14 @@ export class GameSession {
   }
 
   addParticipant(name, participant_type = 'user') {
-    if (this.participants.length >= this.maxParticipants) {
+    // Only count playable participants (user, computer) against maxParticipants limit
+    // Spectators can join even when the game is "full"
+    const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
+    if (participant_type !== 'spectator' && playableParticipants.length >= this.maxParticipants) {
       throw new Error("Game session is full.");
     }
 
-    if (this.started) {
+    if (this.started && participant_type !== 'spectator') {
       throw new Error("Cannot join. Game session has already started.");
     }
 
