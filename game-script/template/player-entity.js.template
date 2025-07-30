@@ -1,94 +1,94 @@
 import { GameEntity } from "../../../game-engine/game-entity/game-entity.js";
 
 class PlayerEntity extends GameEntity {
-  constructor(playerId, name, isComputer = false) {
-    super(playerId, name, null); // Pass id, name, position to parent
-    this.isComputer = isComputer;
-    this.pieces = []; // List of game pieces placed by this player
-    {{#HAS_PLAYER_SCORE}}
-    this.score = 0;
-    {{/HAS_PLAYER_SCORE}}
-    {{#HAS_PLAYER_RESOURCES}}
-    this.resources = {};
-    {{/HAS_PLAYER_RESOURCES}}
-  }
+{{INDENT}}constructor(playerId, name, isComputer = false) {
+{{INDENT}}{{INDENT}}super(playerId, name, null); // Pass id, name, position to parent
+{{INDENT}}{{INDENT}}this._isComputer = isComputer;
+{{INDENT}}{{INDENT}}this._pieces = []; // List of game pieces placed by this player
+{{INDENT}}{{INDENT}}{{#HAS_PLAYER_SCORE}}
+{{INDENT}}{{INDENT}}this._score = 0;
+{{INDENT}}{{INDENT}}{{/HAS_PLAYER_SCORE}}
+{{INDENT}}{{INDENT}}{{#HAS_PLAYER_RESOURCES}}
+{{INDENT}}{{INDENT}}this._resources = {};
+{{INDENT}}{{INDENT}}{{/HAS_PLAYER_RESOURCES}}
+{{INDENT}}}
 {{NEWLINE}}
-  createGamePiece() {
-    // Create a basic game piece for this player
-    const piece = {
-      owner: this,
-      playerId: this.id,
-      playerName: this.name,
-      type: "{{GAME_PIECE_TYPE}}",
-      {{#HAS_PIECE_VALUE}}
-      value: 1,
-      {{/HAS_PIECE_VALUE}}
-      toJSON: function() {
-        return {
-          owner: this.playerId,
-          playerName: this.playerName,
-          type: this.type
-          {{#HAS_PIECE_VALUE}}
-          , value: this.value
-          {{/HAS_PIECE_VALUE}}
-        };
-      }
-    };
-    
-    this.pieces.push(piece);
-    return piece;
-  }
+{{INDENT}}createGamePiece() {
+{{INDENT}}{{INDENT}}// Create a basic game piece for this player
+{{INDENT}}{{INDENT}}const piece = {
+{{INDENT}}{{INDENT}}{{INDENT}}owner: this,
+{{INDENT}}{{INDENT}}{{INDENT}}playerId: this.id,
+{{INDENT}}{{INDENT}}{{INDENT}}playerName: this.name,
+{{INDENT}}{{INDENT}}{{INDENT}}type: "{{GAME_PIECE_TYPE}}",
+{{INDENT}}{{INDENT}}{{INDENT}}{{#HAS_PIECE_VALUE}}
+{{INDENT}}{{INDENT}}{{INDENT}}value: 1,
+{{INDENT}}{{INDENT}}{{INDENT}}{{/HAS_PIECE_VALUE}}
+{{INDENT}}{{INDENT}}{{INDENT}}toJSON: function() {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}owner: this.playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}playerName: this.playerName,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}type: this.type
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{#HAS_PIECE_VALUE}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}, value: this.value
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{/HAS_PIECE_VALUE}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}this._pieces.push(piece);
+{{INDENT}}{{INDENT}}return piece;
+{{INDENT}}}
 {{NEWLINE}}
-  getPlayerType() {
-    return this.isComputer ? 'computer' : 'human';
-  }
+{{INDENT}}getPlayerType() {
+{{INDENT}}{{INDENT}}return this._isComputer ? 'computer' : 'human';
+{{INDENT}}}
 {{NEWLINE}}
-  {{#HAS_PLAYER_SCORE}}
-  addScore(points) {
-    this.score += points;
-  }
+{{INDENT}}{{#HAS_PLAYER_SCORE}}
+{{INDENT}}addScore(points) {
+{{INDENT}}{{INDENT}}this._score += points;
+{{INDENT}}}
 {{NEWLINE}}
-  getScore() {
-    return this.score;
-  }
-  {{/HAS_PLAYER_SCORE}}
+{{INDENT}}getScore() {
+{{INDENT}}{{INDENT}}return this._score;
+{{INDENT}}}
+{{INDENT}}{{/HAS_PLAYER_SCORE}}
 {{NEWLINE}}
-  {{#HAS_PLAYER_RESOURCES}}
-  addResource(resourceType, amount) {
-    if (!this.resources[resourceType]) {
-      this.resources[resourceType] = 0;
-    }
-    this.resources[resourceType] += amount;
-  }
+{{INDENT}}{{#HAS_PLAYER_RESOURCES}}
+{{INDENT}}addResource(resourceType, amount) {
+{{INDENT}}{{INDENT}}if (!this._resources[resourceType]) {
+{{INDENT}}{{INDENT}}{{INDENT}}this._resources[resourceType] = 0;
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}this._resources[resourceType] += amount;
+{{INDENT}}}
 {{NEWLINE}}
-  getResource(resourceType) {
-    return this.resources[resourceType] || 0;
-  }
+{{INDENT}}getResource(resourceType) {
+{{INDENT}}{{INDENT}}return this._resources[resourceType] || 0;
+{{INDENT}}}
 {{NEWLINE}}
-  hasResource(resourceType, amount) {
-    return this.getResource(resourceType) >= amount;
-  }
-  {{/HAS_PLAYER_RESOURCES}}
+{{INDENT}}hasResource(resourceType, amount) {
+{{INDENT}}{{INDENT}}return this.getResource(resourceType) >= amount;
+{{INDENT}}}
+{{INDENT}}{{/HAS_PLAYER_RESOURCES}}
 {{NEWLINE}}
-  clearPieces() {
-    this.pieces = [];
-  }
+{{INDENT}}clearPieces() {
+{{INDENT}}{{INDENT}}this._pieces = [];
+{{INDENT}}}
 {{NEWLINE}}
-  toJSON() {
-    return {
-      id: this.id,
-      name: this.name,
-      position: this.position,
-      playerType: this.getPlayerType(),
-      pieces: this.pieces.map(p => p.toJSON())
-      {{#HAS_PLAYER_SCORE}}
-      , score: this.score
-      {{/HAS_PLAYER_SCORE}}
-      {{#HAS_PLAYER_RESOURCES}}
-      , resources: this.resources
-      {{/HAS_PLAYER_RESOURCES}}
-    };
-  }
+{{INDENT}}toJSON() {
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}id: this.id,
+{{INDENT}}{{INDENT}}{{INDENT}}name: this.name,
+{{INDENT}}{{INDENT}}{{INDENT}}position: this.position,
+{{INDENT}}{{INDENT}}{{INDENT}}playerType: this.getPlayerType(),
+{{INDENT}}{{INDENT}}{{INDENT}}pieces: this._pieces.map(p => p.toJSON())
+{{INDENT}}{{INDENT}}{{INDENT}}{{#HAS_PLAYER_SCORE}}
+{{INDENT}}{{INDENT}}{{INDENT}}, score: this._score
+{{INDENT}}{{INDENT}}{{INDENT}}{{/HAS_PLAYER_SCORE}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{#HAS_PLAYER_RESOURCES}}
+{{INDENT}}{{INDENT}}{{INDENT}}, resources: this._resources
+{{INDENT}}{{INDENT}}{{INDENT}}{{/HAS_PLAYER_RESOURCES}}
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
 }
 {{NEWLINE}}
 export default PlayerEntity;

@@ -12,157 +12,157 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 
 // Plays turn and returns game state of the player round
 {{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
-  const { sessionId } = req.params;
-  const { participantId, xPos, yPos, metadata } = req.body;
+{{INDENT}}const { sessionId } = req.params;
+{{INDENT}}const { participantId, xPos, yPos, metadata } = req.body;
 
-  const gameSession = sessionManager.getSession(sessionId);
-  const gameInstance = gameSession.getGameInstance();
-  
-  {{#PLAY_STYLE_SINGLE_SET}}
-  // Get the current player from the game engine
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-  {{/PLAY_STYLE_SINGLE_SET}}
-  
-  // Validate that the participant exists
-  const participant = gameSession.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
-  
-  // Find the player that corresponds to this participant
-  const playerMappings = gameInstance.getPlayerMappings();
-  const playerId = playerMappings[participantId];
-  
-  if (!playerId) {
-    return res.status(400).json({ error: "Participant is not a player in this game." });
-  }
-  
-  {{#PLAY_STYLE_SINGLE_SET}}
-  // Validate that it's this player's turn
-  if (playerId !== currentPlayer.getPlayerId()) {
-    return res.status(400).json({ error: "It's not your turn." });
-  }
-  {{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}const gameSession = sessionManager.getSession(sessionId);
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}
+{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}// Get the current player from the game engine
+{{INDENT}}const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}
+{{INDENT}}// Validate that the participant exists
+{{INDENT}}const participant = gameSession.getParticipantById(participantId);
+{{INDENT}}if (!participant) {
+{{INDENT}}{{INDENT}}return res.status(404).json({ error: "Participant not found." });
+{{INDENT}}}
+{{INDENT}}
+{{INDENT}}// Find the player that corresponds to this participant
+{{INDENT}}const playerMappings = gameInstance.getPlayerMappings();
+{{INDENT}}const playerId = playerMappings[participantId];
+{{INDENT}}
+{{INDENT}}if (!playerId) {
+{{INDENT}}{{INDENT}}return res.status(400).json({ error: "Participant is not a player in this game." });
+{{INDENT}}}
+{{INDENT}}
+{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}// Validate that it's this player's turn
+{{INDENT}}if (playerId !== currentPlayer.getPlayerId()) {
+{{INDENT}}{{INDENT}}return res.status(400).json({ error: "It's not your turn." });
+{{INDENT}}}
+{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 
-  let roundStatus = gameInstance.playTurn(playerId, xPos, yPos, metadata);
-  
-  if (roundStatus.player_has_won) { // playerId has won
-    gameSession.increaseWinCounter();
-    let winCount = gameSession.getWinCounter();
-    GameEventService.broadcastToSession(gameSession, {
-      type: "player_won",
-      data: {
-        winner: participant.name,
-        player_id: playerId,
-        win_count: winCount,
-        game_data: gameInstance.toJSON()
-      }
-    });
-  } else if (roundStatus.game_ended) {
-    // Game ended without a winner (draw/tie)
-    GameEventService.broadcastToSession(gameSession, {
-      type: "game_ended",
-      data: {
-        result: "draw",
-        game_data: gameInstance.toJSON()
-      }
-    });
-  } else if (roundStatus.status === "success") {
-    // Normal move - broadcast game state update
-    GameEventService.broadcastToSession(gameSession, {
-      type: "game_updated",
-      data: {
-        game_data: gameInstance.toJSON(),
-        last_move: {
-          player_id: playerId,
-          player_name: participant.name,
-          position: { x: xPos, y: yPos }
-        }
-      }
-    });
-  }
+{{INDENT}}let roundStatus = gameInstance.playTurn(playerId, xPos, yPos, metadata);
+{{INDENT}}
+{{INDENT}}if (roundStatus.player_has_won) { // playerId has won
+{{INDENT}}{{INDENT}}gameSession.increaseWinCounter();
+{{INDENT}}{{INDENT}}let winCount = gameSession.getWinCounter();
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}{{INDENT}}type: "player_won",
+{{INDENT}}{{INDENT}}{{INDENT}}data: {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}winner: participant.name,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}win_count: winCount,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON()
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}});
+{{INDENT}}} else if (roundStatus.game_ended) {
+{{INDENT}}{{INDENT}}// Game ended without a winner (draw/tie)
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}{{INDENT}}type: "game_ended",
+{{INDENT}}{{INDENT}}{{INDENT}}data: {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}result: "draw",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON()
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}});
+{{INDENT}}} else if (roundStatus.status === "success") {
+{{INDENT}}{{INDENT}}// Normal move - broadcast game state update
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}{{INDENT}}type: "game_updated",
+{{INDENT}}{{INDENT}}{{INDENT}}data: {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON(),
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}last_move: {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_name: participant.name,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}position: { x: xPos, y: yPos }
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}});
+{{INDENT}}}
 
-  res.json({
-    round_status: roundStatus,
-    game_data: gameInstance.toJSON()
-  });
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}round_status: roundStatus,
+{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON()
+{{INDENT}}});
 });
 {{NEWLINE}}
 // Get current game state
 {{GAME_CAMEL_NAME}}Router.get("/{{GAME_SHORT_NAME}}/state/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+{{INDENT}}const { sessionId } = req.params;
+{{INDENT}}
+{{INDENT}}const gameSession = sessionManager.getSession(sessionId);
+{{INDENT}}if (!gameSession) {
+{{INDENT}}{{INDENT}}return res.status(404).json({ error: "Session not found." });
+{{INDENT}}}
 
-  const gameInstance = gameSession.getGameInstance();
-  
-  res.json({
-    game_data: gameInstance.toJSON(),
-    session_info: {
-      session_id: sessionId,
-      participant_count: gameSession.getParticipants().length,
-      active_players: gameSession.getParticipants().filter(p => p.isPlayer).length
-    }
-  });
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON(),
+{{INDENT}}{{INDENT}}session_info: {
+{{INDENT}}{{INDENT}}{{INDENT}}session_id: sessionId,
+{{INDENT}}{{INDENT}}{{INDENT}}participant_count: gameSession.getParticipants().length,
+{{INDENT}}{{INDENT}}{{INDENT}}active_players: gameSession.getParticipants().filter(p => p.isPlayer).length
+{{INDENT}}{{INDENT}}}
+{{INDENT}}});
 });
 {{NEWLINE}}
 {{#HAS_SPECIAL_ACTIONS}}
 // Special game action endpoint (customize as needed)
 {{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/special-action/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
-  const { sessionId } = req.params;
-  const { participantId, action, actionData } = req.body;
+{{INDENT}}const { sessionId } = req.params;
+{{INDENT}}const { participantId, action, actionData } = req.body;
 
-  const gameSession = sessionManager.getSession(sessionId);
-  const gameInstance = gameSession.getGameInstance();
-  
-  // Find the player that corresponds to this participant
-  const playerMappings = gameInstance.getPlayerMappings();
-  const playerId = playerMappings[participantId];
-  
-  if (!playerId) {
-    return res.status(400).json({ error: "Participant is not a player in this game." });
-  }
+{{INDENT}}const gameSession = sessionManager.getSession(sessionId);
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}
+{{INDENT}}// Find the player that corresponds to this participant
+{{INDENT}}const playerMappings = gameInstance.getPlayerMappings();
+{{INDENT}}const playerId = playerMappings[participantId];
+{{INDENT}}
+{{INDENT}}if (!playerId) {
+{{INDENT}}{{INDENT}}return res.status(400).json({ error: "Participant is not a player in this game." });
+{{INDENT}}}
 
-  // TODO: Implement your special action logic here
-  // Example: gameInstance.performSpecialAction(playerId, action, actionData);
-  
-  res.json({
-    status: "success",
-    message: "Special action performed",
-    game_data: gameInstance.toJSON()
-  });
+{{INDENT}}// TODO: Implement your special action logic here
+{{INDENT}}// Example: gameInstance.performSpecialAction(playerId, action, actionData);
+{{INDENT}}
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}message: "Special action performed",
+{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON()
+{{INDENT}}});
 });
 {{/HAS_SPECIAL_ACTIONS}}
 {{NEWLINE}}
 {{#SUPPORTS_SPECTATORS}}
 // Get spectator view of the game (no sensitive information)
 {{GAME_CAMEL_NAME}}Router.get("/{{GAME_SHORT_NAME}}/spectate/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+{{INDENT}}const { sessionId } = req.params;
+{{INDENT}}
+{{INDENT}}const gameSession = sessionManager.getSession(sessionId);
+{{INDENT}}if (!gameSession) {
+{{INDENT}}{{INDENT}}return res.status(404).json({ error: "Session not found." });
+{{INDENT}}}
 
-  const gameInstance = gameSession.getGameInstance();
-  
-  // Check if spectating is allowed
-  if (!gameInstance.canSpectate()) {
-    return res.status(403).json({ error: "Spectating is not allowed for this game." });
-  }
-  
-  res.json({
-    spectator_view: gameInstance.getSpectatorView(),
-    session_info: {
-      session_id: sessionId,
-      participant_count: gameSession.getParticipants().length,
-      active_players: gameSession.getParticipants().filter(p => p.isPlayer).length,
-      spectator_count: gameSession.getParticipants().filter(p => !p.isPlayer).length
-    }
-  });
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}
+{{INDENT}}// Check if spectating is allowed
+{{INDENT}}if (!gameInstance.canSpectate()) {
+{{INDENT}}{{INDENT}}return res.status(403).json({ error: "Spectating is not allowed for this game." });
+{{INDENT}}}
+{{INDENT}}
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}spectator_view: gameInstance.getSpectatorView(),
+{{INDENT}}{{INDENT}}session_info: {
+{{INDENT}}{{INDENT}}{{INDENT}}session_id: sessionId,
+{{INDENT}}{{INDENT}}{{INDENT}}participant_count: gameSession.getParticipants().length,
+{{INDENT}}{{INDENT}}{{INDENT}}active_players: gameSession.getParticipants().filter(p => p.isPlayer).length,
+{{INDENT}}{{INDENT}}{{INDENT}}spectator_count: gameSession.getParticipants().filter(p => !p.isPlayer).length
+{{INDENT}}{{INDENT}}}
+{{INDENT}}});
 });
 {{/SUPPORTS_SPECTATORS}}
 {{NEWLINE}}

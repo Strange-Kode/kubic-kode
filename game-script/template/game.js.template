@@ -6,263 +6,263 @@ import {{GAME_CAMEL_NAME}}Router from "./route/{{GAME_SHORT_NAME}}-routes.js";
 
 // {{GAME_CLASS_NAME}}Game implements methods as defined in GameContract (game-contract.js)
 class {{GAME_CLASS_NAME}}Game {
-  constructor() {
-    // Create engine with default values (will be updated via options)
-    const turnConfig = { playStyle: "{{PLAY_STYLE}}" };
-    this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, turnConfig);
-    this._winner = null;
-    {{#IS_MULTIPLAYER}}
-    this._maxPlayers = {{MAX_PLAYERS}};
-    {{/IS_MULTIPLAYER}}
-    {{^IS_MULTIPLAYER}}
-    this._maxPlayers = 1;
-    {{/IS_MULTIPLAYER}}
-  }
+{{INDENT}}constructor() {
+{{INDENT}}{{INDENT}}// Create engine with default values (will be updated via options)
+{{INDENT}}{{INDENT}}const turnConfig = { playStyle: "{{PLAY_STYLE}}" };
+{{INDENT}}{{INDENT}}this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, turnConfig);
+{{INDENT}}{{INDENT}}this._winner = null;
+{{INDENT}}{{INDENT}}{{#IS_MULTIPLAYER}}
+{{INDENT}}{{INDENT}}this._maxPlayers = {{MAX_PLAYERS}};
+{{INDENT}}{{INDENT}}{{/IS_MULTIPLAYER}}
+{{INDENT}}{{INDENT}}{{^IS_MULTIPLAYER}}
+{{INDENT}}{{INDENT}}this._maxPlayers = 1;
+{{INDENT}}{{INDENT}}{{/IS_MULTIPLAYER}}
+{{INDENT}}}
 {{NEWLINE}}
-  getGameEngine() {
-    return this._engine;
-  }
+{{INDENT}}getGameEngine() {
+{{INDENT}}{{INDENT}}return this._engine;
+{{INDENT}}}
 {{NEWLINE}}
-  getCurrentPlayer() {
-    const currentPlayerList = this._engine.getCurrentTurnPlayers();
-    return currentPlayerList.pop();
-  }
+{{INDENT}}getCurrentPlayer() {
+{{INDENT}}{{INDENT}}const currentPlayerList = this._engine.getCurrentTurnPlayers();
+{{INDENT}}{{INDENT}}return currentPlayerList.pop();
+{{INDENT}}}
 {{NEWLINE}}
-  getGameStats() {
-    return {
-      {{#IS_SCROLLABLE}}
-      gridWidth: this.getOptionValue("gridWidth"),
-      gridHeight: this.getOptionValue("gridHeight"),
-      {{/IS_SCROLLABLE}}
-      {{^IS_SCROLLABLE}}
-      gridSize: this.getOptionValue("gridSize"),
-      {{/IS_SCROLLABLE}}
-      winner: this._winner,
-      isActive: this.isGameActive(),
-      playerCount: this._engine.getPlayerEntities().length,
-      maxPlayers: this._maxPlayers,
-      playStyle: "{{PLAY_STYLE}}"
-    };
-  }
+{{INDENT}}getGameStats() {
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}{{#IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}{{INDENT}}gridWidth: this.getOptionValue("gridWidth"),
+{{INDENT}}{{INDENT}}{{INDENT}}gridHeight: this.getOptionValue("gridHeight"),
+{{INDENT}}{{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{^IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}{{INDENT}}gridSize: this.getOptionValue("gridSize"),
+{{INDENT}}{{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}{{INDENT}}winner: this._winner,
+{{INDENT}}{{INDENT}}{{INDENT}}isActive: this.isGameActive(),
+{{INDENT}}{{INDENT}}{{INDENT}}playerCount: this._engine.getPlayerEntities().length,
+{{INDENT}}{{INDENT}}{{INDENT}}maxPlayers: this._maxPlayers,
+{{INDENT}}{{INDENT}}{{INDENT}}playStyle: "{{PLAY_STYLE}}"
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
 {{NEWLINE}}
-  initializeGameOptions() {
-    {{#IS_SCROLLABLE}}
-    this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
-      if (typeof value !== 'number' || value < 3 || value > 50) {
-        return 'Grid width must be a number between 3 and 50';
-      }
-      return true;
-    });
-    this.getGameOptions().addConfigurable("gridHeight", {{DEFAULT_GRID_HEIGHT}}, (value) => {
-      if (typeof value !== 'number' || value < 3 || value > 50) {
-        return 'Grid height must be a number between 3 and 50';
-      }
-      return true;
-    });
-    {{/IS_SCROLLABLE}}
-    {{^IS_SCROLLABLE}}
-    this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
-    {{/IS_SCROLLABLE}}
-  }
+{{INDENT}}initializeGameOptions() {
+{{INDENT}}{{INDENT}}{{#IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
+{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid width must be a number between 3 and 50';
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{INDENT}}return true;
+{{INDENT}}{{INDENT}}});
+{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridHeight", {{DEFAULT_GRID_HEIGHT}}, (value) => {
+{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid height must be a number between 3 and 50';
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{INDENT}}return true;
+{{INDENT}}{{INDENT}}});
+{{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}{{^IS_SCROLLABLE}}
+{{INDENT}}{{INDENT}}this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
+{{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
+{{INDENT}}}
 {{NEWLINE}}
-  addPlayer(name, isComputer = false) {
-    if (this._engine.getPlayerEntities().length >= this._maxPlayers) {
-      throw new Error(`Maximum of ${this._maxPlayers} players allowed`);
-    }
-    {{^SUPPORTS_AI}}
-    
-    // Computer players are not supported in this game
-    if (isComputer) {
-      throw new Error("Computer players are not supported");
-    }
-    {{/SUPPORTS_AI}}
-    
-    const playerId = this._engine.getPlayerEntities().length + 1;
-    const player = new PlayerEntity(playerId, name, isComputer);
-    this._engine.registerPlayerEntity(player);
-    return player;
-  }
+{{INDENT}}addPlayer(name, isComputer = false) {
+{{INDENT}}{{INDENT}}if (this._engine.getPlayerEntities().length >= this._maxPlayers) {
+{{INDENT}}{{INDENT}}{{INDENT}}throw new Error(`Maximum of ${this._maxPlayers} players allowed`);
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{^SUPPORTS_AI}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}// Computer players are not supported in this game
+{{INDENT}}{{INDENT}}if (isComputer) {
+{{INDENT}}{{INDENT}}{{INDENT}}throw new Error("Computer players are not supported");
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{/SUPPORTS_AI}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}const playerId = this._engine.getPlayerEntities().length + 1;
+{{INDENT}}{{INDENT}}const player = new PlayerEntity(playerId, name, isComputer);
+{{INDENT}}{{INDENT}}this._engine.registerPlayerEntity(player);
+{{INDENT}}{{INDENT}}return player;
+{{INDENT}}}
 {{NEWLINE}}
-  playTurn(playerId, xPos, yPos, metadata = {}) {
-    if (!this.isGameActive()) {
-      return { 
-        status: "error", 
-        message: "Game has ended",
-        player_id: playerId 
-      };
-    }
+{{INDENT}}playTurn(playerId, xPos, yPos, metadata = {}) {
+{{INDENT}}{{INDENT}}if (!this.isGameActive()) {
+{{INDENT}}{{INDENT}}{{INDENT}}return { 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Game has ended",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
+{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}}
 
-    const player = this._engine.getPlayerById(playerId);
-    if (!player) {
-      return { status: "error", message: "Player not found" };
-    }
+{{INDENT}}{{INDENT}}const player = this._engine.getPlayerById(playerId);
+{{INDENT}}{{INDENT}}if (!player) {
+{{INDENT}}{{INDENT}}{{INDENT}}return { status: "error", message: "Player not found" };
+{{INDENT}}{{INDENT}}}
 
-    {{#PLAY_STYLE_SINGLE_SET}}
-    // Validate turn for single-set play style
-    const currentPlayer = this.getCurrentPlayer();
-    if (currentPlayer.getPlayerId() !== playerId) {
-      return { 
-        status: "error", 
-        message: "It's not your turn",
-        player_id: playerId 
-      };
-    }
-    {{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}// Validate turn for single-set play style
+{{INDENT}}{{INDENT}}const currentPlayer = this.getCurrentPlayer();
+{{INDENT}}{{INDENT}}if (currentPlayer.getPlayerId() !== playerId) {
+{{INDENT}}{{INDENT}}{{INDENT}}return { 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "It's not your turn",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
+{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 
-    // Check if position is valid and available
-    const tileMap = this._engine.getTileMap();
-    if (!tileMap.isValidPosition(xPos, yPos)) {
-      return { 
-        status: "error", 
-        message: "Invalid position",
-        player_id: playerId 
-      };
-    }
+{{INDENT}}{{INDENT}}// Check if position is valid and available
+{{INDENT}}{{INDENT}}const tileMap = this._engine.getTileMap();
+{{INDENT}}{{INDENT}}if (!tileMap.isValidPosition(xPos, yPos)) {
+{{INDENT}}{{INDENT}}{{INDENT}}return { 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Invalid position",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
+{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}}
 
-    if (tileMap.getTile(xPos, yPos).hasEntity()) {
-      return { 
-        status: "error", 
-        message: "Position already occupied",
-        player_id: playerId 
-      };
-    }
+{{INDENT}}{{INDENT}}if (tileMap.getTile(xPos, yPos).hasEntity()) {
+{{INDENT}}{{INDENT}}{{INDENT}}return { 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Position already occupied",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
+{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}}
 
-    // Place the player's piece
-    const piece = player.createGamePiece();
-    tileMap.placeTileEntity(piece, xPos, yPos);
+{{INDENT}}{{INDENT}}// Place the player's piece
+{{INDENT}}{{INDENT}}const piece = player.createGamePiece();
+{{INDENT}}{{INDENT}}tileMap.placeTileEntity(piece, xPos, yPos);
 
-    // Check for win condition
-    const hasWon = this.checkWinCondition(player, xPos, yPos);
-    if (hasWon) {
-      this._winner = player;
-      this._engine.endGame();
-      return {
-        status: "success",
-        message: "Player wins!",
-        player_id: playerId,
-        player_has_won: true,
-        game_ended: true
-      };
-    }
+{{INDENT}}{{INDENT}}// Check for win condition
+{{INDENT}}{{INDENT}}const hasWon = this.checkWinCondition(player, xPos, yPos);
+{{INDENT}}{{INDENT}}if (hasWon) {
+{{INDENT}}{{INDENT}}{{INDENT}}this._winner = player;
+{{INDENT}}{{INDENT}}{{INDENT}}this._engine.endGame();
+{{INDENT}}{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Player wins!",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_has_won: true,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_ended: true
+{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}}
 
-    // Advance turn for single-set games
-    {{#PLAY_STYLE_SINGLE_SET}}
-    this._engine.advanceTurn();
-    {{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}// Advance turn for single-set games
+{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}this._engine.advanceTurn();
+{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 
-    return {
-      status: "success",
-      message: "Move successful",
-      player_id: playerId,
-      player_has_won: false,
-      game_ended: false
-    };
-  }
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Move successful",
+{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}player_has_won: false,
+{{INDENT}}{{INDENT}}{{INDENT}}game_ended: false
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
 {{NEWLINE}}
-  checkWinCondition(player, xPos, yPos) {
-    // TODO: Implement your game-specific win condition logic here
-    // This is a placeholder that always returns false
-    return false;
-  }
+{{INDENT}}checkWinCondition(player, xPos, yPos) {
+{{INDENT}}{{INDENT}}// TODO: Implement your game-specific win condition logic here
+{{INDENT}}{{INDENT}}// This is a placeholder that always returns false
+{{INDENT}}{{INDENT}}return false;
+{{INDENT}}}
 {{NEWLINE}}
-  isGameActive() {
-    return this._engine.isGameActive();
-  }
+{{INDENT}}isGameActive() {
+{{INDENT}}{{INDENT}}return this._engine.isGameActive();
+{{INDENT}}}
 {{NEWLINE}}
-  {{#HAS_INACTIVITY}}
-  getInactivityTimeout() {
-    // Return timeout in milliseconds (e.g., 30000 for 30 seconds)
-    return 30000;
-  }
+{{INDENT}}{{#HAS_INACTIVITY}}
+{{INDENT}}getInactivityTimeout() {
+{{INDENT}}{{INDENT}}// Return timeout in milliseconds (e.g., 30000 for 30 seconds)
+{{INDENT}}{{INDENT}}return 30000;
+{{INDENT}}}
 {{NEWLINE}}
-  handleInactivity(playerId) {
-    // TODO: Implement what happens when a player is inactive
-    // For example: skip their turn, make random move, forfeit, etc.
-    console.log(`Player ${playerId} is inactive`);
-    
-    // Example: Skip turn for single-set games
-    {{#PLAY_STYLE_SINGLE_SET}}
-    this._engine.advanceTurn();
-    {{/PLAY_STYLE_SINGLE_SET}}
-    
-    return {
-      status: "success",
-      message: "Player skipped due to inactivity",
-      player_id: playerId,
-      inactivity_handled: true
-    };
-  }
-  {{/HAS_INACTIVITY}}
+{{INDENT}}handleInactivity(playerId) {
+{{INDENT}}{{INDENT}}// TODO: Implement what happens when a player is inactive
+{{INDENT}}{{INDENT}}// For example: skip their turn, make random move, forfeit, etc.
+{{INDENT}}{{INDENT}}console.log(`Player ${playerId} is inactive`);
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}// Example: Skip turn for single-set games
+{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}this._engine.advanceTurn();
+{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Player skipped due to inactivity",
+{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
+{{INDENT}}{{INDENT}}{{INDENT}}inactivity_handled: true
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
+{{INDENT}}{{/HAS_INACTIVITY}}
 {{NEWLINE}}
-  {{#SUPPORTS_AI}}
-  calculateComputerMove(playerId) {
-    // TODO: Implement AI logic for computer players
-    // This is a simple random move implementation - replace with your AI logic
-    const tileMap = this._engine.getTileMap();
-    const availablePositions = [];
-    
-    // Find all available positions
-    for (let x = 0; x < tileMap.getWidth(); x++) {
-      for (let y = 0; y < tileMap.getHeight(); y++) {
-        if (tileMap.isValidPosition(x, y) && !tileMap.getTile(x, y).hasEntity()) {
-          availablePositions.push({ x, y });
-        }
-      }
-    }
-    
-    if (availablePositions.length === 0) {
-      return null; // No available moves
-    }
-    
-    // Return a random move (replace this with your AI strategy)
-    const randomIndex = Math.floor(Math.random() * availablePositions.length);
-    const { x, y } = availablePositions[randomIndex];
-    
-    return { x, y };
-  }
+{{INDENT}}{{#SUPPORTS_AI}}
+{{INDENT}}calculateComputerMove(playerId) {
+{{INDENT}}{{INDENT}}// TODO: Implement AI logic for computer players
+{{INDENT}}{{INDENT}}// This is a simple random move implementation - replace with your AI logic
+{{INDENT}}{{INDENT}}const tileMap = this._engine.getTileMap();
+{{INDENT}}{{INDENT}}const availablePositions = [];
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}// Find all available positions
+{{INDENT}}{{INDENT}}for (let x = 0; x < tileMap.getWidth(); x++) {
+{{INDENT}}{{INDENT}}{{INDENT}}for (let y = 0; y < tileMap.getHeight(); y++) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}if (tileMap.isValidPosition(x, y) && !tileMap.getTile(x, y).hasEntity()) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}availablePositions.push({ x, y });
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}if (availablePositions.length === 0) {
+{{INDENT}}{{INDENT}}{{INDENT}}return null; // No available moves
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}// Return a random move (replace this with your AI strategy)
+{{INDENT}}{{INDENT}}const randomIndex = Math.floor(Math.random() * availablePositions.length);
+{{INDENT}}{{INDENT}}const { x, y } = availablePositions[randomIndex];
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}return { x, y };
+{{INDENT}}}
 {{NEWLINE}}
-  isComputerPlayer(playerId) {
-    const player = this._engine.getPlayerById(playerId);
-    return player && player.isComputer;
-  }
-  {{/SUPPORTS_AI}}
+{{INDENT}}isComputerPlayer(playerId) {
+{{INDENT}}{{INDENT}}const player = this._engine.getPlayerById(playerId);
+{{INDENT}}{{INDENT}}return player && player.isComputer;
+{{INDENT}}}
+{{INDENT}}{{/SUPPORTS_AI}}
 {{NEWLINE}}
-  {{#SUPPORTS_SPECTATORS}}
-  getSpectatorView() {
-    // Return a view suitable for spectators (may exclude sensitive information)
-    return {
-      gameStats: this.getGameStats(),
-      tileMap: this._engine.getTileMap().toJSON(),
-      playerCount: this._engine.getPlayerEntities().length,
-      currentTurn: this.getCurrentPlayer()?.getPlayerId() || null
-    };
-  }
+{{INDENT}}{{#SUPPORTS_SPECTATORS}}
+{{INDENT}}getSpectatorView() {
+{{INDENT}}{{INDENT}}// Return a view suitable for spectators (may exclude sensitive information)
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}gameStats: this.getGameStats(),
+{{INDENT}}{{INDENT}}{{INDENT}}tileMap: this._engine.getTileMap().toJSON(),
+{{INDENT}}{{INDENT}}{{INDENT}}playerCount: this._engine.getPlayerEntities().length,
+{{INDENT}}{{INDENT}}{{INDENT}}currentTurn: this.getCurrentPlayer()?.getPlayerId() || null
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
 {{NEWLINE}}
-  canSpectate() {
-    // Define when spectators are allowed to view the game
-    return true; // You can add custom logic here
-  }
-  {{/SUPPORTS_SPECTATORS}}
+{{INDENT}}canSpectate() {
+{{INDENT}}{{INDENT}}// Define when spectators are allowed to view the game
+{{INDENT}}{{INDENT}}return true; // You can add custom logic here
+{{INDENT}}}
+{{INDENT}}{{/SUPPORTS_SPECTATORS}}
 {{NEWLINE}}
-  getPlayerMappings() {
-    return this._engine.getPlayerMappings();
-  }
+{{INDENT}}getPlayerMappings() {
+{{INDENT}}{{INDENT}}return this._engine.getPlayerMappings();
+{{INDENT}}}
 {{NEWLINE}}
-  getOptionValue(optionName) {
-    return this._engine.getGameOptions().getValue(optionName);
-  }
+{{INDENT}}getOptionValue(optionName) {
+{{INDENT}}{{INDENT}}return this._engine.getGameOptions().getValue(optionName);
+{{INDENT}}}
 {{NEWLINE}}
-  getGameOptions() {
-    return this._engine.getGameOptions();
-  }
+{{INDENT}}getGameOptions() {
+{{INDENT}}{{INDENT}}return this._engine.getGameOptions();
+{{INDENT}}}
 {{NEWLINE}}
-  toJSON() {
-    return {
-      gameStats: this.getGameStats(),
-      tileMap: this._engine.getTileMap().toJSON(),
-      players: this._engine.getPlayerEntities().map(p => p.toJSON())
-    };
-  }
+{{INDENT}}toJSON() {
+{{INDENT}}{{INDENT}}return {
+{{INDENT}}{{INDENT}}{{INDENT}}gameStats: this.getGameStats(),
+{{INDENT}}{{INDENT}}{{INDENT}}tileMap: this._engine.getTileMap().toJSON(),
+{{INDENT}}{{INDENT}}{{INDENT}}players: this._engine.getPlayerEntities().map(p => p.toJSON())
+{{INDENT}}{{INDENT}}};
+{{INDENT}}}
 }
 {{NEWLINE}}
 export { {{GAME_CLASS_NAME}}Game, {{GAME_CAMEL_NAME}}Router };

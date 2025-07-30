@@ -117,6 +117,25 @@ class GameSetupWizard {
     this.config.GAME_CAMEL_NAME = this.toCamelCase(this.config.GAME_NAME);
     this.config.GAME_CLASS_NAME = this.toPascalCase(this.config.GAME_NAME);
     
+    // Indentation preference
+    const indentChoices = [
+      "2 spaces (..) (default)",
+      "4 spaces (....)",
+      "1 tab (\\t)"
+    ];
+    const indentChoice = await this.askChoice("What indentation style do you prefer?", indentChoices);
+    
+    if (indentChoice.includes("4 spaces")) {
+      this.config.INDENT = "    "; // 4 spaces
+      this.config.INDENT_STYLE = "4 spaces";
+    } else if (indentChoice.includes("1 tab")) {
+      this.config.INDENT = "\t"; // 1 tab
+      this.config.INDENT_STYLE = "1 tab";
+    } else {
+      this.config.INDENT = "  "; // 2 spaces (default)
+      this.config.INDENT_STYLE = "2 spaces";
+    }
+    
     // Play style
     const playStyles = [
       "single-set (turn-based, one player at a time, e.g. Tic-Tac-Toe)",
@@ -207,6 +226,7 @@ class GameSetupWizard {
     console.log(`File Names: ${this.config.GAME_SHORT_NAME} (kebab-case)`);
     console.log(`Code Names: ${this.config.GAME_CAMEL_NAME}Router, ${this.config.GAME_CLASS_NAME}Game`);
     console.log(`Directory: backend-${this.config.GAME_SHORT_NAME}`);
+    console.log(`Indentation: ${this.config.INDENT_STYLE}`);
     console.log(`Play Style: ${this.config.PLAY_STYLE}`);
     console.log(`Multiplayer: ${this.config.IS_MULTIPLAYER ? 'Yes' : 'No'}`);
     if (this.config.IS_MULTIPLAYER) {
@@ -306,7 +326,10 @@ class GameSetupWizard {
     // Step 3: Replace {{NEWLINE}} placeholders with actual empty lines
     result = result.replace(/\{\{NEWLINE\}\}/g, '\n');
     
-    // Step 4: Final cleanup
+    // Step 4: Replace {{INDENT}} placeholders with chosen indentation
+    result = result.replace(/\{\{INDENT\}\}/g, config.INDENT);
+    
+    // Step 5: Final cleanup
     // Remove excessive blank lines (more than 2 consecutive)
     result = result.replace(/(\n\s*){3,}/g, '\n\n');
     // Ensure file ends with single newline

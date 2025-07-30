@@ -24,36 +24,36 @@ app.use('/api', sessionRoutes);
 app.use('/api', gameRoutes);
 
 import {
-  {{GAME_CLASS_NAME}}Game,
-  {{GAME_CAMEL_NAME}}Router,
+{{INDENT}}{{GAME_CLASS_NAME}}Game,
+{{INDENT}}{{GAME_CAMEL_NAME}}Router,
 } from "./{{GAME_SHORT_NAME}}.js";
 
 function {{GAME_CLASS_NAME}}Factory(sessionId, options = {}) {
-  {{#IS_SCROLLABLE}}
-  // Default grid size if not specified
-  const gridWidth = options.gridWidth || {{DEFAULT_GRID_WIDTH}};
-  const gridHeight = options.gridHeight || {{DEFAULT_GRID_HEIGHT}};
-  return new {{GAME_CLASS_NAME}}Game({ sessionId, gridWidth, gridHeight, ...options });
-  {{/IS_SCROLLABLE}}
-  {{^IS_SCROLLABLE}}
-  // Default grid size if not specified
-  const gridSize = options.gridSize || {{DEFAULT_GRID_WIDTH}};
-  return new {{GAME_CLASS_NAME}}Game({ sessionId, gridSize, ...options });
-  {{/IS_SCROLLABLE}}
+{{INDENT}}{{#IS_SCROLLABLE}}
+{{INDENT}}// Default grid size if not specified
+{{INDENT}}const gridWidth = options.gridWidth || {{DEFAULT_GRID_WIDTH}};
+{{INDENT}}const gridHeight = options.gridHeight || {{DEFAULT_GRID_HEIGHT}};
+{{INDENT}}return new {{GAME_CLASS_NAME}}Game({ sessionId, gridWidth, gridHeight, ...options });
+{{INDENT}}{{/IS_SCROLLABLE}}
+{{INDENT}}{{^IS_SCROLLABLE}}
+{{INDENT}}// Default grid size if not specified
+{{INDENT}}const gridSize = options.gridSize || {{DEFAULT_GRID_WIDTH}};
+{{INDENT}}return new {{GAME_CLASS_NAME}}Game({ sessionId, gridSize, ...options });
+{{INDENT}}{{/IS_SCROLLABLE}}
 }
 
 const gameRouters = [{ path: "/api/{{GAME_SHORT_NAME}}", router: {{GAME_CAMEL_NAME}}Router }];
 
 // Dynamically register game specific routers
 gameRouters.forEach(({ path, router }) => {
-  app.use(path, router);
+{{INDENT}}app.use(path, router);
 });
 
 // List of known games
 gameRegistry.register("{{GAME_SHORT_NAME}}", {{GAME_CLASS_NAME}}Factory);
 
 const server = app.listen(PORT, () => {
-  console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
+{{INDENT}}console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
 });
 
 gameEventService.GameEventService.initWebSocketServer(server);
