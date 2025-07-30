@@ -14,6 +14,11 @@ export class GameEngine {
 
     // Turn config
     this._playStyle = turnConfig.playStyle || "single-set";
+    // Play styles:
+    // - "single-set": One player per turn (e.g., tic-tac-toe)
+    // - "multi-set": All players act simultaneously in rounds (e.g., rock-paper-scissors)  
+    // - "multi-subset": Specific groups of players act in sequence
+    // - "non-blocking": No turn restrictions, game implementation handles turn logic
     // For single-set and multi-set: [id1, id2, ...]
     // For multi-subset: [[id1, id2], [id3, id4], ...]
     this._turnOrder = turnConfig.turnOrder || [];
@@ -35,6 +40,7 @@ export class GameEngine {
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 0) {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
+    // For non-blocking, don't manage turn order - let game implementation handle it
   }
 
   deregisterPlayerEntity(entityId) {
@@ -47,6 +53,7 @@ export class GameEngine {
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 1) {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
+    // For non-blocking, don't manage turn order - let game implementation handle it
   }
   
   getPlayerEntities() {
@@ -100,6 +107,10 @@ export class GameEngine {
       const currentSubset = this._turnOrder[this._currentTurnIndex];
       return this._player_entities.filter(e => currentSubset.includes(e.id));
     }
+    else if (this._playStyle === "non-blocking") {
+      // All players can act at any time - no turn restrictions
+      return this._player_entities;
+    }
     // Fallback: all players
     return this._player_entities;
   }
@@ -145,6 +156,12 @@ export class GameEngine {
         this._actedThisRound.clear();
       }
     }
+    else if (this._playStyle === "non-blocking") {
+      // For non-blocking, only advance turn number if requested by game implementation
+      // This allows game to trigger world updates/events when needed
+      this._currentTurnNumber++;
+      // Don't clear actedThisRound - let game implementation manage player action tracking
+    }
   }
   
   getTurnNumber() {
@@ -173,6 +190,65 @@ export class GameEngine {
     this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
   }
 
+  // Utility methods for non-blocking games
+  // ------------------------------------
+  
+  /**
+   * Check if a player can act (for non-blocking games, always true unless game implements custom logic)
+   * @param {string} playerId - The player ID to check
+   * @returns {boolean} - Whether the player can act
+   */
+  canPlayerAct(playerId) {
+    if (this._playStyle === "non-blocking") {
+      // In non-blocking mode, all players can always act
+      // Game implementation can override this logic
+      return this.getPlayerById(playerId) !== undefined;
+    }
+    
+    // For other play styles, check if player is in current turn players
+    const currentPlayers = this.getCurrentTurnPlayers();
+    if (Array.isArray(currentPlayers)) {
+      return currentPlayers.some(player => player.id === playerId);
+    }
+    return currentPlayers && currentPlayers.id === playerId;
+  }
+  
+  /**
+   * Mark a player as having acted this round (useful for non-blocking games)
+   * @param {string} playerId - The player ID
+   */
+  markPlayerActed(playerId) {
+    this._actedThisRound.add(playerId);
+  }
+  
+  /**
+   * Check if a player has acted this round
+   * @param {string} playerId - The player ID
+   * @returns {boolean} - Whether the player has acted
+   */
+  hasPlayerActed(playerId) {
+    return this._actedThisRound.has(playerId);
+  }
+  
+  /**
+   * Get all players who have acted this round
+   * @returns {Set<string>} - Set of player IDs who have acted
+   */
+  getPlayersWhoActed() {
+    return new Set(this._actedThisRound);
+  }
+  
+  /**
+   * Clear the acted players tracking (useful for world update cycles)
+   */
+  clearActedPlayers() {
+    this._actedThisRound.clear();
+  }
+  
+  /**
+   * Get the current play style
+   * @returns {string} - The play style
+   */
   getPlayStyle() {
     return this._playStyle;
   }
