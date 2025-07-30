@@ -229,7 +229,29 @@ If invalid options are provided, the API returns:
 
 ## Game Development
 
-To create a new game:
+### Quick Start: Game Script Generator
+
+The fastest way to create a new game is using the built-in game script generator:
+
+```sh
+node game-script/setup-game.js
+```
+
+This interactive script will:
+- Ask essential questions about your game (play style, grid size, multiplayer, etc.)
+- Generate all necessary server-side files from templates
+- Create the proper folder structure
+- Handle conflict resolution for existing files
+
+The generated files include:
+- Main game logic file
+- Player entity definitions
+- API routes
+- Environment configuration
+
+### Manual Game Development
+
+To create a new game manually:
 
 1. Implement the required methods from the **Game Contract**
 2. Optionally implement additional methods for custom behavior

@@ -1,0 +1,140 @@
+import express from "express";
+import { sessionManager } from "../../../game-server/session-manager.js"; // Holds all active GameSession instances
+import { gameRegistry } from "../../../game-server/game-registry.js";
+
+import { GameEventService } from "../../../game-server/game-event-service.js";
+import { checkPlayableAccess } from "../../../game-utility/game-utility.js";
+
+const {{GAME_CAMEL_NAME}}Router = express.Router();
+
+// Create middleware instance with session manager
+const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+
+// Plays turn and returns game state of the player round
+{{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, xPos, yPos, metadata } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+  
+  {{#PLAY_STYLE_SINGLE_SET}}
+  // Get the current player from the game engine
+  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  {{/PLAY_STYLE_SINGLE_SET}}
+  
+  // Validate that the participant exists
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+  
+  // Find the player that corresponds to this participant
+  const playerMappings = gameInstance.getPlayerMappings();
+  const playerId = playerMappings[participantId];
+  
+  if (!playerId) {
+    return res.status(400).json({ error: "Participant is not a player in this game." });
+  }
+  
+  {{#PLAY_STYLE_SINGLE_SET}}
+  // Validate that it's this player's turn
+  if (playerId !== currentPlayer.getPlayerId()) {
+    return res.status(400).json({ error: "It's not your turn." });
+  }
+  {{/PLAY_STYLE_SINGLE_SET}}
+
+  let roundStatus = gameInstance.playTurn(playerId, xPos, yPos, metadata);
+  
+  if (roundStatus.player_has_won) { // playerId has won
+    gameSession.increaseWinCounter();
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "player_won",
+      data: {
+        winner: participant.name,
+        player_id: playerId,
+        win_count: winCount,
+        game_data: gameInstance.toJSON()
+      }
+    });
+  } else if (roundStatus.game_ended) {
+    // Game ended without a winner (draw/tie)
+    GameEventService.broadcastToSession(gameSession, {
+      type: "game_ended",
+      data: {
+        result: "draw",
+        game_data: gameInstance.toJSON()
+      }
+    });
+  } else if (roundStatus.status === "success") {
+    // Normal move - broadcast game state update
+    GameEventService.broadcastToSession(gameSession, {
+      type: "game_updated",
+      data: {
+        game_data: gameInstance.toJSON(),
+        last_move: {
+          player_id: playerId,
+          player_name: participant.name,
+          position: { x: xPos, y: yPos }
+        }
+      }
+    });
+  }
+
+  res.json({
+    round_status: roundStatus,
+    game_data: gameInstance.toJSON()
+  });
+});
+
+// Get current game state
+{{GAME_CAMEL_NAME}}Router.get("/{{GAME_SHORT_NAME}}/state/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  
+  const gameSession = sessionManager.getSession(sessionId);
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  const gameInstance = gameSession.getGameInstance();
+  
+  res.json({
+    game_data: gameInstance.toJSON(),
+    session_info: {
+      session_id: sessionId,
+      participant_count: gameSession.getParticipants().length,
+      active_players: gameSession.getParticipants().filter(p => p.isPlayer).length
+    }
+  });
+});
+
+{{#HAS_SPECIAL_ACTIONS}}
+// Special game action endpoint (customize as needed)
+{{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/special-action/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, action, actionData } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+  
+  // Find the player that corresponds to this participant
+  const playerMappings = gameInstance.getPlayerMappings();
+  const playerId = playerMappings[participantId];
+  
+  if (!playerId) {
+    return res.status(400).json({ error: "Participant is not a player in this game." });
+  }
+
+  // TODO: Implement your special action logic here
+  // Example: gameInstance.performSpecialAction(playerId, action, actionData);
+  
+  res.json({
+    status: "success",
+    message: "Special action performed",
+    game_data: gameInstance.toJSON()
+  });
+});
+{{/HAS_SPECIAL_ACTIONS}}
+
+export default {{GAME_CAMEL_NAME}}Router;

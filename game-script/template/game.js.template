@@ -1,0 +1,211 @@
+// {{GAME_NAME}}.js
+
+import { GameEngine } from "../../game-engine/game-engine.js";
+import PlayerEntity from "./game-entity/player-entity.js";
+import {{GAME_CAMEL_NAME}}Router from "./route/{{GAME_SHORT_NAME}}-routes.js";
+
+// {{GAME_CLASS_NAME}}Game implements methods as defined in GameContract (game-contract.js)
+class {{GAME_CLASS_NAME}}Game {
+  constructor() {
+    // Create engine with default values (will be updated via options)
+    const turnConfig = { playStyle: "{{PLAY_STYLE}}" };
+    this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, turnConfig);
+    this._winner = null;
+    {{#IS_MULTIPLAYER}}
+    this._maxPlayers = {{MAX_PLAYERS}};
+    {{/IS_MULTIPLAYER}}
+    {{^IS_MULTIPLAYER}}
+    this._maxPlayers = 1;
+    {{/IS_MULTIPLAYER}}
+  }
+
+  getGameEngine() {
+    return this._engine;
+  }
+
+  getCurrentPlayer() {
+    const currentPlayerList = this._engine.getCurrentTurnPlayers();
+    return currentPlayerList.pop();
+  }
+
+  getGameStats() {
+    return {
+      {{#IS_SCROLLABLE}}
+      gridWidth: this.getOptionValue("gridWidth"),
+      gridHeight: this.getOptionValue("gridHeight"),
+      {{/IS_SCROLLABLE}}
+      {{^IS_SCROLLABLE}}
+      gridSize: this.getOptionValue("gridSize"),
+      {{/IS_SCROLLABLE}}
+      winner: this._winner,
+      isActive: this.isGameActive(),
+      playerCount: this._engine.getPlayerEntities().length,
+      maxPlayers: this._maxPlayers,
+      playStyle: "{{PLAY_STYLE}}"
+    };
+  }
+
+  initializeGameOptions() {
+    {{#IS_SCROLLABLE}}
+    this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
+      if (typeof value !== 'number' || value < 3 || value > 50) {
+        return 'Grid width must be a number between 3 and 50';
+      }
+      return true;
+    });
+    this.getGameOptions().addConfigurable("gridHeight", {{DEFAULT_GRID_HEIGHT}}, (value) => {
+      if (typeof value !== 'number' || value < 3 || value > 50) {
+        return 'Grid height must be a number between 3 and 50';
+      }
+      return true;
+    });
+    {{/IS_SCROLLABLE}}
+    {{^IS_SCROLLABLE}}
+    this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
+    {{/IS_SCROLLABLE}}
+  }
+
+  addPlayer(name, isComputer = false) {
+    if (this._engine.getPlayerEntities().length >= this._maxPlayers) {
+      throw new Error(`Maximum of ${this._maxPlayers} players allowed`);
+    }
+    
+    const playerId = this._engine.getPlayerEntities().length + 1;
+    const player = new PlayerEntity(playerId, name, isComputer);
+    this._engine.registerPlayerEntity(player);
+    return player;
+  }
+
+  playTurn(playerId, xPos, yPos, metadata = {}) {
+    if (!this.isGameActive()) {
+      return { 
+        status: "error", 
+        message: "Game has ended",
+        player_id: playerId 
+      };
+    }
+
+    const player = this._engine.getPlayerById(playerId);
+    if (!player) {
+      return { status: "error", message: "Player not found" };
+    }
+
+    {{#PLAY_STYLE_SINGLE_SET}}
+    // Validate turn for single-set play style
+    const currentPlayer = this.getCurrentPlayer();
+    if (currentPlayer.getPlayerId() !== playerId) {
+      return { 
+        status: "error", 
+        message: "It's not your turn",
+        player_id: playerId 
+      };
+    }
+    {{/PLAY_STYLE_SINGLE_SET}}
+
+    // Check if position is valid and available
+    const tileMap = this._engine.getTileMap();
+    if (!tileMap.isValidPosition(xPos, yPos)) {
+      return { 
+        status: "error", 
+        message: "Invalid position",
+        player_id: playerId 
+      };
+    }
+
+    if (tileMap.getTile(xPos, yPos).hasEntity()) {
+      return { 
+        status: "error", 
+        message: "Position already occupied",
+        player_id: playerId 
+      };
+    }
+
+    // Place the player's piece
+    const piece = player.createGamePiece();
+    tileMap.placeTileEntity(piece, xPos, yPos);
+
+    // Check for win condition
+    const hasWon = this.checkWinCondition(player, xPos, yPos);
+    if (hasWon) {
+      this._winner = player;
+      this._engine.endGame();
+      return {
+        status: "success",
+        message: "Player wins!",
+        player_id: playerId,
+        player_has_won: true,
+        game_ended: true
+      };
+    }
+
+    // Advance turn for single-set games
+    {{#PLAY_STYLE_SINGLE_SET}}
+    this._engine.advanceTurn();
+    {{/PLAY_STYLE_SINGLE_SET}}
+
+    return {
+      status: "success",
+      message: "Move successful",
+      player_id: playerId,
+      player_has_won: false,
+      game_ended: false
+    };
+  }
+
+  checkWinCondition(player, xPos, yPos) {
+    // TODO: Implement your game-specific win condition logic here
+    // This is a placeholder that always returns false
+    return false;
+  }
+
+  isGameActive() {
+    return this._engine.isGameActive();
+  }
+
+  {{#HAS_INACTIVITY}}
+  getInactivityTimeout() {
+    // Return timeout in milliseconds (e.g., 30000 for 30 seconds)
+    return 30000;
+  }
+
+  handleInactivity(playerId) {
+    // TODO: Implement what happens when a player is inactive
+    // For example: skip their turn, make random move, forfeit, etc.
+    console.log(`Player ${playerId} is inactive`);
+    
+    // Example: Skip turn for single-set games
+    {{#PLAY_STYLE_SINGLE_SET}}
+    this._engine.advanceTurn();
+    {{/PLAY_STYLE_SINGLE_SET}}
+    
+    return {
+      status: "success",
+      message: "Player skipped due to inactivity",
+      player_id: playerId,
+      inactivity_handled: true
+    };
+  }
+  {{/HAS_INACTIVITY}}
+
+  getPlayerMappings() {
+    return this._engine.getPlayerMappings();
+  }
+
+  getOptionValue(optionName) {
+    return this._engine.getGameOptions().getValue(optionName);
+  }
+
+  getGameOptions() {
+    return this._engine.getGameOptions();
+  }
+
+  toJSON() {
+    return {
+      gameStats: this.getGameStats(),
+      tileMap: this._engine.getTileMap().toJSON(),
+      players: this._engine.getPlayerEntities().map(p => p.toJSON())
+    };
+  }
+}
+
+export { {{GAME_CLASS_NAME}}Game, {{GAME_CAMEL_NAME}}Router };
