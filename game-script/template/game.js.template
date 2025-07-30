@@ -18,16 +18,16 @@ class {{GAME_CLASS_NAME}}Game {
     this._maxPlayers = 1;
     {{/IS_MULTIPLAYER}}
   }
-
+{{NEWLINE}}
   getGameEngine() {
     return this._engine;
   }
-
+{{NEWLINE}}
   getCurrentPlayer() {
     const currentPlayerList = this._engine.getCurrentTurnPlayers();
     return currentPlayerList.pop();
   }
-
+{{NEWLINE}}
   getGameStats() {
     return {
       {{#IS_SCROLLABLE}}
@@ -44,7 +44,7 @@ class {{GAME_CLASS_NAME}}Game {
       playStyle: "{{PLAY_STYLE}}"
     };
   }
-
+{{NEWLINE}}
   initializeGameOptions() {
     {{#IS_SCROLLABLE}}
     this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
@@ -64,18 +64,25 @@ class {{GAME_CLASS_NAME}}Game {
     this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
     {{/IS_SCROLLABLE}}
   }
-
+{{NEWLINE}}
   addPlayer(name, isComputer = false) {
     if (this._engine.getPlayerEntities().length >= this._maxPlayers) {
       throw new Error(`Maximum of ${this._maxPlayers} players allowed`);
     }
+    {{^SUPPORTS_AI}}
+    
+    // Computer players are not supported in this game
+    if (isComputer) {
+      throw new Error("Computer players are not supported");
+    }
+    {{/SUPPORTS_AI}}
     
     const playerId = this._engine.getPlayerEntities().length + 1;
     const player = new PlayerEntity(playerId, name, isComputer);
     this._engine.registerPlayerEntity(player);
     return player;
   }
-
+{{NEWLINE}}
   playTurn(playerId, xPos, yPos, metadata = {}) {
     if (!this.isGameActive()) {
       return { 
@@ -151,23 +158,23 @@ class {{GAME_CLASS_NAME}}Game {
       game_ended: false
     };
   }
-
+{{NEWLINE}}
   checkWinCondition(player, xPos, yPos) {
     // TODO: Implement your game-specific win condition logic here
     // This is a placeholder that always returns false
     return false;
   }
-
+{{NEWLINE}}
   isGameActive() {
     return this._engine.isGameActive();
   }
-
+{{NEWLINE}}
   {{#HAS_INACTIVITY}}
   getInactivityTimeout() {
     // Return timeout in milliseconds (e.g., 30000 for 30 seconds)
     return 30000;
   }
-
+{{NEWLINE}}
   handleInactivity(playerId) {
     // TODO: Implement what happens when a player is inactive
     // For example: skip their turn, make random move, forfeit, etc.
@@ -186,19 +193,69 @@ class {{GAME_CLASS_NAME}}Game {
     };
   }
   {{/HAS_INACTIVITY}}
-
+{{NEWLINE}}
+  {{#SUPPORTS_AI}}
+  calculateComputerMove(playerId) {
+    // TODO: Implement AI logic for computer players
+    // This is a simple random move implementation - replace with your AI logic
+    const tileMap = this._engine.getTileMap();
+    const availablePositions = [];
+    
+    // Find all available positions
+    for (let x = 0; x < tileMap.getWidth(); x++) {
+      for (let y = 0; y < tileMap.getHeight(); y++) {
+        if (tileMap.isValidPosition(x, y) && !tileMap.getTile(x, y).hasEntity()) {
+          availablePositions.push({ x, y });
+        }
+      }
+    }
+    
+    if (availablePositions.length === 0) {
+      return null; // No available moves
+    }
+    
+    // Return a random move (replace this with your AI strategy)
+    const randomIndex = Math.floor(Math.random() * availablePositions.length);
+    const { x, y } = availablePositions[randomIndex];
+    
+    return { x, y };
+  }
+{{NEWLINE}}
+  isComputerPlayer(playerId) {
+    const player = this._engine.getPlayerById(playerId);
+    return player && player.isComputer;
+  }
+  {{/SUPPORTS_AI}}
+{{NEWLINE}}
+  {{#SUPPORTS_SPECTATORS}}
+  getSpectatorView() {
+    // Return a view suitable for spectators (may exclude sensitive information)
+    return {
+      gameStats: this.getGameStats(),
+      tileMap: this._engine.getTileMap().toJSON(),
+      playerCount: this._engine.getPlayerEntities().length,
+      currentTurn: this.getCurrentPlayer()?.getPlayerId() || null
+    };
+  }
+{{NEWLINE}}
+  canSpectate() {
+    // Define when spectators are allowed to view the game
+    return true; // You can add custom logic here
+  }
+  {{/SUPPORTS_SPECTATORS}}
+{{NEWLINE}}
   getPlayerMappings() {
     return this._engine.getPlayerMappings();
   }
-
+{{NEWLINE}}
   getOptionValue(optionName) {
     return this._engine.getGameOptions().getValue(optionName);
   }
-
+{{NEWLINE}}
   getGameOptions() {
     return this._engine.getGameOptions();
   }
-
+{{NEWLINE}}
   toJSON() {
     return {
       gameStats: this.getGameStats(),
@@ -207,5 +264,5 @@ class {{GAME_CLASS_NAME}}Game {
     };
   }
 }
-
+{{NEWLINE}}
 export { {{GAME_CLASS_NAME}}Game, {{GAME_CAMEL_NAME}}Router };

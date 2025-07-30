@@ -12,7 +12,7 @@ class PlayerEntity extends GameEntity {
     this.resources = {};
     {{/HAS_PLAYER_RESOURCES}}
   }
-
+{{NEWLINE}}
   createGamePiece() {
     // Create a basic game piece for this player
     const piece = {
@@ -38,21 +38,21 @@ class PlayerEntity extends GameEntity {
     this.pieces.push(piece);
     return piece;
   }
-  
+{{NEWLINE}}
   getPlayerType() {
     return this.isComputer ? 'computer' : 'human';
   }
-
+{{NEWLINE}}
   {{#HAS_PLAYER_SCORE}}
   addScore(points) {
     this.score += points;
   }
-
+{{NEWLINE}}
   getScore() {
     return this.score;
   }
   {{/HAS_PLAYER_SCORE}}
-
+{{NEWLINE}}
   {{#HAS_PLAYER_RESOURCES}}
   addResource(resourceType, amount) {
     if (!this.resources[resourceType]) {
@@ -60,20 +60,20 @@ class PlayerEntity extends GameEntity {
     }
     this.resources[resourceType] += amount;
   }
-
+{{NEWLINE}}
   getResource(resourceType) {
     return this.resources[resourceType] || 0;
   }
-
+{{NEWLINE}}
   hasResource(resourceType, amount) {
     return this.getResource(resourceType) >= amount;
   }
   {{/HAS_PLAYER_RESOURCES}}
-
+{{NEWLINE}}
   clearPieces() {
     this.pieces = [];
   }
-
+{{NEWLINE}}
   toJSON() {
     return {
       id: this.id,
@@ -90,5 +90,5 @@ class PlayerEntity extends GameEntity {
     };
   }
 }
-
+{{NEWLINE}}
 export default PlayerEntity;

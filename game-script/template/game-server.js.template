@@ -1,0 +1,59 @@
+import express from 'express';
+import path from 'path';
+
+// Kubic Kode imports
+import { sessionRoutes, gameRoutes } from "kubic-kode";
+import { gameEventService } from "kubic-kode";
+import { gameRegistry } from "kubic-kode";
+
+import { fileURLToPath } from "url";
+import 'dotenv/config';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use(express.json());
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, "public")));
+
+const PORT = process.env.PORT || 3000;
+
+// Add game routes
+app.use('/api', sessionRoutes);
+app.use('/api', gameRoutes);
+
+import {
+  {{GAME_CLASS_NAME}}Game,
+  {{GAME_CAMEL_NAME}}Router,
+} from "./{{GAME_SHORT_NAME}}.js";
+
+function {{GAME_CLASS_NAME}}Factory(sessionId, options = {}) {
+  {{#IS_SCROLLABLE}}
+  // Default grid size if not specified
+  const gridWidth = options.gridWidth || {{DEFAULT_GRID_WIDTH}};
+  const gridHeight = options.gridHeight || {{DEFAULT_GRID_HEIGHT}};
+  return new {{GAME_CLASS_NAME}}Game({ sessionId, gridWidth, gridHeight, ...options });
+  {{/IS_SCROLLABLE}}
+  {{^IS_SCROLLABLE}}
+  // Default grid size if not specified
+  const gridSize = options.gridSize || {{DEFAULT_GRID_WIDTH}};
+  return new {{GAME_CLASS_NAME}}Game({ sessionId, gridSize, ...options });
+  {{/IS_SCROLLABLE}}
+}
+
+const gameRouters = [{ path: "/api/{{GAME_SHORT_NAME}}", router: {{GAME_CAMEL_NAME}}Router }];
+
+// Dynamically register game specific routers
+gameRouters.forEach(({ path, router }) => {
+  app.use(path, router);
+});
+
+// List of known games
+gameRegistry.register("{{GAME_SHORT_NAME}}", {{GAME_CLASS_NAME}}Factory);
+
+const server = app.listen(PORT, () => {
+  console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
+});
+
+gameEventService.GameEventService.initWebSocketServer(server);

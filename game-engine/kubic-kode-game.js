@@ -300,6 +300,14 @@ class KubicKodeGame extends GameInterface {
     return null; // Default: no inactivity timeout
   }
 
+  calculateComputerMove(playerId) {
+    // Default implementation if game instance doesn't provide it
+    if (typeof this.gameInstance.calculateComputerMove === 'function') {
+      return this.gameInstance.calculateComputerMove(playerId);
+    }
+    return null; // Default: no computer move calculation
+  }
+
   isGameActive() {
     // Default implementation if game instance doesn't provide it
     if (typeof this.gameInstance.isGameActive === 'function') {

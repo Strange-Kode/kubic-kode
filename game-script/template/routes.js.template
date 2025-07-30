@@ -87,7 +87,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
     game_data: gameInstance.toJSON()
   });
 });
-
+{{NEWLINE}}
 // Get current game state
 {{GAME_CAMEL_NAME}}Router.get("/{{GAME_SHORT_NAME}}/state/:sessionId", (req, res) => {
   const { sessionId } = req.params;
@@ -108,7 +108,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
     }
   });
 });
-
+{{NEWLINE}}
 {{#HAS_SPECIAL_ACTIONS}}
 // Special game action endpoint (customize as needed)
 {{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/special-action/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
@@ -136,5 +136,34 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
   });
 });
 {{/HAS_SPECIAL_ACTIONS}}
+{{NEWLINE}}
+{{#SUPPORTS_SPECTATORS}}
+// Get spectator view of the game (no sensitive information)
+{{GAME_CAMEL_NAME}}Router.get("/{{GAME_SHORT_NAME}}/spectate/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  
+  const gameSession = sessionManager.getSession(sessionId);
+  if (!gameSession) {
+    return res.status(404).json({ error: "Session not found." });
+  }
 
+  const gameInstance = gameSession.getGameInstance();
+  
+  // Check if spectating is allowed
+  if (!gameInstance.canSpectate()) {
+    return res.status(403).json({ error: "Spectating is not allowed for this game." });
+  }
+  
+  res.json({
+    spectator_view: gameInstance.getSpectatorView(),
+    session_info: {
+      session_id: sessionId,
+      participant_count: gameSession.getParticipants().length,
+      active_players: gameSession.getParticipants().filter(p => p.isPlayer).length,
+      spectator_count: gameSession.getParticipants().filter(p => !p.isPlayer).length
+    }
+  });
+});
+{{/SUPPORTS_SPECTATORS}}
+{{NEWLINE}}
 export default {{GAME_CAMEL_NAME}}Router;

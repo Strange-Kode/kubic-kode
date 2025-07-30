@@ -121,7 +121,7 @@ class GameSetupWizard {
     const playStyles = [
       "single-set (turn-based, one player at a time, e.g. Tic-Tac-Toe)",
       "multi-set (all players can move simultaneously, e.g. Rock-Paper-Scissors)", 
-      "non-blocking (continuous action, game implementation decides how to handle turns)"
+      "non-blocking (continuous action, game implementation decides how to handle turns, e.g. Dungeon Crawler)"
     ];
     const playStyleChoice = await this.askChoice("What play style will your game use?", playStyles);
     this.config.PLAY_STYLE = playStyleChoice.split(' ')[0];
@@ -191,6 +191,8 @@ class GameSetupWizard {
     this.config.HAS_PIECE_VALUE = await this.askYesNo("Will game pieces have different values?");
     this.config.HAS_SPECIAL_ACTIONS = await this.askYesNo("Will the game have special actions beyond basic moves? (e.g., power-ups, abilities, card plays)");
     this.config.HAS_INACTIVITY = await this.askYesNo("Should the game handle player inactivity timeouts?");
+    this.config.SUPPORTS_AI = await this.askYesNo("Should the game support computer opponents (AI)?");
+    this.config.SUPPORTS_SPECTATORS = await this.askYesNo("Should the game support spectators?");
     this.config.HAS_DATABASE = await this.askYesNo("Will your game need database integration?");
     this.config.HAS_EXTERNAL_API = await this.askYesNo("Will your game need external API integration?");
     
@@ -223,6 +225,8 @@ class GameSetupWizard {
     console.log(`  - Piece Values: ${this.config.HAS_PIECE_VALUE ? 'Yes' : 'No'}`);
     console.log(`  - Special Actions: ${this.config.HAS_SPECIAL_ACTIONS ? 'Yes' : 'No'}`);
     console.log(`  - Inactivity Handling: ${this.config.HAS_INACTIVITY ? 'Yes' : 'No'}`);
+    console.log(`  - Computer Opponents (AI): ${this.config.SUPPORTS_AI ? 'Yes' : 'No'}`);
+    console.log(`  - Spectator Support: ${this.config.SUPPORTS_SPECTATORS ? 'Yes' : 'No'}`);
     console.log(`  - Database: ${this.config.HAS_DATABASE ? 'Yes' : 'No'}`);
     console.log(`  - External API: ${this.config.HAS_EXTERNAL_API ? 'Yes' : 'No'}`);
   }
@@ -299,15 +303,8 @@ class GameSetupWizard {
     
     result = processedLines.join('\n');
     
-    // Step 3: Add proper spacing between methods and major code blocks
-    // Add blank line before method declarations
-    result = result.replace(/(\n  )([a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*\{)/g, '$1\n$2');
-    // Add blank line before class declarations
-    result = result.replace(/(\n)(class\s+\w+)/g, '$1\n$2');
-    // Add blank line before constructor
-    result = result.replace(/(\n  )(constructor\s*\()/g, '$1\n$2');
-    // Add blank line before comments that precede methods
-    result = result.replace(/(\n  )(\/\/\s*[A-Z])/g, '$1\n$2');
+    // Step 3: Replace {{NEWLINE}} placeholders with actual empty lines
+    result = result.replace(/\{\{NEWLINE\}\}/g, '\n');
     
     // Step 4: Final cleanup
     // Remove excessive blank lines (more than 2 consecutive)
@@ -436,8 +433,18 @@ class GameSetupWizard {
         console.log(`   3. Add your game to the main server by importing and registering it`);
         console.log(`   4. Test your game using the generated routes`);
         
+        let stepCounter = 5;
         if (this.config.HAS_SPECIAL_ACTIONS) {
-          console.log(`   5. Implement special actions in the routes file`);
+          console.log(`   ${stepCounter}. Implement special actions in the routes file`);
+          stepCounter++;
+        }
+        if (this.config.SUPPORTS_AI) {
+          console.log(`   ${stepCounter}. Implement AI logic in the calculateComputerMove method`);
+          stepCounter++;
+        }
+        if (this.config.SUPPORTS_SPECTATORS) {
+          console.log(`   ${stepCounter}. Customize spectator view in getSpectatorView method`);
+          stepCounter++;
         }
         
         console.log(`\n🎮 Happy game development!`);
