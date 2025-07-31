@@ -6,6 +6,9 @@ import { sessionRoutes, gameRoutes } from "kubic-kode";
 import { gameEventService } from "kubic-kode";
 import { gameRegistry } from "kubic-kode";
 
+// Extract specific classes for cleaner usage
+const { GameEventService } = gameEventService;
+
 import { fileURLToPath } from "url";
 import 'dotenv/config';
 
@@ -56,4 +59,4 @@ const server = app.listen(PORT, () => {
 {{INDENT}}console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
 });
 
-gameEventService.GameEventService.initWebSocketServer(server);
+GameEventService.initWebSocketServer(server);

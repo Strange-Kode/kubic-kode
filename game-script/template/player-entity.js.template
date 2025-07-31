@@ -1,6 +1,9 @@
 import { gameEntity } from "kubic-kode";
 
-class PlayerEntity extends gameEntity.GameEntity {
+// Extract specific classes for cleaner usage
+const { GameEntity } = gameEntity;
+
+class PlayerEntity extends GameEntity {
 {{INDENT}}constructor(playerId, name, isComputer = false) {
 {{INDENT}}{{INDENT}}super(playerId, name, null); // Pass id, name, position to parent
 {{INDENT}}{{INDENT}}this._isComputer = isComputer;

@@ -5,10 +5,14 @@ import { gameRegistry } from "kubic-kode";
 import { gameEventService } from "kubic-kode";
 import { gameUtility } from "kubic-kode";
 
+// Extract specific classes/functions for cleaner usage
+const { GameEventService } = gameEventService;
+const { checkPlayableAccess } = gameUtility;
+
 const {{GAME_CAMEL_NAME}}Router = express.Router();
 
 // Create middleware instance with session manager
-const checkPlayableAccessMiddleware = gameUtility.checkPlayableAccess(sessionManager);
+const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 
 // Plays turn and returns game state of the player round
 {{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
@@ -49,7 +53,7 @@ const checkPlayableAccessMiddleware = gameUtility.checkPlayableAccess(sessionMan
 {{INDENT}}if (roundStatus.player_has_won) { // playerId has won
 {{INDENT}}{{INDENT}}gameSession.increaseWinCounter();
 {{INDENT}}{{INDENT}}let winCount = gameSession.getWinCounter();
-{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "player_won",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}winner: participant.name,
@@ -60,7 +64,7 @@ const checkPlayableAccessMiddleware = gameUtility.checkPlayableAccess(sessionMan
 {{INDENT}}{{INDENT}}});
 {{INDENT}}} else if (roundStatus.game_ended) {
 {{INDENT}}{{INDENT}}// Game ended without a winner (draw/tie)
-{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "game_ended",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}result: "draw",
@@ -69,7 +73,7 @@ const checkPlayableAccessMiddleware = gameUtility.checkPlayableAccess(sessionMan
 {{INDENT}}{{INDENT}}});
 {{INDENT}}} else if (roundStatus.status === "success") {
 {{INDENT}}{{INDENT}}// Normal move - broadcast game state update
-{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "game_updated",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON(),
