@@ -1,22 +1,39 @@
 import { TileMap } from "./tile-map.js";
+import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 
 export class GameEngine {
-  constructor(tilemapWidth, tilemapHeight, turnConfig = {}) {
+  constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
     this._player_entities = [];
     this._registeredComponents = new Map(); // componentFunc -> componentName
     this._componentNames = new Set(); // set of all names in use
     this._tilemapWidth = tilemapWidth;
     this._tilemapHeight = tilemapHeight;
+    
+    // Use regular TileMap by default, scrollable tile map is opt-in
+    this._useScrollableTileMap = engineConfig.useScrollableTileMap === true; // Default to false
     this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    
+    // Initialize scrollable tile map manager if enabled
+    this._scrollableManager = null;
+    if (this._useScrollableTileMap) {
+      this._scrollableManager = new ScrollableTileMapManager(this._tilemapWidth, this._tilemapHeight);
+      this._tileMap = this._scrollableManager.getTileMap();
+    }
+    
     this._currentTurnIndex = 0; // keeps track of current player
     this._currentTurnNumber = 1; // keeps track of amount of turns played between game started and stopped
     this._gameStarted = false;
 
-    // Turn config
-    this._playStyle = turnConfig.playStyle || "single-set";
+    // Play styles:
+    // - "single-set": One player per turn (e.g., tic-tac-toe)
+    // - "multi-set": All players act simultaneously in rounds (e.g., rock-paper-scissors)  
+    // - "multi-subset": Subgroup of players per turn (e.g., 2p vs. 2p)
+    // - "non-blocking": No turn restrictions, game implementation handles turn logic (e.g. advanced Dungeon Crawler like game)
+    this._playStyle = engineConfig.playStyle || "single-set";
+
     // For single-set and multi-set: [id1, id2, ...]
     // For multi-subset: [[id1, id2], [id3, id4], ...]
-    this._turnOrder = turnConfig.turnOrder || [];
+    this._turnOrder = engineConfig.turnOrder || [];
     // For multi-set: track which players have acted this round
     this._actedThisRound = new Set();
   }
@@ -27,6 +44,12 @@ export class GameEngine {
 
   registerPlayerEntity(entity) {
     this._player_entities.push(entity);
+    
+    // Register viewport for scrollable tile map if available
+    if (this._useScrollableTileMap && this._scrollableManager && entity.viewport) {
+      this._scrollableManager.registerPlayerViewport(entity.id, entity.viewport);
+    }
+    
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
       this._turnOrder = this._player_entities.map(e => e.id);
@@ -35,10 +58,17 @@ export class GameEngine {
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 0) {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
+    // For non-blocking, don't manage turn order - let game implementation handle it
   }
 
   deregisterPlayerEntity(entityId) {
     this._player_entities = this._player_entities.filter(e => e.id !== entityId);
+    
+    // Unregister viewport for scrollable tile map if available
+    if (this._useScrollableTileMap && this._scrollableManager) {
+      this._scrollableManager.unregisterPlayerViewport(entityId);
+    }
+    
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
       this._turnOrder = this._player_entities.map(e => e.id);
@@ -47,6 +77,7 @@ export class GameEngine {
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 1) {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
+    // For non-blocking, don't manage turn order - let game implementation handle it
   }
   
   getPlayerEntities() {
@@ -100,6 +131,10 @@ export class GameEngine {
       const currentSubset = this._turnOrder[this._currentTurnIndex];
       return this._player_entities.filter(e => currentSubset.includes(e.id));
     }
+    else if (this._playStyle === "non-blocking") {
+      // All players can act at any time - no turn restrictions
+      return this._player_entities;
+    }
     // Fallback: all players
     return this._player_entities;
   }
@@ -145,6 +180,12 @@ export class GameEngine {
         this._actedThisRound.clear();
       }
     }
+    else if (this._playStyle === "non-blocking") {
+      // For non-blocking, only advance turn number if requested by game implementation
+      // This allows game to trigger world updates/events when needed
+      this._currentTurnNumber++;
+      // Don't clear actedThisRound - let game implementation manage player action tracking
+    }
   }
   
   getTurnNumber() {
@@ -170,9 +211,74 @@ export class GameEngine {
   updateTileMapDimensions(newWidth, newHeight) {
     this._tilemapWidth = newWidth;
     this._tilemapHeight = newHeight;
-    this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    
+    if (this._useScrollableTileMap && this._scrollableManager) {
+      this._scrollableManager.resize(newWidth, newHeight);
+      this._tileMap = this._scrollableManager.getTileMap();
+    } else {
+      this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
+    }
   }
 
+  // Utility methods for non-blocking games
+  // ------------------------------------
+  
+  /**
+   * Check if a player can act (for non-blocking games, always true unless game implements custom logic)
+   * @param {string} playerId - The player ID to check
+   * @returns {boolean} - Whether the player can act
+   */
+  canPlayerAct(playerId) {
+    if (this._playStyle === "non-blocking") {
+      // In non-blocking mode, all players can always act
+      // Game implementation can override this logic
+      return this.getPlayerById(playerId) !== undefined;
+    }
+    
+    // For other play styles, check if player is in current turn players
+    const currentPlayers = this.getCurrentTurnPlayers();
+    if (Array.isArray(currentPlayers)) {
+      return currentPlayers.some(player => player.id === playerId);
+    }
+    return currentPlayers && currentPlayers.id === playerId;
+  }
+  
+  /**
+   * Mark a player as having acted this round (useful for non-blocking games)
+   * @param {string} playerId - The player ID
+   */
+  markPlayerActed(playerId) {
+    this._actedThisRound.add(playerId);
+  }
+  
+  /**
+   * Check if a player has acted this round
+   * @param {string} playerId - The player ID
+   * @returns {boolean} - Whether the player has acted
+   */
+  hasPlayerActed(playerId) {
+    return this._actedThisRound.has(playerId);
+  }
+  
+  /**
+   * Get all players who have acted this round
+   * @returns {Set<string>} - Set of player IDs who have acted
+   */
+  getPlayersWhoActed() {
+    return new Set(this._actedThisRound);
+  }
+  
+  /**
+   * Clear the acted players tracking (useful for world update cycles)
+   */
+  clearActedPlayers() {
+    this._actedThisRound.clear();
+  }
+  
+  /**
+   * Get the current play style
+   * @returns {string} - The play style
+   */
   getPlayStyle() {
     return this._playStyle;
   }
@@ -208,5 +314,16 @@ export class GameEngine {
     }
 
     componentFunc(entity, ...args);
+  }
+
+  /**
+   * Get the scrollable tile map manager if enabled
+   * @returns {ScrollableTileMapManager|null} The scrollable manager or null if not enabled
+   */
+  getScrollable() {
+    if (!this._useScrollableTileMap) {
+      return null;
+    }
+    return this._scrollableManager;
   }
 }

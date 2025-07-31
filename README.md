@@ -4,6 +4,14 @@
 
 The project features a Node.js/Express backend for multiplayer session handling and real-time communication via WebSockets, alongside a React-based frontend demo (e.g., tic-tac-toe) to illustrate integration and usage. kubic-kode is designed for extensibility, enabling developers to prototype and deploy custom turn-based games with minimal setup.
 
+## Key Features
+
+- **Modular Game Engine**: Core abstractions for tilemaps, turn sequencing, and game state management
+- **Scrollable TileMap**: Support for large worlds with player-specific viewports and fog-of-war
+- **Multiplayer Support**: Real-time communication via WebSockets with spectator functionality
+- **Turn-Based Gameplay**: Flexible turn systems (single-set, multi-set, multi-subset)
+- **Extensible Architecture**: Component-based entity system for easy game customization
+
 ## Requirements
 
 - [Node.js](https://nodejs.org/) (version 20.x or later recommended)
@@ -42,6 +50,42 @@ npm run start-frontend
 ```
 
 The frontend will be available at [http://localhost:3001](http://localhost:3001) and will communicate with the backend at [http://localhost:3000](http://localhost:3000).
+
+## Scrollable TileMap
+
+kubic-kode now supports **scrollable TileMaps** - a powerful feature that enables large-scale worlds with player-specific viewports. This allows each player to see only a subset of the entire game world, enabling more immersive and performance-friendly large-scale games.
+
+### Key Benefits
+
+- **Large Worlds**: Support for massive tile maps
+- **Player Viewports**: Each player has their own view of the world
+- **Fog of War**: Players only see tiles within their viewport
+- **Auto-Follow**: Viewports can automatically follow player movement
+- **Manual Scrolling**: Players can manually scroll their viewport
+- **Performance**: Only visible tiles are processed and sent to clients
+
+### Quick Start
+
+```javascript
+// Create a game engine with scrollable tile map
+const gameEngine = new GameEngine(100, 100, {
+    useScrollableTileMap: true,
+    playStyle: 'multi-set'
+});
+
+// Create a player with viewport configuration
+const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, {
+    width: 15,        // Viewport width in tiles
+    height: 10,       // Viewport height in tiles
+    autoFollow: true  // Auto-follow player movement
+});
+
+// Get only visible tiles for this player
+const scrollable = gameEngine.getScrollable();
+const visibleTiles = scrollable.getVisibleTilesForPlayer('player1');
+```
+
+For detailed documentation, see [docs/scrollable-tilemap.md](docs/scrollable-tilemap.md).
 
 ## Spectator System
 
