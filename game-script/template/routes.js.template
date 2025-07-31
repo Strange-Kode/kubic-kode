@@ -1,14 +1,14 @@
 import express from "express";
-import { sessionManager } from "../../../game-server/session-manager.js"; // Holds all active GameSession instances
-import { gameRegistry } from "../../../game-server/game-registry.js";
+import { sessionManager } from "kubic-kode"; // Holds all active GameSession instances
+import { gameRegistry } from "kubic-kode";
 
-import { GameEventService } from "../../../game-server/game-event-service.js";
-import { checkPlayableAccess } from "../../../game-utility/game-utility.js";
+import { gameEventService } from "kubic-kode";
+import { gameUtility } from "kubic-kode";
 
 const {{GAME_CAMEL_NAME}}Router = express.Router();
 
 // Create middleware instance with session manager
-const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+const checkPlayableAccessMiddleware = gameUtility.checkPlayableAccess(sessionManager);
 
 // Plays turn and returns game state of the player round
 {{GAME_CAMEL_NAME}}Router.post("/{{GAME_SHORT_NAME}}/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
@@ -49,7 +49,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}if (roundStatus.player_has_won) { // playerId has won
 {{INDENT}}{{INDENT}}gameSession.increaseWinCounter();
 {{INDENT}}{{INDENT}}let winCount = gameSession.getWinCounter();
-{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "player_won",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}winner: participant.name,
@@ -60,7 +60,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}{{INDENT}}});
 {{INDENT}}} else if (roundStatus.game_ended) {
 {{INDENT}}{{INDENT}}// Game ended without a winner (draw/tie)
-{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "game_ended",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}result: "draw",
@@ -69,7 +69,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}{{INDENT}}});
 {{INDENT}}} else if (roundStatus.status === "success") {
 {{INDENT}}{{INDENT}}// Normal move - broadcast game state update
-{{INDENT}}{{INDENT}}GameEventService.broadcastToSession(gameSession, {
+{{INDENT}}{{INDENT}}gameEventService.GameEventService.broadcastToSession(gameSession, {
 {{INDENT}}{{INDENT}}{{INDENT}}type: "game_updated",
 {{INDENT}}{{INDENT}}{{INDENT}}data: {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_data: gameInstance.toJSON(),

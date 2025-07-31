@@ -1,8 +1,8 @@
 // {{GAME_NAME}}.js
 
-import { GameEngine } from "../../game-engine/game-engine.js";
+import { gameEngine } from "kubic-kode";
 {{#USE_VIEWPORTS}}
-import { ViewportPlayer } from "../../game-engine/game-entity/viewport-player.js";
+import { viewportPlayer } from "kubic-kode";
 {{/USE_VIEWPORTS}}
 {{^USE_VIEWPORTS}}
 import PlayerEntity from "./game-entity/player-entity.js";
@@ -13,13 +13,13 @@ import {{GAME_CAMEL_NAME}}Router from "./route/{{GAME_SHORT_NAME}}-routes.js";
 class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}constructor() {
 {{INDENT}}{{INDENT}}// Create engine with default values (will be updated via options)
-{{INDENT}}{{INDENT}}const turnConfig = { 
+{{INDENT}}{{INDENT}}const engineConfig = { 
 {{INDENT}}{{INDENT}}{{INDENT}}playStyle: "{{PLAY_STYLE}}"
 {{INDENT}}{{INDENT}}{{INDENT}}{{#USE_SCROLLABLE_TILEMAP}}
 {{INDENT}}{{INDENT}}{{INDENT}}, useScrollableTileMap: true
 {{INDENT}}{{INDENT}}{{INDENT}}{{/USE_SCROLLABLE_TILEMAP}}
 {{INDENT}}{{INDENT}}};
-{{INDENT}}{{INDENT}}this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, turnConfig);
+{{INDENT}}{{INDENT}}this._engine = new gameEngine.GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, engineConfig);
 {{INDENT}}{{INDENT}}this._winner = null;
 {{INDENT}}{{INDENT}}{{#IS_MULTIPLAYER}}
 {{INDENT}}{{INDENT}}this._maxPlayers = {{MAX_PLAYERS}};
@@ -96,7 +96,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}height: {{DEFAULT_VIEWPORT_HEIGHT}},
 {{INDENT}}{{INDENT}}{{INDENT}}autoFollow: {{VIEWPORT_AUTO_FOLLOW}}
 {{INDENT}}{{INDENT}}};
-{{INDENT}}{{INDENT}}const player = new ViewportPlayer(playerId, name, initialPosition, viewportConfig);
+{{INDENT}}{{INDENT}}const player = new viewportPlayer.ViewportPlayer(playerId, name, initialPosition, viewportConfig);
 {{INDENT}}{{INDENT}}player.isComputer = isComputer;
 {{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}{{^USE_VIEWPORTS}}

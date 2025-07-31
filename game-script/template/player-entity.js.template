@@ -1,6 +1,6 @@
-import { GameEntity } from "../../../game-engine/game-entity/game-entity.js";
+import { gameEntity } from "kubic-kode";
 
-class PlayerEntity extends GameEntity {
+class PlayerEntity extends gameEntity.GameEntity {
 {{INDENT}}constructor(playerId, name, isComputer = false) {
 {{INDENT}}{{INDENT}}super(playerId, name, null); // Pass id, name, position to parent
 {{INDENT}}{{INDENT}}this._isComputer = isComputer;
