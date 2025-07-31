@@ -75,6 +75,63 @@ class GameSetupWizard {
     }).replace(/\s+/g, '');
   }
 
+  // Validate if a string would make a valid JavaScript identifier
+  isValidJavaScriptIdentifier(str) {
+    // Check if it's empty
+    if (!str || str.trim() === '') return false;
+    
+    // Check if it matches JavaScript identifier rules
+    // Must start with letter, underscore, or dollar sign
+    // Can contain letters, digits, underscores, dollar signs
+    const identifierRegex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+    
+    if (!identifierRegex.test(str)) return false;
+    
+    // Check against JavaScript reserved words
+    const reservedWords = [
+      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
+      'if', 'import', 'in', 'instanceof', 'let', 'new', 'return', 'super', 'switch',
+      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+      'enum', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static'
+    ];
+    
+    return !reservedWords.includes(str.toLowerCase());
+  }
+
+  // Suggest a valid identifier based on an invalid one
+  suggestValidIdentifier(str) {
+    let suggestion = str.trim();
+    
+    // Remove or replace invalid characters
+    suggestion = suggestion.replace(/[^a-zA-Z0-9_$]/g, '');
+    
+    // If it starts with a number, prefix with 'Game'
+    if (/^[0-9]/.test(suggestion)) {
+      suggestion = 'Game' + suggestion;
+    }
+    
+    // If it's empty after cleaning, use a default
+    if (!suggestion) {
+      suggestion = 'MyGame';
+    }
+    
+    // If it's a reserved word, append 'Game'
+    const reservedWords = [
+      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
+      'if', 'import', 'in', 'instanceof', 'let', 'new', 'return', 'super', 'switch',
+      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+      'enum', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static'
+    ];
+    
+    if (reservedWords.includes(suggestion.toLowerCase())) {
+      suggestion = suggestion + 'Game';
+    }
+    
+    return suggestion;
+  }
+
   // Convert to kebab-case (spaces become hyphens, lowercase)
   toKebabCase(str) {
     return str.trim().replace(/\s+/g, '-').toLowerCase();
@@ -111,11 +168,44 @@ class GameSetupWizard {
     console.log("\\n🎮 Welcome to the Game Setup Wizard!");
     console.log("====================================\\n");
     
-    // Game name
-    this.config.GAME_NAME = await this.askQuestion("What is the name of your game? (e.g., 'Chess', 'Connect Four'): ");
-    this.config.GAME_SHORT_NAME = this.toKebabCase(this.config.GAME_NAME);
-    this.config.GAME_CAMEL_NAME = this.toCamelCase(this.config.GAME_NAME);
-    this.config.GAME_CLASS_NAME = this.toPascalCase(this.config.GAME_NAME);
+    // Game name with validation
+    let gameName;
+    let gameClassName;
+    let gameCamelName;
+    
+    do {
+      gameName = await this.askQuestion("What is the name of your game? (e.g., 'Chess', 'Connect Four'): ");
+      gameClassName = this.toPascalCase(gameName);
+      gameCamelName = this.toCamelCase(gameName);
+      
+      // Check if the generated class name would be valid JavaScript
+      if (this.isValidJavaScriptIdentifier(gameClassName) && this.isValidJavaScriptIdentifier(gameCamelName)) {
+        this.config.GAME_NAME = gameName;
+        this.config.GAME_SHORT_NAME = this.toKebabCase(gameName);
+        this.config.GAME_CAMEL_NAME = gameCamelName;
+        this.config.GAME_CLASS_NAME = gameClassName;
+        break;
+      } else {
+        // Suggest a valid alternative
+        const suggestion = this.suggestValidIdentifier(gameName);
+        console.log(`\n⚠️  "${gameName}" would generate invalid JavaScript code.`);
+        console.log(`   Generated class name would be: "${gameClassName}"`);
+        console.log(`   Generated router name would be: "${gameCamelName}Router"`);
+        
+        const useSuggestion = await this.askYesNo(`\nWould you like to use "${suggestion}" instead?`);
+        
+        if (useSuggestion) {
+          this.config.GAME_NAME = suggestion;
+          this.config.GAME_SHORT_NAME = this.toKebabCase(suggestion);
+          this.config.GAME_CAMEL_NAME = this.toCamelCase(suggestion);
+          this.config.GAME_CLASS_NAME = this.toPascalCase(suggestion);
+          break;
+        } else {
+          console.log("Please enter a different game name that will generate valid JavaScript identifiers.");
+          console.log("Game names should start with a letter and contain only letters, numbers, spaces, hyphens, or underscores.");
+        }
+      }
+    } while (true);
     
     // Indentation preference
     const indentChoices = [
@@ -188,6 +278,40 @@ class GameSetupWizard {
         }
         console.log("Please enter a number between 3 and 50.");
       } while (true);
+      
+      // Advanced tilemap features
+      const tilemapChoices = [
+        "basic-scrollable (all players share the same view of the game world)",
+        "viewport-based (each player has their own independent view, enables fog-of-war and exploration)"
+      ];
+      const tilemapChoice = await this.askChoice("What type of scrollable grid implementation?", tilemapChoices);
+      this.config.USE_VIEWPORTS = tilemapChoice.includes("viewport-based");
+      this.config.USE_SCROLLABLE_TILEMAP = true;
+      
+      if (this.config.USE_VIEWPORTS) {
+        let viewportWidth, viewportHeight;
+        do {
+          viewportWidth = await this.askQuestion("Default viewport width (any positive integer): ");
+          viewportWidth = parseInt(viewportWidth);
+          if (viewportWidth > 0 && Number.isInteger(viewportWidth)) {
+            this.config.DEFAULT_VIEWPORT_WIDTH = viewportWidth;
+            break;
+          }
+          console.log("Please enter a positive integer.");
+        } while (true);
+        
+        do {
+          viewportHeight = await this.askQuestion("Default viewport height (any positive integer): ");
+          viewportHeight = parseInt(viewportHeight);
+          if (viewportHeight > 0 && Number.isInteger(viewportHeight)) {
+            this.config.DEFAULT_VIEWPORT_HEIGHT = viewportHeight;
+            break;
+          }
+          console.log("Please enter a positive integer.");
+        } while (true);
+        
+        this.config.VIEWPORT_AUTO_FOLLOW = await this.askYesNo("Should viewports automatically follow player movement?");
+      }
     } else {
       let size;
       do {
@@ -200,6 +324,9 @@ class GameSetupWizard {
         }
         console.log("Please enter a positive integer.");
       } while (true);
+      
+      this.config.USE_VIEWPORTS = false;
+      this.config.USE_SCROLLABLE_TILEMAP = false;
     }
     
     // Game interaction type
@@ -223,7 +350,14 @@ class GameSetupWizard {
     // Additional features
     this.config.HAS_PLAYER_SCORE = await this.askYesNo("Will players have scores?");
     this.config.HAS_PLAYER_RESOURCES = await this.askYesNo("Will players have resources (coins, energy, etc.)?");
-    this.config.HAS_PIECE_VALUE = await this.askYesNo("Will game pieces have different values?");
+    
+    // Only ask about piece values if the game uses pieces
+    if (this.config.USES_PIECES) {
+      this.config.HAS_PIECE_VALUE = await this.askYesNo("Will game pieces have different values?");
+    } else {
+      this.config.HAS_PIECE_VALUE = false; // No pieces = no piece values
+    }
+    
     this.config.HAS_SPECIAL_ACTIONS = await this.askYesNo("Will the game have special actions beyond basic moves? (e.g., power-ups, abilities, card plays)");
     this.config.HAS_INACTIVITY = await this.askYesNo("Should the game handle player inactivity timeouts?");
     this.config.SUPPORTS_AI = await this.askYesNo("Should the game support computer opponents (AI)?");
@@ -251,6 +385,11 @@ class GameSetupWizard {
     console.log(`Scrollable Grid: ${this.config.IS_SCROLLABLE ? 'Yes' : 'No'}`);
     if (this.config.IS_SCROLLABLE) {
       console.log(`Grid Size: ${this.config.DEFAULT_GRID_WIDTH} x ${this.config.DEFAULT_GRID_HEIGHT}`);
+      console.log(`Tilemap Type: ${this.config.USE_VIEWPORTS ? 'Viewport-based' : 'Basic scrollable'}`);
+      if (this.config.USE_VIEWPORTS) {
+        console.log(`Viewport Size: ${this.config.DEFAULT_VIEWPORT_WIDTH} x ${this.config.DEFAULT_VIEWPORT_HEIGHT}`);
+        console.log(`Auto-follow: ${this.config.VIEWPORT_AUTO_FOLLOW ? 'Yes' : 'No'}`);
+      }
     } else {
       console.log(`Grid Size: ${this.config.DEFAULT_GRID_WIDTH} x ${this.config.DEFAULT_GRID_WIDTH}`);
     }

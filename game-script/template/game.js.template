@@ -1,14 +1,24 @@
 // {{GAME_NAME}}.js
 
 import { GameEngine } from "../../game-engine/game-engine.js";
+{{#USE_VIEWPORTS}}
+import { ViewportPlayer } from "../../game-engine/game-entity/viewport-player.js";
+{{/USE_VIEWPORTS}}
+{{^USE_VIEWPORTS}}
 import PlayerEntity from "./game-entity/player-entity.js";
+{{/USE_VIEWPORTS}}
 import {{GAME_CAMEL_NAME}}Router from "./route/{{GAME_SHORT_NAME}}-routes.js";
 
 // {{GAME_CLASS_NAME}}Game implements methods as defined in GameContract (game-contract.js)
 class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}constructor() {
 {{INDENT}}{{INDENT}}// Create engine with default values (will be updated via options)
-{{INDENT}}{{INDENT}}const turnConfig = { playStyle: "{{PLAY_STYLE}}" };
+{{INDENT}}{{INDENT}}const turnConfig = { 
+{{INDENT}}{{INDENT}}{{INDENT}}playStyle: "{{PLAY_STYLE}}"
+{{INDENT}}{{INDENT}}{{INDENT}}{{#USE_SCROLLABLE_TILEMAP}}
+{{INDENT}}{{INDENT}}{{INDENT}}, useScrollableTileMap: true
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USE_SCROLLABLE_TILEMAP}}
+{{INDENT}}{{INDENT}}};
 {{INDENT}}{{INDENT}}this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, turnConfig);
 {{INDENT}}{{INDENT}}this._winner = null;
 {{INDENT}}{{INDENT}}{{#IS_MULTIPLAYER}}
@@ -78,8 +88,29 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{/SUPPORTS_AI}}
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}const playerId = this._engine.getPlayerEntities().length + 1;
+{{INDENT}}{{INDENT}}{{#USE_VIEWPORTS}}
+{{INDENT}}{{INDENT}}// Create a ViewportPlayer with viewport configuration
+{{INDENT}}{{INDENT}}const initialPosition = { x: Math.floor({{DEFAULT_GRID_WIDTH}} / 2), y: Math.floor({{DEFAULT_GRID_HEIGHT}} / 2) };
+{{INDENT}}{{INDENT}}const viewportConfig = {
+{{INDENT}}{{INDENT}}{{INDENT}}width: {{DEFAULT_VIEWPORT_WIDTH}},
+{{INDENT}}{{INDENT}}{{INDENT}}height: {{DEFAULT_VIEWPORT_HEIGHT}},
+{{INDENT}}{{INDENT}}{{INDENT}}autoFollow: {{VIEWPORT_AUTO_FOLLOW}}
+{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}const player = new ViewportPlayer(playerId, name, initialPosition, viewportConfig);
+{{INDENT}}{{INDENT}}player.isComputer = isComputer;
+{{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
+{{INDENT}}{{INDENT}}{{^USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}const player = new PlayerEntity(playerId, name, isComputer);
+{{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}this._engine.registerPlayerEntity(player);
+{{INDENT}}{{INDENT}}{{#USE_VIEWPORTS}}
+{{INDENT}}{{INDENT}}
+{{INDENT}}{{INDENT}}// Register viewport with the scrollable tilemap if enabled
+{{INDENT}}{{INDENT}}if (this._engine.getScrollable) {
+{{INDENT}}{{INDENT}}{{INDENT}}const scrollable = this._engine.getScrollable();
+{{INDENT}}{{INDENT}}{{INDENT}}scrollable.registerPlayerViewport(playerId, player.getViewport());
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}return player;
 {{INDENT}}}
 {{NEWLINE}}
@@ -134,7 +165,13 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{/USES_PIECES}}
 {{INDENT}}{{INDENT}}{{^USES_PIECES}}
 {{INDENT}}{{INDENT}}// Move the player character
+{{INDENT}}{{INDENT}}{{#USE_VIEWPORTS}}
+{{INDENT}}{{INDENT}}// ViewportPlayer automatically handles viewport following
+{{INDENT}}{{INDENT}}player.moveTo(xPos, yPos);
+{{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
+{{INDENT}}{{INDENT}}{{^USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}player.moveCharacter(xPos, yPos);
+{{INDENT}}{{INDENT}}{{/USE_VIEWPORTS}}
 {{INDENT}}{{INDENT}}{{/USES_PIECES}}
 
 {{INDENT}}{{INDENT}}// Check for win condition
@@ -266,6 +303,41 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}getGameOptions() {
 {{INDENT}}{{INDENT}}return this._engine.getGameOptions();
 {{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}{{#USE_VIEWPORTS}}
+{{INDENT}}// Viewport-specific methods for scrollable tilemap games
+{{INDENT}}scrollPlayerViewport(playerId, direction, amount = 1) {
+{{INDENT}}{{INDENT}}const scrollable = this._engine.getScrollable();
+{{INDENT}}{{INDENT}}if (scrollable) {
+{{INDENT}}{{INDENT}}{{INDENT}}return scrollable.scrollPlayerViewport(playerId, direction, amount);
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}return false;
+{{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}getVisibleTilesForPlayer(playerId) {
+{{INDENT}}{{INDENT}}const scrollable = this._engine.getScrollable();
+{{INDENT}}{{INDENT}}if (scrollable) {
+{{INDENT}}{{INDENT}}{{INDENT}}return scrollable.getVisibleTilesForPlayer(playerId);
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}return [];
+{{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}centerPlayerViewportOn(playerId, x, y) {
+{{INDENT}}{{INDENT}}const scrollable = this._engine.getScrollable();
+{{INDENT}}{{INDENT}}if (scrollable) {
+{{INDENT}}{{INDENT}}{{INDENT}}return scrollable.centerPlayerViewportOn(playerId, x, y);
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}return false;
+{{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}isPositionVisibleToPlayer(playerId, x, y) {
+{{INDENT}}{{INDENT}}const scrollable = this._engine.getScrollable();
+{{INDENT}}{{INDENT}}if (scrollable) {
+{{INDENT}}{{INDENT}}{{INDENT}}return scrollable.isPositionVisibleToPlayer(playerId, x, y);
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}return true; // If no scrollable tilemap, everything is visible
+{{INDENT}}}
+{{INDENT}}{{/USE_VIEWPORTS}}
 {{NEWLINE}}
 {{INDENT}}toJSON() {
 {{INDENT}}{{INDENT}}return {
