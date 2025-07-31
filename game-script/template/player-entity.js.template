@@ -4,7 +4,12 @@ class PlayerEntity extends GameEntity {
 {{INDENT}}constructor(playerId, name, isComputer = false) {
 {{INDENT}}{{INDENT}}super(playerId, name, null); // Pass id, name, position to parent
 {{INDENT}}{{INDENT}}this._isComputer = isComputer;
+{{INDENT}}{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}{{INDENT}}this._pieces = []; // List of game pieces placed by this player
+{{INDENT}}{{INDENT}}{{/USES_PIECES}}
+{{INDENT}}{{INDENT}}{{^USES_PIECES}}
+{{INDENT}}{{INDENT}}this._currentPosition = { x: 0, y: 0 }; // Current position for character movement
+{{INDENT}}{{INDENT}}{{/USES_PIECES}}
 {{INDENT}}{{INDENT}}{{#HAS_PLAYER_SCORE}}
 {{INDENT}}{{INDENT}}this._score = 0;
 {{INDENT}}{{INDENT}}{{/HAS_PLAYER_SCORE}}
@@ -13,6 +18,7 @@ class PlayerEntity extends GameEntity {
 {{INDENT}}{{INDENT}}{{/HAS_PLAYER_RESOURCES}}
 {{INDENT}}}
 {{NEWLINE}}
+{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}createGamePiece() {
 {{INDENT}}{{INDENT}}// Create a basic game piece for this player
 {{INDENT}}{{INDENT}}const piece = {
@@ -38,6 +44,27 @@ class PlayerEntity extends GameEntity {
 {{INDENT}}{{INDENT}}this._pieces.push(piece);
 {{INDENT}}{{INDENT}}return piece;
 {{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}clearPieces() {
+{{INDENT}}{{INDENT}}this._pieces = [];
+{{INDENT}}}
+{{INDENT}}{{/USES_PIECES}}
+{{INDENT}}{{^USES_PIECES}}
+{{INDENT}}moveCharacter(newX, newY) {
+{{INDENT}}{{INDENT}}// Move the player character to a new position
+{{INDENT}}{{INDENT}}this._currentPosition = { x: newX, y: newY };
+{{INDENT}}{{INDENT}}this.position = this._currentPosition; // Update parent entity position
+{{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}getCurrentPosition() {
+{{INDENT}}{{INDENT}}return { ...this._currentPosition };
+{{INDENT}}}
+{{NEWLINE}}
+{{INDENT}}setInitialPosition(x, y) {
+{{INDENT}}{{INDENT}}this._currentPosition = { x, y };
+{{INDENT}}{{INDENT}}this.position = this._currentPosition;
+{{INDENT}}}
+{{INDENT}}{{/USES_PIECES}}
 {{NEWLINE}}
 {{INDENT}}getPlayerType() {
 {{INDENT}}{{INDENT}}return this._isComputer ? 'computer' : 'human';
@@ -70,17 +97,18 @@ class PlayerEntity extends GameEntity {
 {{INDENT}}}
 {{INDENT}}{{/HAS_PLAYER_RESOURCES}}
 {{NEWLINE}}
-{{INDENT}}clearPieces() {
-{{INDENT}}{{INDENT}}this._pieces = [];
-{{INDENT}}}
-{{NEWLINE}}
 {{INDENT}}toJSON() {
 {{INDENT}}{{INDENT}}return {
 {{INDENT}}{{INDENT}}{{INDENT}}id: this.id,
 {{INDENT}}{{INDENT}}{{INDENT}}name: this.name,
 {{INDENT}}{{INDENT}}{{INDENT}}position: this.position,
-{{INDENT}}{{INDENT}}{{INDENT}}playerType: this.getPlayerType(),
-{{INDENT}}{{INDENT}}{{INDENT}}pieces: this._pieces.map(p => p.toJSON())
+{{INDENT}}{{INDENT}}{{INDENT}}playerType: this.getPlayerType()
+{{INDENT}}{{INDENT}}{{INDENT}}{{#USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}, pieces: this._pieces.map(p => p.toJSON())
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{^USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}, currentPosition: this._currentPosition
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
 {{INDENT}}{{INDENT}}{{INDENT}}{{#HAS_PLAYER_SCORE}}
 {{INDENT}}{{INDENT}}{{INDENT}}, score: this._score
 {{INDENT}}{{INDENT}}{{INDENT}}{{/HAS_PLAYER_SCORE}}

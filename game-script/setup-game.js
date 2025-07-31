@@ -140,7 +140,8 @@ class GameSetupWizard {
     const playStyles = [
       "single-set (turn-based, one player at a time, e.g. Tic-Tac-Toe)",
       "multi-set (all players can move simultaneously, e.g. Rock-Paper-Scissors)", 
-      "non-blocking (continuous action, game implementation decides how to handle turns, e.g. Dungeon Crawler)"
+      "multi-subset (turn-based, a subset of players at a time, e.g. team-based 2p vs. 2p)",
+      "non-blocking (continuous action, game implementation decides how to handle turns, e.g. advanced Dungeon Crawler like game)"
     ];
     const playStyleChoice = await this.askChoice("What play style will your game use?", playStyles);
     this.config.PLAY_STYLE = playStyleChoice.split(' ')[0];
@@ -201,8 +202,23 @@ class GameSetupWizard {
       } while (true);
     }
     
-    // Game piece type
-    this.config.GAME_PIECE_TYPE = await this.askQuestion("What type of game pieces will players place? (e.g., 'stone', 'piece', 'card'): ");
+    // Game interaction type
+    const gameTypes = [
+      "piece-placement (players place pieces on the board, e.g., Tic-Tac-Toe, Chess, Connect Four)",
+      "character-movement (players move a character around, e.g., adventure games, strategy games)",
+      "other (custom interaction model)"
+    ];
+    const gameTypeChoice = await this.askChoice("What type of game interaction does your game use?", gameTypes);
+    this.config.GAME_INTERACTION_TYPE = gameTypeChoice.split(' ')[0];
+    this.config.USES_PIECES = this.config.GAME_INTERACTION_TYPE === "piece-placement";
+    
+    if (this.config.USES_PIECES) {
+      this.config.GAME_PIECE_TYPE = await this.askQuestion("What type of game pieces will players place? (e.g., 'stone', 'piece', 'card'): ");
+    } else if (this.config.GAME_INTERACTION_TYPE === "character-movement") {
+      this.config.GAME_PIECE_TYPE = "character";
+    } else {
+      this.config.GAME_PIECE_TYPE = await this.askQuestion("What will players interact with in your game? (e.g., 'units', 'tokens', 'cards'): ");
+    }
     
     // Additional features
     this.config.HAS_PLAYER_SCORE = await this.askYesNo("Will players have scores?");
@@ -238,7 +254,12 @@ class GameSetupWizard {
     } else {
       console.log(`Grid Size: ${this.config.DEFAULT_GRID_WIDTH} x ${this.config.DEFAULT_GRID_WIDTH}`);
     }
-    console.log(`Game Piece Type: ${this.config.GAME_PIECE_TYPE}`);
+    console.log(`Game Interaction: ${this.config.GAME_INTERACTION_TYPE}`);
+    if (this.config.USES_PIECES) {
+      console.log(`Game Piece Type: ${this.config.GAME_PIECE_TYPE}`);
+    } else {
+      console.log(`Player Interaction: ${this.config.GAME_PIECE_TYPE}`);
+    }
     console.log(`Features:`);
     console.log(`  - Player Scores: ${this.config.HAS_PLAYER_SCORE ? 'Yes' : 'No'}`);
     console.log(`  - Player Resources: ${this.config.HAS_PLAYER_RESOURCES ? 'Yes' : 'No'}`);

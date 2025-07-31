@@ -119,6 +119,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}};
 {{INDENT}}{{INDENT}}}
 
+{{INDENT}}{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}{{INDENT}}if (tileMap.getTile(xPos, yPos).hasEntity()) {
 {{INDENT}}{{INDENT}}{{INDENT}}return { 
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
@@ -130,6 +131,11 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}// Place the player's piece
 {{INDENT}}{{INDENT}}const piece = player.createGamePiece();
 {{INDENT}}{{INDENT}}tileMap.placeTileEntity(piece, xPos, yPos);
+{{INDENT}}{{INDENT}}{{/USES_PIECES}}
+{{INDENT}}{{INDENT}}{{^USES_PIECES}}
+{{INDENT}}{{INDENT}}// Move the player character
+{{INDENT}}{{INDENT}}player.moveCharacter(xPos, yPos);
+{{INDENT}}{{INDENT}}{{/USES_PIECES}}
 
 {{INDENT}}{{INDENT}}// Check for win condition
 {{INDENT}}{{INDENT}}const hasWon = this.checkWinCondition(player, xPos, yPos);
@@ -152,7 +158,12 @@ class {{GAME_CLASS_NAME}}Game {
 
 {{INDENT}}{{INDENT}}return {
 {{INDENT}}{{INDENT}}{{INDENT}}status: "success",
-{{INDENT}}{{INDENT}}{{INDENT}}message: "Move successful",
+{{INDENT}}{{INDENT}}{{INDENT}}{{#USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Piece placed successfully",
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{^USES_PIECES}}
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Character moved successfully",
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
 {{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
 {{INDENT}}{{INDENT}}{{INDENT}}player_has_won: false,
 {{INDENT}}{{INDENT}}{{INDENT}}game_ended: false
