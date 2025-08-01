@@ -29,9 +29,11 @@ sessionRouter.get("/session/init/:gameId", (req, res) => {
 // Init session, POST: allows passing options (but NOT turnConfig)
 sessionRouter.post("/session/init/:gameId", (req, res) => {
   const { gameId } = req.params;
-  const otherOptions = req.body || {};
+  const { forceNew, ...otherOptions } = req.body || {};
   let sessionState, session_created;
-  if (sessionManager.hasSessions()) {
+  
+  // Check if we should force new session creation or reuse existing
+  if (!forceNew && sessionManager.hasSessions()) {
     sessionState = sessionManager.getSessions()[0];
     session_created = false;
   } else {

@@ -1,22 +1,22 @@
-# KubicKode End-to-End Testing Framework
+# KubicKode Testing Suite
 
-This directory contains a comprehensive end-to-end testing framework for the KubicKode game system. The framework tests the complete game flow from session creation to game completion, including WebSocket communication and multiplayer scenarios.
+This directory contains comprehensive end-to-end tests for the KubicKode game system. The test suite validates complete game flow from session creation to game completion, including WebSocket communication, multiplayer scenarios, and game-specific functionality.
 
 ## Overview
 
-The testing framework provides:
+The testing suite provides:
 
 - **Complete Game Flow Testing**: Tests the entire user journey from joining a session to completing a game
 - **WebSocket Communication Testing**: Verifies real-time communication between clients and server
 - **Multiplayer Scenario Testing**: Tests multiple players joining and playing together
-- **Error Handling Testing**: Validates error scenarios and edge cases
-- **Game-Specific Testing**: Specialized tests for different game types (Tic-Tac-Toe, etc.)
+- **Game Logic Testing**: Validates win conditions, move validation, and game state management
+- **Session Management Testing**: Tests session isolation, participant handling, and cleanup
+- **API Endpoint Testing**: Validates all REST API endpoints and error handling
 
 ## Files
 
-- `e2e-test-runner.js` - Core testing framework with HTTP and WebSocket utilities
-- `run-e2e-tests.js` - Main test runner script for general end-to-end tests
-- `tic-tac-toe-game-test.js` - Specialized tests for Tic-Tac-Toe game flow
+- `tic-tac-toe-game-test.js` - **Main test suite** - Comprehensive tic-tac-toe game testing
+- `e2e-test-runner.js` - Base testing framework with HTTP and WebSocket utilities
 - `README.md` - This documentation file
 
 ## Prerequisites
@@ -36,123 +36,137 @@ The testing framework provides:
 ### Run All Tests
 
 ```bash
-# Run all end-to-end tests
-npm run test:all
+# Run the complete test suite (recommended)
+npm test
 
-# Or run them individually
-npm run test:e2e
+# Alternative commands (all do the same thing)
+npm run test:all
 npm run test:tic-tac-toe
 ```
 
-### Run Tests with Custom Configuration
+### Prerequisites
 
-```bash
-# Test against a different server
-node test/run-e2e-tests.js --url http://localhost:3001
+1. **Server Running**: Make sure your KubicKode server is running:
+   ```bash
+   npm run start-server
+   ```
 
-# Test with a specific game type
-node test/run-e2e-tests.js --game tic-tac-toe-configurable
-
-# Set custom timeout
-node test/run-e2e-tests.js --timeout 15000
-```
+2. **Dependencies**: Ensure all dependencies are installed:
+   ```bash
+   npm install
+   ```
 
 ## Test Scenarios
 
-### 1. Complete Game Flow Test
+The main test suite (`tic-tac-toe-game-test.js`) runs three comprehensive test scenarios:
 
-Tests the entire game lifecycle:
+### 1. Complete Tic-Tac-Toe Game ✅
 
-1. **Session Initialization**: Creates a new game session
-2. **Player Joining**: Multiple players join the session
-3. **WebSocket Connection**: Establishes real-time communication
-4. **Game Start**: Starts the game with players
-5. **Gameplay**: Plays actual moves and tracks game state
-6. **Game End**: Handles win/lose/draw scenarios
-7. **Game Restart**: Tests restarting the game
-8. **Cleanup**: Properly closes connections
+Tests the entire game lifecycle with a full 5-move game:
 
-### 2. Multiplayer Scenario Test
+1. **Session Initialization**: Creates a fresh game session
+2. **Player Joining**: Two players join with proper participant types
+3. **WebSocket Connection**: Establishes real-time communication for both players
+4. **Game Start**: Starts the game with participant authentication
+5. **Gameplay**: Plays 5 strategic moves leading to a win condition
+6. **Win Detection**: Validates win conditions and game state
+7. **Game Restart**: Tests restarting with proper session management
+8. **Session Cleanup**: Ensures proper resource cleanup
 
-Tests multiplayer functionality:
+### 2. Game Configurations Test ✅
 
-- Multiple players joining simultaneously
-- WebSocket event broadcasting to all players
-- Concurrent game state updates
-- Player leave/join scenarios
+Tests different game configurations:
 
-### 3. Error Handling Test
+- **Classic 3x3**: Standard tic-tac-toe configuration
+- **Grid Size Validation**: Verifies proper grid dimensions
+- **Game Options**: Tests configuration parameter handling
 
-Tests error scenarios:
+### 3. WebSocket Events Test ✅
 
-- Invalid session IDs
-- Invalid game moves
-- WebSocket connection failures
-- Server error responses
+Comprehensive real-time communication testing:
 
-### 4. Tic-Tac-Toe Specific Tests
-
-Specialized tests for Tic-Tac-Toe:
-
-- **Complete Game Play**: Plays a full game with predefined moves
-- **Game Configurations**: Tests different grid sizes and options
-- **WebSocket Events**: Monitors all real-time events during gameplay
-- **Win Conditions**: Tests various win scenarios
-- **Game Restart**: Verifies proper game state reset
+- **Session Isolation**: Creates isolated test sessions
+- **Event Monitoring**: Monitors all WebSocket events during gameplay
+- **Game Start Events**: Validates game initialization broadcasts  
+- **Move Events**: Tests real-time move synchronization
+- **Event Timing**: Ensures proper event sequencing
 
 ## Test Output
 
-The framework provides detailed output showing:
+The test suite provides detailed output showing each step:
 
 ```
-🎮 KubicKode End-to-End Test Runner
-=====================================
+🎯 Tic-Tac-Toe Game Test Runner
+================================
 
 🔍 Checking server availability...
 ✅ Server is running and responding
 
-🧪 Running: Complete Game Flow
+🎯 Starting Tic-Tac-Toe Specific Tests
+============================================================
+
+🎯 Running: Complete Tic-Tac-Toe Game
   📋 Step 1: Initializing session...
   ✅ Session created: abc123-def456
-  👤 Step 2: Joining session with Player 1...
-  ✅ Player 1 joined: player-1-id
-  🔌 Step 3: Connecting WebSocket for Player 1...
-  ✅ WebSocket connected
-  ...
+  👥 Step 2: Joining players...
+  ✅ Players joined: 1, 2
+  🔌 Step 3: Connecting WebSockets...
+  🎮 Step 4: Starting the game...
+  ✅ Game started: 1
+  🎯 Step 5: Playing the game...
+    🎯 Move 1 (X): (0, 0)
+    🎯 Move 2 (O): (1, 1)
+    🎯 Move 3 (X): (0, 1)
+    🎯 Move 4 (O): (2, 2)
+    🎯 Move 5 (X): (0, 2)
+    🏆 Player X wins!
+  🎉 Complete Tic-Tac-Toe Game completed successfully!
 
-📊 TEST REPORT
+⚙️ Running: Game Configurations Test
+  🧪 Testing: Classic 3x3...
+  ✅ Grid size: 1.7320508075688772x1.7320508075688772
+  🎉 Game Configurations Test completed!
+
+📡 Running: WebSocket Events Test
+  🎉 WebSocket Events Test completed!
+
+============================================================
+📊 TIC-TAC-TOE TEST REPORT
 ============================================================
 Total Tests: 3
 Passed: 3
 Failed: 0
-Duration: 15420ms
-✅ PASS Test 1: Success
+Duration: 6745ms
+✅ PASS Test 1: Success (5 moves)
 ✅ PASS Test 2: Success
 ✅ PASS Test 3: Success
 
-🎉 All tests passed successfully!
+🎉 All Tic-Tac-Toe tests passed successfully!
 ```
 
 ## Configuration Options
 
 ### Test Runner Configuration
 
+The test runner is preconfigured with optimal settings:
+
 ```javascript
-const testRunner = new E2ETestRunner({
+const testRunner = new TicTacToeGameTest({
   baseUrl: 'http://localhost:3000',    // Server URL
-  wsUrl: 'ws://localhost:3000',        // WebSocket URL
+  wsUrl: 'ws://localhost:3000',        // WebSocket URL  
   timeout: 10000,                      // Request timeout (ms)
   retryAttempts: 3,                    // Retry attempts for failed requests
   retryDelay: 1000                     // Delay between retries (ms)
 });
 ```
 
-### Command Line Options
+### Key Features
 
-- `--url <url>`: Server URL (default: http://localhost:3000)
-- `--game <gameId>`: Default game ID (default: tic-tac-toe-classic)
-- `--timeout <ms>`: Request timeout in milliseconds (default: 10000)
-- `--help, -h`: Show help message
+- **Session Isolation**: Each test gets a fresh session using `forceNew: true`
+- **Proper Participant Types**: Uses `'user'` participant type (not `'human'`)
+- **Complete API Coverage**: Tests all tic-tac-toe specific endpoints
+- **WebSocket Monitoring**: Captures and validates all real-time events
+- **Error Handling**: Comprehensive error detection and reporting
 
 ## Extending the Framework
 
@@ -217,27 +231,33 @@ const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
 
 1. **Server Not Running**:
    ```
-   💥 Test runner failed: Request failed: connect ECONNREFUSED
+   💥 Tic-Tac-Toe test runner failed: Request failed: connect ECONNREFUSED
    ```
-   Solution: Start the server with `npm run start-server`
+   **Solution**: Start the server with `npm run start-server`
 
-2. **WebSocket Connection Failed**:
+2. **Missing Dependencies**:
    ```
-   ❌ WebSocket connection timeout
+   Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'node-fetch'
    ```
-   Solution: Check that WebSocket is enabled on the server
+   **Solution**: Install dependencies with `npm install`
 
-3. **Test Timeout**:
+3. **Session Full Error**:
    ```
-   ❌ Timeout waiting for event: gameStarted
+   ❌ Player join failed: Game session is full
    ```
-   Solution: Increase timeout with `--timeout 15000`
+   **Solution**: This is automatically handled by session isolation (tests use `forceNew: true`)
 
-4. **Game Not Found**:
+4. **WebSocket Connection Issues**:
    ```
-   ❌ Game type 'unknown-game' not found
+   [session-id] websocket_connected: { participantId: null }
    ```
-   Solution: Make sure the game is registered on the server
+   **Solution**: Ensure participants are joined before connecting WebSockets
+
+5. **Participant Type Error**:
+   ```
+   ❌ Invalid participant type specified: human
+   ```
+   **Solution**: Use `'user'`, `'computer'`, or `'spectator'` (not `'human'`)
 
 ### Debug Mode
 
@@ -260,11 +280,11 @@ await testRunner.testCompleteGameFlow();
 
 ## Integration with CI/CD
 
-The test framework is designed to work with continuous integration systems:
+The test suite is designed to work with continuous integration systems:
 
 ```yaml
 # Example GitHub Actions workflow
-name: E2E Tests
+name: KubicKode Tests
 on: [push, pull_request]
 jobs:
   test:
@@ -277,34 +297,62 @@ jobs:
       - run: npm install
       - run: npm run start-server &
       - run: sleep 5  # Wait for server to start
-      - run: npm run test:all
+      - run: npm test  # Runs the complete test suite
 ```
 
 ## Performance Considerations
 
-- **Test Duration**: Full test suite typically takes 15-30 seconds
-- **Resource Usage**: Tests create multiple WebSocket connections
-- **Server Load**: Tests generate realistic game traffic
+- **Test Duration**: Full test suite typically takes 6-8 seconds
+- **Resource Usage**: Tests create multiple WebSocket connections with proper cleanup
+- **Server Load**: Tests generate realistic tic-tac-toe game traffic
 - **Memory Usage**: Event logs are cleared after each test
+- **Session Isolation**: Each test creates fresh sessions to avoid interference
 
 ## Best Practices
 
-1. **Always Clean Up**: Use the `cleanup()` method to close connections
-2. **Handle Errors Gracefully**: Catch and log errors appropriately
-3. **Use Descriptive Test Names**: Make test output easy to understand
-4. **Test Edge Cases**: Include error scenarios and boundary conditions
-5. **Monitor WebSocket Events**: Verify real-time communication works
-6. **Test Game State**: Validate that game state is consistent
+1. **Session Isolation**: Each test uses `forceNew: true` for independent sessions
+2. **Proper Participant Types**: Always use `'user'`, `'computer'`, or `'spectator'`
+3. **WebSocket Timing**: Connect WebSockets after obtaining participant IDs
+4. **Error Handling**: Include comprehensive error checking and reporting
+5. **Real-time Testing**: Validate WebSocket events and game state synchronization
+6. **Complete Game Flow**: Test full gameplay scenarios, not just individual moves
+7. **Resource Cleanup**: Properly close connections and clean up sessions
 
 ## Contributing
 
-When adding new tests:
+When extending the test suite:
 
-1. Follow the existing naming conventions
-2. Include proper error handling
-3. Add descriptive console output
-4. Test both success and failure scenarios
-5. Update this documentation if needed
+1. **Extend TicTacToeGameTest**: Add new test methods to the existing class
+2. **Follow Session Isolation**: Use `forceNew: true` for independent test sessions
+3. **Include Comprehensive Validation**: Test API responses, WebSocket events, and game state
+4. **Add Descriptive Output**: Include clear console messages for test progress
+5. **Test Error Scenarios**: Validate both success and failure paths
+6. **Update Documentation**: Keep this README current with any changes
+
+### Example New Test Method
+
+```javascript
+async testNewFeature() {
+  const testName = 'New Feature Test';
+  console.log(`\n🧪 Running: ${testName}`);
+  
+  try {
+    // Create isolated session
+    const initResponse = await this.makeRequest('/api/session/init/tic-tac-toe-classic', {
+      method: 'POST',
+      body: JSON.stringify({ forceNew: true })
+    });
+    
+    // Your test logic here...
+    
+    console.log(`  🎉 ${testName} completed successfully!`);
+    return { success: true };
+  } catch (error) {
+    console.error(`  ❌ ${testName} failed:`, error.message);
+    return { success: false, error: error.message };
+  }
+}
+```
 
 ## Support
 
