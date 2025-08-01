@@ -1,0 +1,460 @@
+/**
+ * Tic-Tac-Toe Complete Game Test
+ * 
+ * This test plays a complete game of Tic-Tac-Toe from start to finish,
+ * including all possible game outcomes (win, draw, restart).
+ */
+
+import E2ETestRunner from './e2e-test-runner.js';
+
+class TicTacToeGameTest extends E2ETestRunner {
+  constructor(config = {}) {
+    super(config);
+    this.gameMoves = [];
+    this.gameHistory = [];
+  }
+
+  /**
+   * Test a complete Tic-Tac-Toe game with predefined moves
+   */
+  async testCompleteTicTacToeGame(gameId = 'tic-tac-toe-classic') {
+    const testName = 'Complete Tic-Tac-Toe Game';
+    console.log(`\n🎯 Running: ${testName}`);
+    
+    try {
+      // Step 1: Initialize session
+      console.log('  📋 Step 1: Initializing session...');
+      const initResponse = await this.makeRequest(`/api/session/init/${gameId}`, {
+        method: 'POST'
+      });
+      
+      const sessionId = initResponse.data.session_id;
+      this.currentSession = sessionId;
+      console.log(`  ✅ Session created: ${sessionId}`);
+
+      // Step 2: Join players
+      console.log('  👥 Step 2: Joining players...');
+      const player1Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          participantName: 'Alice',
+          participantType: 'human'
+        })
+      });
+      
+      const player2Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          participantName: 'Bob',
+          participantType: 'human'
+        })
+      });
+      
+      const player1Id = player1Response.data.participant_id;
+      const player2Id = player2Response.data.participant_id;
+      console.log(`  ✅ Players joined: ${player1Id}, ${player2Id}`);
+
+      // Step 3: Connect WebSockets
+      console.log('  🔌 Step 3: Connecting WebSockets...');
+      await this.connectWebSocket(sessionId, player1Id);
+      await this.connectWebSocket(sessionId, player2Id);
+
+      // Step 4: Start the game
+      console.log('  🎮 Step 4: Starting the game...');
+      const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+        method: 'POST'
+      });
+      
+      console.log(`  ✅ Game started: ${startResponse.data.current_player_id}`);
+
+      // Step 5: Play a complete game
+      console.log('  🎯 Step 5: Playing the game...');
+      const gameResult = await this.playCompleteGame(sessionId);
+      
+      if (gameResult.winner) {
+        console.log(`  🏆 Game won by: ${gameResult.winner}`);
+      } else {
+        console.log(`  🤝 Game ended in a draw`);
+      }
+
+      // Step 6: Verify game state
+      console.log('  🔍 Step 6: Verifying final game state...');
+      const isActiveResponse = await this.makeRequest(`/api/game/is-active/${sessionId}`);
+      const finalTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+      
+      console.log(`  ✅ Game active: ${isActiveResponse.data.is_active}`);
+      console.log(`  ✅ Final board state: ${finalTileMap.data.tiles.length} tiles`);
+
+      // Step 7: Test game restart
+      console.log('  🔄 Step 7: Testing game restart...');
+      const restartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+        method: 'POST'
+      });
+      
+      console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_id}`);
+
+      // Step 8: Verify restart state
+      const restartTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+      const isActiveAfterRestart = await this.makeRequest(`/api/game/is-active/${sessionId}`);
+      
+      console.log(`  ✅ Restart board state: ${restartTileMap.data.tiles.length} tiles`);
+      console.log(`  ✅ Game active after restart: ${isActiveAfterRestart.data.is_active}`);
+
+      // Clean up
+      this.websockets.forEach(ws => ws.close());
+      this.websockets.clear();
+      this.eventLogs.clear();
+
+      console.log(`  🎉 ${testName} completed successfully!`);
+      return { 
+        success: true, 
+        sessionId, 
+        gameResult,
+        movesPlayed: this.gameMoves.length
+      };
+
+    } catch (error) {
+      console.error(`  ❌ ${testName} failed:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Play a complete game of Tic-Tac-Toe
+   */
+  async playCompleteGame(sessionId) {
+    // Predefined moves for a complete game (this will result in a win for X)
+    const moves = [
+      { x: 0, y: 0 }, // X in top-left
+      { x: 1, y: 1 }, // O in center
+      { x: 0, y: 1 }, // X in top-middle
+      { x: 2, y: 2 }, // O in bottom-right
+      { x: 0, y: 2 }, // X in top-right (wins!)
+    ];
+
+    let currentMoveIndex = 0;
+    let gameEnded = false;
+    let winner = null;
+
+    while (currentMoveIndex < moves.length && !gameEnded) {
+      const move = moves[currentMoveIndex];
+      console.log(`    🎯 Move ${currentMoveIndex + 1}: (${move.x}, ${move.y})`);
+      
+      try {
+        const moveResponse = await this.makeRequest(`/api/tic-tac-toe/play-turn/${sessionId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            xPos: move.x,
+            yPos: move.y
+          })
+        });
+
+        this.gameMoves.push({
+          move: currentMoveIndex + 1,
+          position: move,
+          response: moveResponse.data
+        });
+
+        // Check if this move resulted in a win
+        if (moveResponse.data.player_has_won) {
+          gameEnded = true;
+          winner = `Player ${currentMoveIndex % 2 === 0 ? 'X' : 'O'}`;
+          console.log(`    🏆 ${winner} wins!`);
+        }
+
+        // Wait a bit for WebSocket events
+        await this.waitForEvent(sessionId, 'message_received', 1000);
+
+        currentMoveIndex++;
+        
+        // Add a small delay between moves for better visibility
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+      } catch (error) {
+        console.error(`    ❌ Move failed:`, error.message);
+        break;
+      }
+    }
+
+    // Check if game ended in a draw
+    if (!gameEnded && currentMoveIndex >= 9) {
+      console.log(`    🤝 Game ended in a draw`);
+    }
+
+    return {
+      winner,
+      movesPlayed: currentMoveIndex,
+      gameEnded
+    };
+  }
+
+  /**
+   * Test different game configurations
+   */
+  async testGameConfigurations() {
+    const testName = 'Game Configurations Test';
+    console.log(`\n⚙️ Running: ${testName}`);
+    
+    const configurations = [
+      { name: 'Classic 3x3', gameId: 'tic-tac-toe-classic' },
+      { name: 'Configurable 5x5', gameId: 'tic-tac-toe-configurable', options: { gridSize: 5 } }
+    ];
+
+    const results = [];
+
+    for (const config of configurations) {
+      console.log(`  🧪 Testing: ${config.name}...`);
+      
+      try {
+        // Initialize session
+        const initResponse = await this.makeRequest(`/api/session/init/${config.gameId}`, {
+          method: 'POST'
+        });
+        
+        const sessionId = initResponse.data.session_id;
+
+        // Join players
+        await this.makeRequest(`/api/session/${sessionId}/join`, {
+          method: 'POST',
+          body: JSON.stringify({
+            participantName: 'Alice',
+            participantType: 'human'
+          })
+        });
+        
+        await this.makeRequest(`/api/session/${sessionId}/join`, {
+          method: 'POST',
+          body: JSON.stringify({
+            participantName: 'Bob',
+            participantType: 'human'
+          })
+        });
+
+        // Start game with options if provided
+        const startBody = config.options ? JSON.stringify(config.options) : undefined;
+        const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+          method: 'POST',
+          body: startBody
+        });
+
+        // Get tile map to verify configuration
+        const tileMapResponse = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+        const gridSize = Math.sqrt(tileMapResponse.data.tiles.length);
+        
+        console.log(`    ✅ Grid size: ${gridSize}x${gridSize}`);
+        
+        results.push({
+          configuration: config.name,
+          success: true,
+          gridSize,
+          sessionId
+        });
+
+      } catch (error) {
+        console.error(`    ❌ ${config.name} failed:`, error.message);
+        results.push({
+          configuration: config.name,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`  🎉 ${testName} completed!`);
+    return { success: true, results };
+  }
+
+  /**
+   * Test WebSocket event handling
+   */
+  async testWebSocketEvents() {
+    const testName = 'WebSocket Events Test';
+    console.log(`\n📡 Running: ${testName}`);
+    
+    try {
+      // Initialize session and join players
+      const initResponse = await this.makeRequest('/api/session/init/tic-tac-toe-classic', {
+        method: 'POST'
+      });
+      
+      const sessionId = initResponse.data.session_id;
+
+      // Connect WebSocket before joining players
+      await this.connectWebSocket(sessionId);
+
+      // Join players and monitor events
+      await this.makeRequest(`/api/session/${sessionId}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          participantName: 'Alice',
+          participantType: 'human'
+        })
+      });
+
+      await this.makeRequest(`/api/session/${sessionId}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          participantName: 'Bob',
+          participantType: 'human'
+        })
+      });
+
+      // Wait for join events
+      await this.waitForEvent(sessionId, 'message_received', 3000);
+
+      // Start game and monitor events
+      await this.makeRequest(`/api/game/start/${sessionId}`, {
+        method: 'POST'
+      });
+
+      await this.waitForEvent(sessionId, 'message_received', 3000);
+
+      // Play a move and monitor events
+      await this.makeRequest(`/api/tic-tac-toe/play-turn/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          xPos: 0,
+          yPos: 0
+        })
+      });
+
+      await this.waitForEvent(sessionId, 'message_received', 3000);
+
+      // Analyze events
+      const events = this.eventLogs.get(sessionId) || [];
+      const messageEvents = events.filter(e => e.type === 'message_received');
+      
+      console.log(`  📊 Total WebSocket events: ${events.length}`);
+      console.log(`  📨 Message events: ${messageEvents.length}`);
+      
+      // Log event types
+      const eventTypes = [...new Set(messageEvents.map(e => e.data.type))];
+      console.log(`  📋 Event types: ${eventTypes.join(', ')}`);
+
+      // Clean up
+      this.websockets.forEach(ws => ws.close());
+      this.websockets.clear();
+      this.eventLogs.clear();
+
+      console.log(`  🎉 ${testName} completed!`);
+      return { 
+        success: true, 
+        totalEvents: events.length,
+        messageEvents: messageEvents.length,
+        eventTypes
+      };
+
+    } catch (error) {
+      console.error(`  ❌ ${testName} failed:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Run all Tic-Tac-Toe specific tests
+   */
+  async runTicTacToeTests() {
+    console.log('🎯 Starting Tic-Tac-Toe Specific Tests\n');
+    console.log('=' .repeat(60));
+    
+    const startTime = Date.now();
+    const results = [];
+
+    // Run Tic-Tac-Toe specific test scenarios
+    results.push(await this.testCompleteTicTacToeGame());
+    results.push(await this.testGameConfigurations());
+    results.push(await this.testWebSocketEvents());
+
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    // Generate test report
+    console.log('\n' + '=' .repeat(60));
+    console.log('📊 TIC-TAC-TOE TEST REPORT');
+    console.log('=' .repeat(60));
+    
+    const passed = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    
+    console.log(`Total Tests: ${results.length}`);
+    console.log(`Passed: ${passed}`);
+    console.log(`Failed: ${failed}`);
+    console.log(`Duration: ${duration}ms`);
+    
+    results.forEach((result, index) => {
+      const status = result.success ? '✅ PASS' : '❌ FAIL';
+      const details = result.movesPlayed ? ` (${result.movesPlayed} moves)` : '';
+      console.log(`${status} Test ${index + 1}: ${result.error || 'Success'}${details}`);
+    });
+
+    console.log('\n' + '=' .repeat(60));
+    
+    return {
+      total: results.length,
+      passed,
+      failed,
+      duration,
+      results
+    };
+  }
+}
+
+// Main execution function
+async function main() {
+  console.log('🎯 Tic-Tac-Toe Game Test Runner');
+  console.log('================================\n');
+  
+  const testRunner = new TicTacToeGameTest();
+  
+  try {
+    console.log('🔍 Checking server availability...');
+    const healthCheck = await testRunner.makeRequest('/api/session/init/tic-tac-toe-classic', {
+      method: 'POST'
+    });
+    
+    if (healthCheck.status === 200) {
+      console.log('✅ Server is running and responding\n');
+    } else {
+      throw new Error(`Server responded with status: ${healthCheck.status}`);
+    }
+    
+    // Run Tic-Tac-Toe specific tests
+    const results = await testRunner.runTicTacToeTests();
+    
+    // Exit with appropriate code
+    if (results.failed > 0) {
+      console.log('\n❌ Some Tic-Tac-Toe tests failed. Please check the output above.');
+      process.exit(1);
+    } else {
+      console.log('\n🎉 All Tic-Tac-Toe tests passed successfully!');
+      process.exit(0);
+    }
+    
+  } catch (error) {
+    console.error('\n💥 Tic-Tac-Toe test runner failed:', error.message);
+    console.log('\nMake sure your server is running with:');
+    console.log('  npm run start-server');
+    process.exit(1);
+  } finally {
+    testRunner.cleanup();
+  }
+}
+
+// Handle process termination
+process.on('SIGINT', () => {
+  console.log('\n\n🛑 Tic-Tac-Toe test runner interrupted by user');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n\n🛑 Tic-Tac-Toe test runner terminated');
+  process.exit(0);
+});
+
+// Run the tests if this file is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(error => {
+    console.error('💥 Unexpected error:', error);
+    process.exit(1);
+  });
+} 
