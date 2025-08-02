@@ -398,3 +398,28 @@ this.gameOptions.addConfigurable('maxRounds', 10, (value) => {
   return true;
 });
 ```
+
+## Game State Machine (GSM)
+
+kubic-kode includes an optional **Game State Machine (GSM)** for complex games requiring structured state management. The GSM provides organized state transitions, pause/resume functionality, and event handling for sophisticated game architectures.
+
+### Quick Start
+
+```javascript
+// Simple game (procedural)
+const engine = new GameEngine(3, 3);
+
+// Complex game (with GSM)  
+const engine = new GameEngine(50, 50, { useStateMachine: true });
+```
+
+The setup script (`node game-script/setup-game.js`) will automatically recommend GSM based on your game's complexity.
+
+### When to Use
+
+- **GSM**: Multiple screens/phases, complex transitions, inventory systems, pause/resume
+- **Procedural**: Single screen, simple game flow, minimal state management
+
+### Documentation
+
+📖 **[Complete GSM Guide](docs/game-state-machine.md)** - Detailed documentation with examples, API reference, and best practices

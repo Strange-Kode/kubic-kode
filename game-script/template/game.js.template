@@ -24,6 +24,9 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}{{#USE_SCROLLABLE_TILEMAP}}
 {{INDENT}}{{INDENT}}{{INDENT}}, useScrollableTileMap: true
 {{INDENT}}{{INDENT}}{{INDENT}}{{/USE_SCROLLABLE_TILEMAP}}
+{{INDENT}}{{INDENT}}{{INDENT}}{{#USE_STATE_MACHINE}}
+{{INDENT}}{{INDENT}}{{INDENT}}, useStateMachine: true
+{{INDENT}}{{INDENT}}{{INDENT}}{{/USE_STATE_MACHINE}}
 {{INDENT}}{{INDENT}}};
 {{INDENT}}{{INDENT}}this._engine = new GameEngine({{DEFAULT_GRID_WIDTH}}, {{DEFAULT_GRID_HEIGHT}}, engineConfig);
 {{INDENT}}{{INDENT}}this._winner = null;

@@ -20,6 +20,7 @@ export * as gameInterface from "./game-engine/game-interface.js";
 export * as gameOptions from "./game-engine/game-options.js";
 export * as interfaceComplianceChecker from "./game-engine/interface-compliance-checker.js";
 export * as kubicKodeGame from "./game-engine/kubic-kode-game.js";
+export * as gameStateMachine from "./game-engine/game-state-machine.js";
 
 // Game Server
 export { sessionManager } from "./game-server/session-manager.js";

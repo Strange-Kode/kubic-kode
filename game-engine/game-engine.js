@@ -1,5 +1,6 @@
 import { TileMap } from "./tile-map.js";
 import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
+import { GameStateMachine } from "./game-state-machine.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
@@ -36,6 +37,13 @@ export class GameEngine {
     this._turnOrder = engineConfig.turnOrder || [];
     // For multi-set: track which players have acted this round
     this._actedThisRound = new Set();
+
+    // Game State Machine (optional)
+    this._useStateMachine = engineConfig.useStateMachine === true;
+    this._stateMachine = null;
+    if (this._useStateMachine) {
+      this._stateMachine = new GameStateMachine(this);
+    }
   }
 
   getEntities() {
@@ -192,9 +200,14 @@ export class GameEngine {
     return this._currentTurnNumber;
   }
 
-  update() {
+  update(deltaTime = 16) {
     for (const player_entity of this._player_entities) {
       player_entity.update();
+    }
+    
+    // Update state machine if enabled
+    if (this._useStateMachine && this._stateMachine) {
+      this._stateMachine.update(deltaTime);
     }
   }
 
@@ -325,5 +338,76 @@ export class GameEngine {
       return null;
     }
     return this._scrollableManager;
+  }
+
+  // Game State Machine methods
+  // --------------------------
+
+  /**
+   * Check if state machine is enabled
+   * @returns {boolean} True if state machine is enabled
+   */
+  isStateMachineEnabled() {
+    return this._useStateMachine;
+  }
+
+  /**
+   * Get the state machine instance
+   * @returns {GameStateMachine|null} The state machine or null if not enabled
+   */
+  getStateMachine() {
+    if (!this._useStateMachine) {
+      console.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
+      return null;
+    }
+    return this._stateMachine;
+  }
+
+  /**
+   * Handle game events through state machine
+   * @param {string} eventType - The type of event
+   * @param {object} eventData - Event data
+   */
+  handleGameEvent(eventType, eventData = {}) {
+    if (this._useStateMachine && this._stateMachine) {
+      this._stateMachine.handleEvent(eventType, eventData);
+    }
+  }
+
+  /**
+   * Handle player actions through state machine
+   * @param {string} playerId - The player ID
+   * @param {string} action - The action type
+   * @param {object} data - Action data
+   */
+  handlePlayerAction(playerId, action, data = {}) {
+    if (this._useStateMachine && this._stateMachine) {
+      this._stateMachine.handlePlayerAction(playerId, action, data);
+    }
+  }
+
+  /**
+   * Convenience method to get current game state
+   * @returns {GameState|null} Current state or null if GSM not enabled
+   */
+  getCurrentGameState() {
+    if (this._useStateMachine && this._stateMachine) {
+      return this._stateMachine.getCurrentState();
+    }
+    return null;
+  }
+
+  /**
+   * Convenience method to transition to a new game state
+   * @param {string} stateName - Name of the state to transition to
+   * @param {object} data - Optional transition data
+   * @returns {Promise<boolean>} True if transition was successful
+   */
+  async transitionToState(stateName, data = {}) {
+    if (this._useStateMachine && this._stateMachine) {
+      return await this._stateMachine.transitionTo(stateName, data);
+    }
+    console.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
+    return false;
   }
 }

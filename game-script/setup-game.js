@@ -329,6 +329,58 @@ class GameSetupWizard {
       this.config.USE_SCROLLABLE_TILEMAP = false;
     }
     
+    // Game State Machine recommendation
+    console.log("\\n🧠 Game Complexity Assessment");
+    console.log("Advanced games often benefit from a Game State Machine (GSM) for managing:");
+    console.log("  • Multiple screens/phases (menu, gameplay, pause, game over)");
+    console.log("  • Complex transitions (intro sequences, cutscenes)");
+    console.log("  • Inventory/character management");
+    console.log("  • Game scenes and pause/resume functionality");
+    console.log("  • Multiple game modes or states");
+    console.log("\\nSimple games typically use procedural code:");
+    console.log("  • Single gameplay screen");
+    console.log("  • Direct game logic without complex state management");
+    console.log("  • Minimal transitions between screens");
+    
+    const complexity = await this.askChoice("How complex will your game be?", [
+      "Simple (single screen, minimal transitions, basic game flow)",
+      "Moderate (some additional screens like pause/settings, basic transitions)",
+      "Complex (multiple game phases, advanced transitions, inventory/character systems)"
+    ]);
+    
+    // Recommend GSM based on complexity but let user choose
+    let recommendGSM = false;
+    if (complexity.includes("Complex")) {
+      recommendGSM = true;
+      console.log("\\n💡 Based on your complexity choice, we RECOMMEND using the Game State Machine!");
+    } else if (complexity.includes("Moderate")) {
+      console.log("\\n💡 Based on your complexity choice, you MAY benefit from the Game State Machine.");
+    } else {
+      console.log("\\n💡 Based on your complexity choice, procedural code is likely sufficient, but you can still use GSM if desired.");
+    }
+    
+    console.log("\\n📖 The Game State Machine (GSM) provides:");
+    console.log("  • Structured state management (MenuState, GameplayState, PauseState, etc.)");
+    console.log("  • Clean transitions between game phases");
+    console.log("  • Built-in pause/resume functionality");
+    console.log("  • Event handling per state");
+    console.log("  • Easy to extend and maintain");
+    console.log("\\n📖 Procedural approach provides:");
+    console.log("  • Simpler, direct code flow");
+    console.log("  • Less abstraction");
+    console.log("  • Faster development for simple games");
+    
+    const defaultGSMChoice = recommendGSM ? "y" : "n";
+    const gsmAnswer = await this.askQuestion(`Would you like to use the Game State Machine? ${recommendGSM ? '(RECOMMENDED) ' : ''}(y/n) [${defaultGSMChoice}]: `);
+    this.config.USE_STATE_MACHINE = (gsmAnswer.toLowerCase() === 'y' || gsmAnswer.toLowerCase() === 'yes') || 
+                                   (gsmAnswer.trim() === '' && recommendGSM);
+    
+    if (this.config.USE_STATE_MACHINE) {
+      console.log("✅ Game State Machine will be enabled in your GameEngine configuration.");
+    } else {
+      console.log("📝 Your game will use procedural code approach.");
+    }
+    
     // Game interaction type
     const gameTypes = [
       "piece-placement (players place pieces on the board, e.g., Tic-Tac-Toe, Chess, Connect Four)",
