@@ -9,7 +9,7 @@
     "require": "./index.cjs"
   },
   "scripts": {
-    "test": "npm run test:tic-tac-toe",
+    "test": "npm run test:tic-tac-toe && npm run test:lobby",
     "test:tic-tac-toe": "node test/tic-tac-toe-game-test.js",
     "test:lobby": "node test/lobby-system-test.js",
     "test:all": "npm run test:tic-tac-toe && npm run test:lobby",
