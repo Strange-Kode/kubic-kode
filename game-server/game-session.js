@@ -2,14 +2,25 @@ import { InactivityManager } from "../game-utility/inactivity-manager.js";
 import { gameHistoryManager } from "./game-history-manager.js";
 
 export class GameSession {
-  constructor(sessionId, maxParticipants = 2) {
+  constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
     this.sessionId = sessionId;
     this.maxParticipants = maxParticipants;
-    this.participants = []; // { id, name }
+    this.gameVariantId = gameVariantId;
+    this.participants = []; // { id, name, type }
     this.started = false;
     this.participant_alloc_idx = 0;
     this.winCounter = 0;
     this.gameInstance = null;
+    
+    // Host information
+    this._hostId = null;
+    this._hostInfo = null; // { id, name, joinedAt }
+    
+    // Lobby state
+    this._lobbyConfig = new Map(); // Session-level game configuration
+    this._readyStates = new Map(); // participantId -> boolean
+    this._syncPhase = false; // Whether in sync/ready check phase
+    this._chatMessages = []; // { id, participantId, participantName, message, timestamp, type }
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
@@ -40,6 +51,12 @@ export class GameSession {
   }
 
   addParticipant(name, participant_type = 'user') {
+    // Validate unique names within session
+    const existingName = this.participants.find(p => p.name === name);
+    if (existingName) {
+      throw new Error(`Participant name '${name}' is already in use. Names must be unique within the session.`);
+    }
+
     // Only count playable participants (user, computer) against maxParticipants limit
     // Spectators can join even when the game is "full"
     const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
@@ -63,11 +80,24 @@ export class GameSession {
       throw new Error("Participant with this ID already exists.");
     }
 
-    this.participants.push({
+    const participant = {
       id: participantId,
       name: name,
-      type: participant_type
-    });
+      type: participant_type,
+      joinedAt: new Date().toISOString()
+    };
+
+    this.participants.push(participant);
+
+    // Set host if this is the first participant
+    if (this._hostId === null && participant_type !== 'spectator') {
+      this.setHost(participantId, name);
+    }
+
+    // Initialize ready state for playable participants
+    if (this.isParticipantPlayable(participant)) {
+      this._readyStates.set(participantId, false);
+    }
 
     // Add to game history
     this.gameHistory.addParticipantJoinedEvent(participantId, name);
@@ -84,6 +114,21 @@ export class GameSession {
 
     const participant = this.participants[index];
     this.participants.splice(index, 1);
+
+    // Remove from ready states
+    this._readyStates.delete(id);
+
+    // Handle host transfer if host is leaving
+    if (this._hostId === id) {
+      this._hostId = null;
+      this._hostInfo = null;
+      
+      // Find next eligible host (first playable participant)
+      const nextHost = this.participants.find(p => this.isParticipantPlayable(p));
+      if (nextHost) {
+        this.setHost(nextHost.id, nextHost.name);
+      }
+    }
 
     // Add to game history
     this.gameHistory.addParticipantLeftEvent(id, participant.name);
@@ -257,5 +302,222 @@ export class GameSession {
    */
   isSubscribedToGameHistoryEvent(eventType) {
     return gameHistoryManager.isSubscribed(this.sessionId, eventType);
+  }
+
+  // Host Management
+  // ---------------
+
+  setHost(participantId, participantName) {
+    const participant = this.getParticipantById(participantId);
+    if (!participant) {
+      throw new Error("Cannot set host: participant not found.");
+    }
+    
+    if (!this.isParticipantPlayable(participant)) {
+      throw new Error("Cannot set host: only playable participants can be host.");
+    }
+
+    this._hostId = participantId;
+    this._hostInfo = {
+      id: participantId,
+      name: participantName,
+      joinedAt: participant.joinedAt || new Date().toISOString()
+    };
+  }
+
+  getHost() {
+    return this._hostInfo;
+  }
+
+  getHostId() {
+    return this._hostId;
+  }
+
+  isHost(participantId) {
+    return this._hostId === participantId;
+  }
+
+  transferHost(newHostId) {
+    const newHost = this.getParticipantById(newHostId);
+    if (!newHost) {
+      throw new Error("Cannot transfer host: new host participant not found.");
+    }
+    
+    if (!this.isParticipantPlayable(newHost)) {
+      throw new Error("Cannot transfer host: only playable participants can be host.");
+    }
+
+    this.setHost(newHostId, newHost.name);
+  }
+
+  // Lobby Configuration
+  // -------------------
+
+  setLobbyConfig(key, value, hostId) {
+    if (!this.isHost(hostId)) {
+      throw new Error("Only the host can configure lobby settings.");
+    }
+    
+    this._lobbyConfig.set(key, value);
+  }
+
+  getLobbyConfig(key) {
+    return this._lobbyConfig.get(key);
+  }
+
+  getAllLobbyConfig() {
+    return Object.fromEntries(this._lobbyConfig);
+  }
+
+  deleteLobbyConfig(key, hostId) {
+    if (!this.isHost(hostId)) {
+      throw new Error("Only the host can delete lobby settings.");
+    }
+    
+    return this._lobbyConfig.delete(key);
+  }
+
+  // Ready States & Synchronization
+  // ------------------------------
+
+  setParticipantReady(participantId, ready) {
+    const participant = this.getParticipantById(participantId);
+    if (!participant) {
+      throw new Error("Participant not found.");
+    }
+    
+    if (!this.isParticipantPlayable(participant)) {
+      throw new Error("Only playable participants can have ready states.");
+    }
+    
+    this._readyStates.set(participantId, ready === true);
+  }
+
+  getParticipantReady(participantId) {
+    return this._readyStates.get(participantId) || false;
+  }
+
+  getAllReadyStates() {
+    const readyStates = {};
+    for (const [participantId, ready] of this._readyStates) {
+      readyStates[participantId] = ready;
+    }
+    return readyStates;
+  }
+
+  areAllParticipantsReady() {
+    const playableParticipants = this.getPlayableParticipants();
+    if (playableParticipants.length < 2) return false;
+    
+    return playableParticipants.every(p => this._readyStates.get(p.id) === true);
+  }
+
+  startSyncPhase() {
+    this._syncPhase = true;
+    
+    // Reset all ready states to false
+    for (const participant of this.getPlayableParticipants()) {
+      this._readyStates.set(participant.id, false);
+    }
+  }
+
+  endSyncPhase() {
+    this._syncPhase = false;
+  }
+
+  isInSyncPhase() {
+    return this._syncPhase;
+  }
+
+  kickParticipant(participantIdToKick, hostId) {
+    if (!this.isHost(hostId)) {
+      throw new Error("Only the host can kick participants.");
+    }
+    
+    if (participantIdToKick === hostId) {
+      throw new Error("Host cannot kick themselves.");
+    }
+    
+    this.removeParticipant(participantIdToKick);
+  }
+
+  // Chat Functionality
+  // ------------------
+
+  addChatMessage(participantId, message, messageType = 'user') {
+    const participant = this.getParticipantById(participantId);
+    if (!participant) {
+      throw new Error("Participant not found.");
+    }
+
+    const chatMessage = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      participantId: participantId,
+      participantName: participant.name,
+      message: message.trim(),
+      timestamp: new Date().toISOString(),
+      type: messageType // 'user', 'system', 'host'
+    };
+
+    this._chatMessages.push(chatMessage);
+    
+    // Keep only last 100 messages to prevent memory bloat
+    if (this._chatMessages.length > 100) {
+      this._chatMessages = this._chatMessages.slice(-100);
+    }
+
+    return chatMessage;
+  }
+
+  getChatMessages(limit = 50) {
+    return this._chatMessages.slice(-limit);
+  }
+
+  addSystemMessage(message) {
+    const systemMessage = {
+      id: `sys-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      participantId: null,
+      participantName: 'System',
+      message: message.trim(),
+      timestamp: new Date().toISOString(),
+      type: 'system'
+    };
+
+    this._chatMessages.push(systemMessage);
+    
+    // Keep only last 100 messages to prevent memory bloat
+    if (this._chatMessages.length > 100) {
+      this._chatMessages = this._chatMessages.slice(-100);
+    }
+
+    return systemMessage;
+  }
+
+  // Lobby Status Information
+  // ------------------------
+
+  getLobbyStatus() {
+    const playableParticipants = this.getPlayableParticipants();
+    const spectators = this.getSpectatorParticipants();
+    
+    return {
+      sessionId: this.sessionId,
+      gameVariantId: this.gameVariantId,
+      started: this.started,
+      inSyncPhase: this._syncPhase,
+      participantCount: {
+        players: playableParticipants.length,
+        spectators: spectators.length,
+        total: this.participants.length,
+        maxPlayers: this.maxParticipants
+      },
+      host: this._hostInfo,
+      lobbyConfig: this.getAllLobbyConfig(),
+      readyStates: this.getAllReadyStates(),
+      canStart: playableParticipants.length >= 2 && this.areAllParticipantsReady(),
+      needsMorePlayers: playableParticipants.length < this.maxParticipants,
+      participants: this.listParticipants(),
+      recentChat: this.getChatMessages(10)
+    };
   }
 }

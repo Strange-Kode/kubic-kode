@@ -16,6 +16,7 @@ The testing suite provides:
 ## Files
 
 - `tic-tac-toe-game-test.js` - **Main test suite** - Comprehensive tic-tac-toe game testing
+- `lobby-system-test.js` - **Lobby system test suite** - Comprehensive lobby functionality testing
 - `e2e-test-runner.js` - Base testing framework with HTTP and WebSocket utilities
 - `README.md` - This documentation file
 
@@ -37,11 +38,12 @@ The testing suite provides:
 
 ```bash
 # Run the complete test suite (recommended)
-npm test
-
-# Alternative commands (all do the same thing)
 npm run test:all
-npm run test:tic-tac-toe
+
+# Run individual test suites
+npm run test:tic-tac-toe    # Game logic and flow tests
+npm run test:lobby          # Lobby system tests
+npm test                    # Default (runs tic-tac-toe tests)
 ```
 
 ### Prerequisites
@@ -142,6 +144,24 @@ Duration: 6745ms
 ✅ PASS Test 3: Success
 
 🎉 All Tic-Tac-Toe tests passed successfully!
+```
+
+## Lobby System Test Suite
+
+The lobby system test (`lobby-system-test.js`) provides comprehensive testing of all lobby functionality including host management, session configuration, auto-join, chat, ready checks, and validation scenarios.
+
+### Lobby Test Coverage ✅
+
+- **Complete Lobby Flow**: Session creation, host assignment, configuration, auto-join, chat, sync, and validation
+- **API Endpoints**: All 15+ new lobby endpoints (session listing, config, chat, ready states, participant management)
+- **WebSocket Events**: Real-time broadcasting for all lobby actions and state changes
+- **Validation Scenarios**: Host privileges, unique usernames, data validation, and error handling
+
+### Running Lobby Tests
+
+```bash
+npm run test:lobby          # Lobby tests only
+npm run test:all           # All tests (tic-tac-toe + lobby)
 ```
 
 ## Configuration Options

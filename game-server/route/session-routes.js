@@ -433,6 +433,678 @@ sessionRouter.get("/session/subscriptions/:sessionId", (req, res) => {
   }
 });
 
+// List all sessions with comprehensive lobby information
+sessionRouter.get("/sessions/list", (req, res) => {
+  try {
+    const allSessions = sessionManager.getSessions();
+    const sessionList = allSessions.map(session => session.getLobbyStatus());
+    
+    res.json({
+      success: true,
+      total_sessions: sessionList.length,
+      sessions: sessionList
+    });
+  } catch (err) {
+    console.error("List sessions error:", err);
+    res.status(500).json({ error: "Failed to retrieve sessions list." });
+  }
+});
+
+// Get detailed lobby information for a specific session
+sessionRouter.get("/session/lobby/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+  
+  try {
+    const lobbyStatus = session.getLobbyStatus();
+    res.json({
+      success: true,
+      lobby: lobbyStatus
+    });
+  } catch (err) {
+    console.error("Get lobby status error:", err);
+    res.status(500).json({ error: "Failed to retrieve lobby status." });
+  }
+});
+
+// Get sessions by game variant
+sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
+  const { gameVariantId } = req.params;
+  const { onlyJoinable } = req.query;
+  
+  try {
+    const allSessions = sessionManager.getSessions();
+    let filteredSessions = allSessions.filter(session => 
+      session.gameVariantId === gameVariantId
+    );
+    
+    // If onlyJoinable flag is set, filter to only sessions that need players
+    if (onlyJoinable === 'true') {
+      filteredSessions = filteredSessions.filter(session => {
+        const status = session.getLobbyStatus();
+        return !status.started && status.needsMorePlayers;
+      });
+    }
+    
+    const sessionList = filteredSessions.map(session => session.getLobbyStatus());
+    
+    res.json({
+      success: true,
+      game_variant_id: gameVariantId,
+      only_joinable: onlyJoinable === 'true',
+      total_sessions: sessionList.length,
+      sessions: sessionList
+    });
+  } catch (err) {
+    console.error("Get sessions by game variant error:", err);
+    res.status(500).json({ error: "Failed to retrieve sessions for game variant." });
+  }
+});
+
+// Session Configuration Routes
+// ---------------------------
+
+// Set lobby configuration (host only)
+sessionRouter.post("/session/:sessionId/config", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, config } = req.body;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+
+  if (!config || typeof config !== 'object') {
+    return res.status(400).json({ error: "config object is required." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    // Validate that participant is the host
+    if (!session.isHost(participantId)) {
+      return res.status(403).json({ error: "Only the host can configure lobby settings." });
+    }
+
+    // Apply configuration changes
+    const configChanges = [];
+    for (const [key, value] of Object.entries(config)) {
+      const oldValue = session.getLobbyConfig(key);
+      session.setLobbyConfig(key, value, participantId);
+      configChanges.push({ key, oldValue, newValue: value });
+    }
+
+    res.json({
+      success: true,
+      applied_config: config,
+      changes: configChanges,
+      full_config: session.getAllLobbyConfig()
+    });
+
+    // Broadcast configuration changes
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyConfigUpdated",
+        payload: {
+          hostId: participantId,
+          hostName: session.getHost().name,
+          changes: configChanges,
+          fullConfig: session.getAllLobbyConfig()
+        }
+      });
+
+      // Add system message about config changes
+      const changesList = configChanges.map(c => `${c.key}: ${c.newValue}`).join(', ');
+      const systemMessage = session.addSystemMessage(`Host updated game settings: ${changesList}`);
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Lobby config broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Set lobby config error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get lobby configuration
+sessionRouter.get("/session/:sessionId/config", (req, res) => {
+  const { sessionId } = req.params;
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    res.json({
+      success: true,
+      session_id: sessionId,
+      config: session.getAllLobbyConfig(),
+      host: session.getHost()
+    });
+  } catch (err) {
+    console.error("Get lobby config error:", err);
+    res.status(500).json({ error: "Failed to retrieve lobby configuration." });
+  }
+});
+
+// Delete specific lobby configuration key (host only)
+sessionRouter.delete("/session/:sessionId/config/:configKey", (req, res) => {
+  const { sessionId, configKey } = req.params;
+  const { participantId } = req.body;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    const oldValue = session.getLobbyConfig(configKey);
+    const deleted = session.deleteLobbyConfig(configKey, participantId);
+
+    if (!deleted) {
+      return res.status(404).json({ error: `Configuration key '${configKey}' not found.` });
+    }
+
+    res.json({
+      success: true,
+      deleted_key: configKey,
+      old_value: oldValue,
+      remaining_config: session.getAllLobbyConfig()
+    });
+
+    // Broadcast configuration deletion
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyConfigDeleted",
+        payload: {
+          hostId: participantId,
+          hostName: session.getHost().name,
+          deletedKey: configKey,
+          oldValue: oldValue,
+          remainingConfig: session.getAllLobbyConfig()
+        }
+      });
+
+      // Add system message
+      const systemMessage = session.addSystemMessage(`Host removed setting: ${configKey}`);
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Lobby config deletion broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Delete lobby config error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Auto-join session for a game variant
+sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
+  const { gameVariantId } = req.params;
+  const { participantName, participantType = "user", createIfNone = true } = req.body;
+
+  if (!participantName || participantName.trim().length === 0) {
+    return res.status(400).json({ error: "participantName is required." });
+  }
+
+  try {
+    const allSessions = sessionManager.getSessions();
+    
+    // Find sessions that match criteria:
+    // 1. Same game variant
+    // 2. Not started
+    // 3. Need more players
+    // 4. Participant name not already in use
+    const availableSessions = allSessions.filter(session => {
+      if (session.gameVariantId !== gameVariantId) return false;
+      if (session.started) return false;
+      
+      const status = session.getLobbyStatus();
+      if (!status.needsMorePlayers) return false;
+      
+      // Check if participant name is already in use in this session
+      const nameInUse = session.participants.some(p => p.name === participantName.trim());
+      if (nameInUse) return false;
+      
+      return true;
+    });
+
+    // Sort by preference: sessions with fewer players first (to balance)
+    availableSessions.sort((a, b) => {
+      const aPlayersCount = a.getPlayableParticipants().length;
+      const bPlayersCount = b.getPlayableParticipants().length;
+      return aPlayersCount - bPlayersCount;
+    });
+
+    let targetSession = null;
+    let sessionCreated = false;
+
+    if (availableSessions.length > 0) {
+      // Join the first available session
+      targetSession = availableSessions[0];
+    } else if (createIfNone) {
+      // Create new session if none available and createIfNone is true
+      targetSession = sessionManager.createSession(gameVariantId);
+      sessionCreated = true;
+    } else {
+      return res.status(404).json({ 
+        error: "No available sessions found and auto-creation is disabled.",
+        available_sessions: 0
+      });
+    }
+
+    // Join the target session
+    const participantId = targetSession.addParticipant(participantName.trim(), participantType);
+    const participant = targetSession.getParticipantById(participantId);
+
+    res.json({
+      success: true,
+      session_id: targetSession.sessionId,
+      participant_id: participantId,
+      session_created: sessionCreated,
+      lobby_status: targetSession.getLobbyStatus()
+    });
+
+    // Broadcast the join event
+    try {
+      const eventType = participantType === 'spectator' ? 'sessionSpectatorJoined' : 'sessionParticipantJoined';
+      GameEventService.broadcastToSession(targetSession, {
+        type: eventType,
+        payload: { participant: serializeRecursively(participant) },
+      });
+
+      // If this was auto-join, add system message
+      if (!sessionCreated) {
+        const systemMessage = targetSession.addSystemMessage(`${participantName} joined via auto-match`);
+        GameEventService.broadcastToSession(targetSession, {
+          type: "lobbyChatMessage",
+          payload: { message: systemMessage },
+        });
+      }
+    } catch (broadcastError) {
+      console.error("Auto-join broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Auto-join session error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Synchronization and Ready Check Routes
+// --------------------------------------
+
+// Start sync phase (host only)
+sessionRouter.post("/session/:sessionId/sync/start", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId } = req.body;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    if (!session.isHost(participantId)) {
+      return res.status(403).json({ error: "Only the host can start sync phase." });
+    }
+
+    if (session.started) {
+      return res.status(400).json({ error: "Game has already started." });
+    }
+
+    const playableParticipants = session.getPlayableParticipants();
+    if (playableParticipants.length < 2) {
+      return res.status(400).json({ error: "Need at least 2 players to start sync phase." });
+    }
+
+    session.startSyncPhase();
+
+    res.json({
+      success: true,
+      sync_phase: true,
+      ready_states: session.getAllReadyStates(),
+      participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
+    });
+
+    // Broadcast sync phase start
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "syncPhaseStarted",
+        payload: {
+          hostId: participantId,
+          hostName: session.getHost().name,
+          readyStates: session.getAllReadyStates(),
+          participants: session.getPlayableParticipants()
+        }
+      });
+
+      const systemMessage = session.addSystemMessage("Synchronization phase started. Please indicate when you're ready!");
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Sync phase start broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Start sync phase error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Set participant ready state
+sessionRouter.post("/session/:sessionId/ready", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, ready } = req.body;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+
+  if (typeof ready !== 'boolean') {
+    return res.status(400).json({ error: "ready must be a boolean value." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    session.setParticipantReady(participantId, ready);
+    const participant = session.getParticipantById(participantId);
+    const allReady = session.areAllParticipantsReady();
+
+    res.json({
+      success: true,
+      participant_id: participantId,
+      ready: ready,
+      all_ready: allReady,
+      ready_states: session.getAllReadyStates()
+    });
+
+    // Broadcast ready state change
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "participantReadyChanged",
+        payload: {
+          participantId: participantId,
+          participantName: participant.name,
+          ready: ready,
+          allReady: allReady,
+          readyStates: session.getAllReadyStates()
+        }
+      });
+
+      // Add chat message about ready state change
+      const readyText = ready ? "ready" : "not ready";
+      const systemMessage = session.addSystemMessage(`${participant.name} is ${readyText}`);
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+
+      // If all participants are ready, notify
+      if (allReady) {
+        const allReadyMessage = session.addSystemMessage("All players are ready! Host can now start the game.");
+        GameEventService.broadcastToSession(session, {
+          type: "lobbyChatMessage",
+          payload: { message: allReadyMessage }
+        });
+      }
+    } catch (broadcastError) {
+      console.error("Ready state broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Set ready state error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get ready states
+sessionRouter.get("/session/:sessionId/ready", (req, res) => {
+  const { sessionId } = req.params;
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    res.json({
+      success: true,
+      session_id: sessionId,
+      in_sync_phase: session.isInSyncPhase(),
+      all_ready: session.areAllParticipantsReady(),
+      ready_states: session.getAllReadyStates(),
+      playable_participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
+    });
+  } catch (err) {
+    console.error("Get ready states error:", err);
+    res.status(500).json({ error: "Failed to retrieve ready states." });
+  }
+});
+
+// Kick participant (host only)
+sessionRouter.post("/session/:sessionId/kick", (req, res) => {
+  const { sessionId } = req.params;
+  const { hostId, participantIdToKick } = req.body;
+
+  if (!hostId || !participantIdToKick) {
+    return res.status(400).json({ error: "hostId and participantIdToKick are required." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    const participantToKick = session.getParticipantById(participantIdToKick);
+    if (!participantToKick) {
+      return res.status(404).json({ error: "Participant to kick not found." });
+    }
+
+    session.kickParticipant(participantIdToKick, hostId);
+
+    res.json({
+      success: true,
+      kicked_participant: {
+        id: participantToKick.id,
+        name: participantToKick.name
+      },
+      remaining_participants: session.listParticipants()
+    });
+
+    // Broadcast kick event
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "participantKicked",
+        payload: {
+          hostId: hostId,
+          hostName: session.getHost().name,
+          kickedParticipant: {
+            id: participantToKick.id,
+            name: participantToKick.name
+          }
+        }
+      });
+
+      const systemMessage = session.addSystemMessage(`${participantToKick.name} was removed from the session by the host`);
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Kick participant broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Kick participant error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Transfer host (current host only)
+sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
+  const { sessionId } = req.params;
+  const { currentHostId, newHostId } = req.body;
+
+  if (!currentHostId || !newHostId) {
+    return res.status(400).json({ error: "currentHostId and newHostId are required." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    if (!session.isHost(currentHostId)) {
+      return res.status(403).json({ error: "Only the current host can transfer host privileges." });
+    }
+
+    const oldHost = session.getHost();
+    session.transferHost(newHostId);
+    const newHost = session.getHost();
+
+    res.json({
+      success: true,
+      old_host: oldHost,
+      new_host: newHost
+    });
+
+    // Broadcast host transfer
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "hostTransferred",
+        payload: {
+          oldHost: oldHost,
+          newHost: newHost
+        }
+      });
+
+      const systemMessage = session.addSystemMessage(`${newHost.name} is now the host`);
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: systemMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Host transfer broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Transfer host error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Chat Functionality Routes
+// -------------------------
+
+// Send chat message
+sessionRouter.post("/session/:sessionId/chat", (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, message } = req.body;
+
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    return res.status(400).json({ error: "message is required and must be a non-empty string." });
+  }
+
+  if (message.trim().length > 500) {
+    return res.status(400).json({ error: "Message cannot exceed 500 characters." });
+  }
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    const participant = session.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found in session." });
+    }
+
+    // Determine message type based on participant
+    const messageType = session.isHost(participantId) ? 'host' : 'user';
+    const chatMessage = session.addChatMessage(participantId, message, messageType);
+
+    res.json({
+      success: true,
+      message: chatMessage
+    });
+
+    // Broadcast chat message
+    try {
+      GameEventService.broadcastToSession(session, {
+        type: "lobbyChatMessage",
+        payload: { message: chatMessage }
+      });
+    } catch (broadcastError) {
+      console.error("Chat message broadcast error (non-blocking):", broadcastError);
+    }
+
+  } catch (err) {
+    console.error("Send chat message error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get chat messages
+sessionRouter.get("/session/:sessionId/chat", (req, res) => {
+  const { sessionId } = req.params;
+  const { limit = 50 } = req.query;
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found." });
+  }
+
+  try {
+    const messages = session.getChatMessages(parseInt(limit, 10));
+    
+    res.json({
+      success: true,
+      session_id: sessionId,
+      total_messages: messages.length,
+      messages: messages
+    });
+  } catch (err) {
+    console.error("Get chat messages error:", err);
+    res.status(500).json({ error: "Failed to retrieve chat messages." });
+  }
+});
+
 // Test session routes
 sessionRouter.get("/session/test", (req, res) => {
   res.json({
