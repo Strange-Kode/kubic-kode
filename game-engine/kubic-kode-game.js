@@ -96,6 +96,7 @@ class KubicKodeGame extends GameInterface {
         );
 
         // Stop the game and clear inactivity timer when someone wins
+        this.gameOptions.setGameState('ended');
         this.gameSession.markEnded();
       }
     } else {
@@ -137,6 +138,9 @@ class KubicKodeGame extends GameInterface {
     if (this.gameInstance.getGameEngine().getPlayerEntities().length < 2) {
       throw new Error("At least two players are required to start the game.");
     }
+
+    // Transition game options to 'started' state - this locks pre-start options
+    this.gameOptions.setGameState('started');
 
     const result = this.gameInstance.startGame
       ? this.gameInstance.startGame()
@@ -258,6 +262,7 @@ class KubicKodeGame extends GameInterface {
     });
 
     // Clear inactivity timer when game stops
+    this.gameOptions.setGameState('ended');
     this.gameSession.markEnded();
 
     return result;
@@ -398,6 +403,8 @@ class KubicKodeGame extends GameInterface {
 
   resetGameOptions() {
     this.gameOptions = new GameOptions();
+    // Game options start in pre-start state
+    this.gameOptions.setGameState('pre-start');
   }
 
   applyGameOptions(options) {

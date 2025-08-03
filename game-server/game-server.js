@@ -37,24 +37,32 @@ class ConfigurableTicTacToeGame extends TicTacToeGame {
     this._engine = new GameEngine(gridSize, gridSize, turnConfig);
   }
 
-  // Override initializeGameOptions to allow configurable options
+  // Override initializeGameOptions to define lifecycle-based options
   initializeGameOptions() {
-    // Grid size is configurable with validation
-    this.getGameOptions().addConfigurable('gridSize', 3, (value) => {
+    // Grid size is a pre-start option - can only be changed before game starts
+    this.getGameOptions().addOption('gridSize', 3, 'pre-start', (value) => {
       if (typeof value !== 'number' || value < 3 || value > 10) {
         return 'Grid size must be a number between 3 and 10';
       }
       return true;
     });
     
-    // Win condition is configurable but must be <= grid size
-    this.getGameOptions().addConfigurable('winCondition', 3, (value) => {
+    // Win condition is also pre-start - fundamental to game rules
+    this.getGameOptions().addOption('winCondition', 3, 'pre-start', (value) => {
       if (typeof value !== 'number' || value < 3) {
         return 'Win condition must be at least 3';
       }
       const currentGridSize = this.getOptionValue('gridSize');
       if (value > currentGridSize) {
         return `Win condition cannot be greater than grid size (${currentGridSize})`;
+      }
+      return true;
+    });
+
+    // Example of a runtime option - could be changed during gameplay
+    this.getGameOptions().addOption('showHints', false, 'runtime', (value) => {
+      if (typeof value !== 'boolean') {
+        return 'Show hints must be true or false';
       }
       return true;
     });

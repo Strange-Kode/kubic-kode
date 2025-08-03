@@ -61,7 +61,9 @@ const handleGameStart = (sessionId, options = {}) => {
           error: true,
           message: "Invalid game options",
           details: validation.errors,
-          ignored: validation.ignored
+          ignored: validation.ignored,
+          locked: validation.locked,
+          game_state: gameOptions.getGameState()
         };
       }
 
@@ -71,9 +73,8 @@ const handleGameStart = (sessionId, options = {}) => {
           // Don't resize tile map here - let KubicKodeGame handle it in applyGameOptions
           // The tile map will be resized after the game starts
         }
-        else {
-          throw new Error(`Invalid or not implemented game option: ${key}`);
-        }
+        // Allow all validated options to be applied
+        // The applyGameOptions method will handle the implementation
         result.applied_game_options.push({
           key: key,
           value: value
@@ -250,9 +251,26 @@ gameRouter.get("/game/options/:sessionId", (req, res) => {
 
   res.json({
     available: true,
+    // Current values of all options
+    options: gameOptions.getAllOptions(),
+    // Legacy support for backwards compatibility
     configurable: gameOptions.getConfigurableOptions(),
     frozen: gameOptions.getFrozenOptions(),
-    metadata: gameOptions.getOptionsMetadata()
+    // Enhanced metadata with lifecycle information
+    metadata: gameOptions.getOptionsMetadata(),
+    // New lifecycle-based groupings
+    lifecycle: {
+      frozen: gameOptions.getOptionsByLifecycle('frozen'),
+      'pre-start': gameOptions.getOptionsByLifecycle('pre-start'),
+      runtime: gameOptions.getOptionsByLifecycle('runtime'),
+      'between-rounds': gameOptions.getOptionsByLifecycle('between-rounds')
+    },
+    // Current modifiable options based on game state
+    modifiable: gameOptions.getModifiableOptions(),
+    // Game state context
+    game_state: gameOptions.getGameState(),
+    // Debug information
+    debug: gameOptions.getDebugInfo()
   });
 });
 

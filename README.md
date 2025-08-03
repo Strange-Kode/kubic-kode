@@ -175,12 +175,14 @@ For detailed implementation information, see [SPECTATOR_FUNCTIONALITY.md](SPECTA
 
 ## Game Options System
 
-kubic-kode includes a flexible game options system that allows games to define which options are configurable and which are frozen (constant).
+kubic-kode includes a lifecycle-based game options system that controls **when** options can be modified, ensuring game integrity while maintaining flexibility.
 
-### Game Options Types
+### Option Lifecycles
 
-1. **Configurable Options**: Can be changed by clients through the API
-2. **Frozen Options**: Cannot be changed and are part of the game's core rules
+1. **`frozen`**: Never changeable (core game rules like game type)
+2. **`pre-start`**: Only changeable before game starts (difficulty, grid size, win condition)
+3. **`runtime`**: Can be changed anytime during gameplay (sound settings, UI preferences)
+4. **`between-rounds`**: Only changeable between rounds/games (time limits, scoring rules)
 
 ### Available Game Variants
 
@@ -198,16 +200,25 @@ Returns information about available game options:
 ```json
 {
   "available": true,
-  "configurable": {
+  "options": {
     "gridSize": 3,
-    "winCondition": 3
+    "winCondition": 3,
+    "showHints": false
   },
-  "frozen": {},
+  "lifecycle": {
+    "frozen": {},
+    "pre-start": { "gridSize": 3, "winCondition": 3 },
+    "runtime": { "showHints": false },
+    "between-rounds": {}
+  },
+  "modifiable": { "gridSize": 3, "winCondition": 3, "showHints": false },
+  "game_state": "pre-start",
   "metadata": {
     "gridSize": {
-      "type": "configurable",
+      "lifecycle": "pre-start",
       "defaultValue": 3,
-      "validator": "function(value) { ... }"
+      "locked": false,
+      "canModify": true
     }
   }
 }
@@ -247,19 +258,26 @@ Content-Type: application/json
 
 ### Error Handling
 
-If invalid options are provided, the API returns:
+If invalid options are provided, the API returns enhanced error information:
 ```json
 {
   "error": true,
   "message": "Invalid game options",
   "details": [
-    "Option 'gridSize' is frozen and cannot be changed from 3 to 5"
+    "Option 'difficulty' is locked: this option can only be changed before the game starts (current state: started)"
   ],
-  "ignored": [
-    "Unknown option 'unknownOption'"
-  ]
+  "ignored": ["Unknown option 'unknownOption'"],
+  "locked": [{
+    "key": "difficulty",
+    "lifecycle": "pre-start",
+    "gameState": "started",
+    "reason": "this option can only be changed before the game starts (current state: started)"
+  }],
+  "game_state": "started"
 }
 ```
+
+This prevents players from changing fundamental game settings (like difficulty) mid-game to gain unfair advantages.
 
 ## Architecture
 
@@ -267,7 +285,7 @@ If invalid options are provided, the API returns:
 
 - **Game Engine**: Manages turn sequencing, player entities, and tile maps
 - **Game Interface**: Contract that all games must implement
-- **Game Options**: System for managing configurable and frozen game options
+- **Game Options**: Lifecycle-based system for managing when options can be modified
 - **Session Management**: Handles multiplayer sessions and participant management
 - **WebSocket Communication**: Real-time game state updates
 
@@ -377,26 +395,33 @@ class MyGame {
   }
 
   initializeGameOptions() {
-    this.getGameOptions().addFrozen('gridSize', 5);
-    this.getGameOptions().addConfigurable('maxTurns', 25, (value) => {
+    // New lifecycle-based approach
+    this.getGameOptions().addOption('gridSize', 5, 'frozen');
+    this.getGameOptions().addOption('maxTurns', 25, 'pre-start', (value) => {
       return value > 0 ? true : 'Max turns must be positive';
     });
+    this.getGameOptions().addOption('soundEnabled', true, 'runtime');
   }
 }
 ```
 
 Example game options definition:
 ```javascript
-// Frozen options (cannot be changed)
-this.gameOptions.addFrozen('gridSize', 3);
+// Lifecycle-based options (recommended)
+this.getGameOptions().addOption('gridSize', 3, 'frozen');                    // Never changeable
+this.getGameOptions().addOption('difficulty', 'medium', 'pre-start');        // Only before game starts
+this.getGameOptions().addOption('soundEnabled', true, 'runtime');            // Changeable anytime
+this.getGameOptions().addOption('timeLimit', 30, 'between-rounds');          // Only between rounds
 
-// Configurable options with validation
-this.gameOptions.addConfigurable('maxRounds', 10, (value) => {
-  if (value < 1 || value > 100) {
-    return 'Max rounds must be between 1 and 100';
-  }
+// With validation
+this.getGameOptions().addOption('maxRounds', 10, 'pre-start', (value) => {
+  if (value < 1 || value > 100) return 'Max rounds must be between 1 and 100';
   return true;
 });
+
+// Legacy methods (still supported for backwards compatibility)
+// this.getGameOptions().addFrozen('gridSize', 3);
+// this.getGameOptions().addConfigurable('maxRounds', 10, validator);
 ```
 
 ## Game State Machine (GSM)
