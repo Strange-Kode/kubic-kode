@@ -156,6 +156,14 @@ class KubicKodeGame extends GameInterface {
 
   // Handle inactivity with history recording
   handleInactivity() {
+    // Only handle inactivity if the game is still running
+    if (!this.gameInstance.getGameEngine().isGameStarted()) {
+      return {
+        inactivePlayerId: null,
+        winnerPlayerId: null,
+      };
+    }
+    
     if (!this.gameInstance.handleInactivity) {
       return null;
     }
