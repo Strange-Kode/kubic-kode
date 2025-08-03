@@ -3,6 +3,7 @@
 import { GameEngine } from "../../../game-engine/game-engine.js";
 import PlayerEntity from "./game-entity/player-entity.js";
 import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
+import { minimaxTicTacToe } from "../../../game-utility/ai-utility/minimax.js";
 
 // TicTacToeGame implements methods as defined in GameContract (game-contract.js)
 class TicTacToeGame {
@@ -30,6 +31,7 @@ class TicTacToeGame {
     return {
       gridSize: this.getOptionValue("gridSize"),
       winCondition: this.getOptionValue("winCondition"),
+      difficulty: this.getOptionValue("difficulty"),
       winner: this._winner,
       isActive: this.isGameActive(),
       playerCount: this._engine.getPlayerEntities().length,
@@ -39,6 +41,15 @@ class TicTacToeGame {
   initializeGameOptions() {
     this.getGameOptions().addFrozen("gridSize", 3); // TicTacToe (classic) is always 3x3
     this.getGameOptions().addFrozen("winCondition", 3); // TicTacToe (classic) always requires 3 in a row
+    
+    // Add difficulty configuration for AI behavior
+    this.getGameOptions().addConfigurable("difficulty", "medium", (value) => {
+      const validDifficulties = ["easy", "medium", "hard"];
+      if (!validDifficulties.includes(value)) {
+        return `Difficulty must be one of: ${validDifficulties.join(", ")}`;
+      }
+      return true;
+    });
   }
 
   addPlayer(name, isComputer = false) {
@@ -192,9 +203,11 @@ class TicTacToeGame {
   calculateComputerMove() {
     const currentPlayer = this._engine.getCurrentPlayer();
     const tileMap = this._engine.getTileMap();
-    const opponentMark = currentPlayer.getMarkType() === "X" ? "O" : "X";
+    const computerMark = currentPlayer.getMarkType();
+    const humanMark = computerMark === "X" ? "O" : "X";
+    const difficulty = this.getOptionValue("difficulty");
 
-    // Collect all empty tiles
+    // Collect all empty tiles for fallback
     const emptyTiles = [];
     for (let y = 0; y < tileMap.height; y++) {
       for (let x = 0; x < tileMap.width; x++) {
@@ -204,22 +217,126 @@ class TicTacToeGame {
       }
     }
 
-    // 20% random move
-    if (Math.random() < 0.2 || emptyTiles.length === 0) {
+    if (emptyTiles.length === 0) {
+      return null; // No moves available
+    }
+
+    // Determine move strategy based on difficulty
+    switch (difficulty) {
+      case "easy":
+        // Easy: Always use heuristics (current blocking logic)
+        return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles);
+        
+      case "medium":
+        // Medium: 70% minimax, 30% smart heuristics (no extra randomness)
+        if (Math.random() < 0.7) {
+          const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
+          return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+        } else {
+          return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+        }
+        
+      case "hard":
+        // Hard: 90% minimax, 10% smart heuristics (no extra randomness) 
+        if (Math.random() < 0.9) {
+          const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
+          return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+        } else {
+          return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+        }
+        
+      default:
+        // Fallback to medium
+        const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
+        return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles);
+    }
+  }
+
+  /**
+   * Get move using minimax algorithm
+   */
+  _getMinimaxMove(tileMap, computerMark, humanMark) {
+    try {
+      return minimaxTicTacToe(tileMap, computerMark, humanMark);
+    } catch (error) {
+      console.error("Error in minimax calculation:", error);
+      return null; // Fallback to heuristics
+    }
+  }
+
+  /**
+   * Get move using original heuristic logic
+   * @param {Object} tileMap - The game tile map
+   * @param {string} computerMark - Computer's mark type
+   * @param {string} humanMark - Human's mark type  
+   * @param {Array} emptyTiles - Array of empty tile positions
+   * @param {boolean} smartMode - If true, removes extra randomness for consistent play
+   */
+  _getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, smartMode = false) {
+    // In smart mode (medium/hard), skip the 20% random chance
+    if (!smartMode && Math.random() < 0.2) {
       return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
     }
 
-    // 80% "best move"
-    // Look for a blocking move first
-    const bestMove = this._findBlockingMove(tileMap, opponentMark);
-    if (bestMove) {
-      return bestMove;
+    // Look for winning moves first (for computer)
+    const winningMove = this._findWinningMove(tileMap, computerMark);
+    if (winningMove) {
+      return winningMove;
+    }
+
+    // Then look for blocking moves (against human)
+    const blockingMove = this._findBlockingMove(tileMap, humanMark);
+    if (blockingMove) {
+      return blockingMove;
+    }
+
+    // In smart mode, try center and corners before random
+    if (smartMode) {
+      // Prefer center if available
+      if (tileMap.getTile(1, 1) === null) {
+        return { x: 1, y: 1 };
+      }
+      
+      // Then prefer corners
+      const corners = [
+        { x: 0, y: 0 }, { x: 2, y: 0 },
+        { x: 0, y: 2 }, { x: 2, y: 2 }
+      ];
+      const availableCorners = corners.filter(corner => 
+        tileMap.getTile(corner.x, corner.y) === null
+      );
+      if (availableCorners.length > 0) {
+        return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+      }
     }
 
     // Otherwise, fallback to random
     return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
   }
 
+  /**
+   * Find a winning move for the specified mark
+   */
+  _findWinningMove(tileMap, mark) {
+    const lines = this._getAllLines(tileMap);
+
+    for (const line of lines) {
+      const ownMarks = line.filter(
+        (tile) => tile.tile && tile.tile.type === mark
+      );
+      const emptyTiles = line.filter((tile) => tile.tile === null);
+
+      if (ownMarks.length === 2 && emptyTiles.length === 1) {
+        return emptyTiles[0].position;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find a blocking move against the opponent's mark
+   */
   _findBlockingMove(tileMap, opponentMark) {
     const lines = this._getAllLines(tileMap);
 
