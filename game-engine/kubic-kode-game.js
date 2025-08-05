@@ -61,9 +61,9 @@ class KubicKodeGame extends GameInterface {
   // Proxy methods
   // -------------
 
-  playTurn(playerId, x, y, metadata = {}) {
-    // Delegate to the actual game
-    const result = this.gameInstance.playTurn(playerId, x, y, metadata);
+  playTurn(playerId, turnData, metadata = {}) {
+    // Delegate to the actual game with consistent turnData format
+    const result = this.gameInstance.playTurn(playerId, turnData, metadata);
 
     // Only record history if the turn was valid
     if (result.status === "ok" || result.status === "valid") {
@@ -74,13 +74,15 @@ class KubicKodeGame extends GameInterface {
         result.time_left = inactivityManager.getTimeRemaining();
       }
 
-      // Record the turn in history
+      // Record the turn in history - extract position data for history
+      const { xPos: x, yPos: y } = turnData;
       this.gameSession.gameHistory.addTurnPlayedEvent(
         result.player_id,
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
+          turnData, // Include full turn data for future extensibility
           mark: result.mark || this.getCurrentPlayerMark(),
           status: result.status,
         }
@@ -104,13 +106,15 @@ class KubicKodeGame extends GameInterface {
         this.gameSession.markEnded();
       }
     } else {
-      // Record invalid turn attempt
+      // Record invalid turn attempt - extract position data for history
+      const { xPos: x, yPos: y } = turnData;
       this.gameSession.gameHistory.addInvalidTurnAttemptedEvent(
         playerId,
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
+          turnData, // Include full turn data for future extensibility
           reason: result.type || "invalid_move",
           status: result.status,
         }
@@ -187,6 +191,12 @@ class KubicKodeGame extends GameInterface {
 
   // Handle game stop with history recording
   resetForRestart() {
+    // Clear all player entities to prevent duplicates during restart
+    const gameEngine = this.gameInstance.getGameEngine();
+    if (gameEngine && typeof gameEngine.clearPlayerEntities === 'function') {
+      gameEngine.clearPlayerEntities();
+    }
+
     const result = this.gameInstance.resetForRestart();
 
     // Record game reset event

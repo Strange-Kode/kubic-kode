@@ -123,12 +123,15 @@ class TicTacToeGame {
     this._engine.startGame();
   }
 
-  playTurn(playerId, x, y, metadata = {}) {
+  playTurn(playerId, turnData, metadata = {}) {
+    // Extract position data from turnData
+    const { xPos: x, yPos: y } = turnData;
+    
     // Get the player by ID
     const currentPlayer = this._engine.getPlayerById(playerId);
 
     console.log(
-      `[TicTacToeGame] playTurn called - playerId: ${playerId}, x: ${x}, y: ${y}`
+      `[TicTacToeGame] playTurn called - playerId: ${playerId}, turnData:`, turnData
     );
     console.log(`[TicTacToeGame] Current player:`, currentPlayer);
 
@@ -266,31 +269,42 @@ class TicTacToeGame {
     switch (difficulty) {
       case "easy":
         // Easy: Always use heuristics (current blocking logic)
-        return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles);
+        return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles));
         
       case "medium":
         // Medium: 70% minimax, 30% smart heuristics (no extra randomness)
         if (Math.random() < 0.7) {
           const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
-          return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+          return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         } else {
-          return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         }
         
       case "hard":
         // Hard: 90% minimax, 10% smart heuristics (no extra randomness) 
         if (Math.random() < 0.9) {
           const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
-          return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+          return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         } else {
-          return this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true);
+          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         }
         
       default:
         // Fallback to medium
         const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
-        return minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles);
+        return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles));
     }
+  }
+
+  /**
+   * Convert internal move format {x, y} to consistent turnData format {xPos, yPos}
+   */
+  _convertMoveToTurnData(move) {
+    if (!move) return null;
+    return {
+      xPos: move.x,
+      yPos: move.y
+    };
   }
 
   /**

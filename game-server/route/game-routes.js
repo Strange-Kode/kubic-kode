@@ -118,6 +118,18 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     // Don't throw here - the game was started successfully, just the broadcast failed
   }
 
+  // After game start, check if the first player is a computer and handle computer turns
+  // This is crucial for cases where the computer is the first player (alternating first player)
+  if (currentPlayer.getPlayerType() === 'computer') {
+    // Process computer turns asynchronously to avoid blocking the game start response
+    // This handles the case where computer is first player or multiple computers in sequence
+    setImmediate(() => {
+      processComputerTurns(gameSession, null).catch(error => {
+        console.error('Error processing initial computer turns after game start:', error);
+      });
+    });
+  }
+
   return result;
 };
 
@@ -234,6 +246,161 @@ gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, 
   
   res.json(serializedTileMap);
 });
+
+// Generic play turn endpoint for all games
+gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
+  const { sessionId } = req.params;
+  const { participantId, ...moveData } = req.body;
+
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+  
+  // Get the current player from the game engine
+  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  
+  // Validate that the participant is the current player
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+  
+  // Find the player that corresponds to this participant
+  const playerMappings = gameInstance.getPlayerMappings();
+  const playerId = playerMappings[participantId];
+  
+  if (!playerId) {
+    return res.status(400).json({ error: "Participant is not a player in this game." });
+  }
+  
+  // Validate that it's this player's turn
+  if (playerId !== currentPlayer.getPlayerId()) {
+    return res.status(400).json({ error: "It's not your turn." });
+  }
+
+  // Play the turn - pass turnData consistently for all games
+  let roundStatus;
+  try {
+    // All games receive: playTurn(playerId, turnData)
+    // turnData contains all move information (xPos, yPos, action, etc.)
+    roundStatus = gameInstance.playTurn(playerId, moveData);
+  } catch (error) {
+    return res.status(400).json({ 
+      error: "Invalid move.", 
+      details: error.message 
+    });
+  }
+  
+  // Handle win condition
+  if (roundStatus.player_has_won) {
+    gameSession.increaseWinCounter();
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "winCount",
+      payload: { winCount },
+    });
+  }
+  
+  // Send response immediately
+  res.json(roundStatus);
+  
+  // Handle computer players asynchronously
+  processComputerTurns(gameSession, roundStatus);
+  
+  // Broadcast the turn event to all connected clients after sending the response
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "turnPlayed",
+      payload: { roundStatus }
+    });
+    
+    // If the player won, also broadcast a win event
+    if (roundStatus.player_has_won) {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "playerWon",
+        payload: { 
+          playerId: roundStatus.player_id,
+          winCondition: roundStatus.winCondition || 'unknown'
+        }
+      });
+    }
+  } catch (broadcastError) {
+    console.error('Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the turn was played successfully, just the broadcast failed
+  }
+});
+
+// Standalone function to handle sequential computer players
+// This can be called from both the play-turn endpoint and handleGameStart
+const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
+  const gameInstance = gameSession.getGameInstance();
+  let lastRoundStatus = initialRoundStatus;
+  
+  console.log(`[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
+  
+  // Keep playing computer turns while:
+  // 1. No one has won yet (or no initial status provided)
+  // 2. Current player is a computer
+  // 3. Game is still active
+  while ((!lastRoundStatus || !lastRoundStatus.player_has_won) && 
+         gameInstance.getGameEngine().isGameStarted() &&
+         gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
+    
+    try {
+      // Random delay for computer moves (1-2 seconds)
+      const delay = 1000 + Math.floor(Math.random() * 1001);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Get current computer player (may have changed due to turn order)
+      const computerPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+      
+      // Calculate computer move
+      const computerMove = gameInstance.calculateComputerMove();
+      
+      // Play computer turn - consistent format for all games
+      let compRoundStatus;
+      compRoundStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
+
+      // Handle computer win
+      if (compRoundStatus.player_has_won) {
+        gameSession.increaseWinCounter();
+        let winCount = gameSession.getWinCounter();
+        GameEventService.broadcastToSession(gameSession, {
+          type: "winCount",
+          payload: { winCount },
+        });
+      }
+
+      // Broadcast computer turn
+      GameEventService.broadcastToSession(gameSession, {
+        type: "turnPlayed",
+        payload: { roundStatus: compRoundStatus },
+      });
+      
+      // If the computer won, also broadcast a win event
+      if (compRoundStatus.player_has_won) {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "playerWon",
+          payload: { 
+            playerId: compRoundStatus.player_id,
+            winCondition: compRoundStatus.winCondition || 'unknown'
+          }
+        });
+        
+        // Stop the loop if computer won
+        break;
+      }
+      
+      // Update lastRoundStatus for next iteration
+      lastRoundStatus = compRoundStatus;
+      
+    } catch (error) {
+      console.error('Error during computer turn:', error);
+      break; // Stop processing computer turns on error
+    }
+  }
+  
+  return lastRoundStatus;
+};
 
 // Get game options information
 gameRouter.get("/game/options/:sessionId", validateSessionMiddleware, (req, res) => {

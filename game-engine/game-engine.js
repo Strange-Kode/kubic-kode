@@ -51,6 +51,13 @@ export class GameEngine {
   }
 
   registerPlayerEntity(entity) {
+    // Check if player is already registered to prevent duplicates
+    const existingPlayer = this._player_entities.find(e => e.id === entity.id);
+    if (existingPlayer) {
+      console.log(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
+      return; // Don't add duplicate players
+    }
+    
     this._player_entities.push(entity);
     
     // Register viewport for scrollable tile map if available
@@ -67,6 +74,15 @@ export class GameEngine {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
+  }
+
+  // Clear all registered players (useful for game restart)
+  clearPlayerEntities() {
+    this._player_entities = [];
+    this._turnOrder = [];
+    this._currentTurnIndex = 0;
+    this._actedThisRound.clear();
+    console.log(`[GameEngine] Cleared all player entities and reset turn state`);
   }
 
   deregisterPlayerEntity(entityId) {

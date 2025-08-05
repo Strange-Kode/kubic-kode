@@ -144,7 +144,7 @@ export function useGame(sessionId, participantId) {
 
       try {
         const result = await post(
-          `/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`,
+          `/api/game/play-turn/${sessionId}`,
           {
             participantId: participantId,
             xPos: x,

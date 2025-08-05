@@ -164,7 +164,7 @@ class TicTacToeGameTest extends E2ETestRunner {
       console.log(`    🎯 Move ${currentMoveIndex + 1} (${playerSymbol}): (${move.x}, ${move.y})`);
       
       try {
-        const moveResponse = await this.makeRequest(`/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`, {
+        const moveResponse = await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
           method: 'POST',
           body: JSON.stringify({
             participantId: currentParticipantId,
@@ -371,7 +371,7 @@ class TicTacToeGameTest extends E2ETestRunner {
       await this.waitForEvent(sessionId, 'message_received', 3000);
 
       // Play a move and monitor events
-      await this.makeRequest(`/api/tic-tac-toe/tic-tac-toe/play-turn/${sessionId}`, {
+      await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
         method: 'POST',
         body: JSON.stringify({
           participantId: participant1Id,

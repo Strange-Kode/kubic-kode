@@ -1,4 +1,4 @@
-// Game Interface - defines the contract that all game implementations must follow
+// Game Interface - defines the contract that KubicKodeGame must follow
 export class GameInterface {
   // Core game lifecycle methods
   addPlayer(name) {
@@ -9,7 +9,7 @@ export class GameInterface {
     throw new Error('startGame must be implemented');
   }
 
-  playTurn(playerId, x, y) {
+  playTurn(playerId, turnData) {
     throw new Error('playTurn must be implemented');
   }
 

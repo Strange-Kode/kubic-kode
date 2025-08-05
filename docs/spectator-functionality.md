@@ -93,7 +93,7 @@ The following routes now require `participantId` and block spectators:
 
 - `POST /api/game/start/:sessionId` - Start game
 - `GET /api/game/stop/:sessionId` - Stop game  
-- `POST /api/tic-tac-toe/play-turn/:sessionId` - Make moves
+- `POST /api/game/play-turn/:sessionId` - Make moves (generic endpoint for all games)
 
 #### Middleware Protection
 
