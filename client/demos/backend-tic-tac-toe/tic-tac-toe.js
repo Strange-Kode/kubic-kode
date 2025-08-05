@@ -73,17 +73,30 @@ class TicTacToeGame {
     return player;
   }
 
-  establishFirstPlayers() {
-    // In tic-tac-toe, X always goes first
-    // Find the player with mark type 'X'
+  establishFirstPlayers(sessionContext = null) {
     const players = this._engine.getPlayerEntities();
-    const xPlayer = players.find(player => player.getMarkType() === 'X');
     
+    // If we have session context, alternate first player based on restart count
+    if (sessionContext && typeof sessionContext.restartCount === 'number') {
+      const restartCount = sessionContext.restartCount;
+      const xPlayer = players.find(player => player.getMarkType() === 'X');
+      const oPlayer = players.find(player => player.getMarkType() === 'O');
+      
+      if (xPlayer && oPlayer) {
+        // Alternate first player: odd restart count = X first, even = O first
+        // Game 1 (count=1): X first, Game 2 (count=2): O first, Game 3 (count=3): X first
+        const firstPlayer = (restartCount % 2 === 1) ? xPlayer : oPlayer;
+        return firstPlayer.getPlayerId();
+      }
+    }
+    
+    // Fallback to traditional behavior: X always goes first
+    const xPlayer = players.find(player => player.getMarkType() === 'X');
     if (xPlayer) {
       return xPlayer.getPlayerId();
     }
     
-    // Fallback: return first player if X player not found
+    // Final fallback: return first player if X player not found
     return players.length > 0 ? players[0].getPlayerId() : null;
   }
 

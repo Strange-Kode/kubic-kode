@@ -95,6 +95,22 @@ class TicTacToeGameTest extends E2ETestRunner {
       });
       
       console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_id}`);
+      
+      // Step 7.1: Verify alternating first player behavior
+      console.log('  🔄 Step 7.1: Testing alternating first player on second restart...');
+      const secondRestartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+        method: 'POST', 
+        body: JSON.stringify({
+          participantId: participant1Id
+        })
+      });
+      
+      // Check if first player changed from first restart to second restart
+      if (restartResponse.data.current_player_id !== secondRestartResponse.data.current_player_id) {
+        console.log(`  ✅ First player alternated: ${restartResponse.data.current_player_id} → ${secondRestartResponse.data.current_player_id}`);
+      } else {
+        console.log(`  ⚠️  First player did not alternate (same player: ${restartResponse.data.current_player_id})`);
+      }
 
       // Step 8: Verify restart state
       const restartTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);

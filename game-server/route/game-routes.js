@@ -27,6 +27,12 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     };
   }
 
+  // Increment restart counter when starting a game with participants
+  // This should happen before establishFirstPlayers so the counter reflects the correct game number
+  if (sessionParticipants.length > 0) {
+    gameSession.increaseRestartCounter();
+  }
+
   // Step 1: Add playable participants as players to your game
   const playerMappings = {}
   for (let i = 0; i < sessionParticipants.length; i++) {
@@ -90,7 +96,11 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
   }
 
   // Step 5: Establish first player(s) and return as current player(s)
-  const firstPlayerId = gameInstance.establishFirstPlayers();
+  const sessionContext = {
+    restartCount: gameSession.getRestartCounter(),
+    winCount: gameSession.getWinCounter()
+  };
+  const firstPlayerId = gameInstance.establishFirstPlayers(sessionContext);
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   result.current_player_id = currentPlayer.getPlayerId();
   result.first_player_id = firstPlayerId;

@@ -357,7 +357,7 @@ class KubicKodeGame extends GameInterface {
     return this.gameOptions.getCurrentValue(key);
   }
 
-  establishFirstPlayers() {
+  establishFirstPlayers(sessionContext = null) {
     // Check system option for specific participant preference
     const participantId = this.gameOptions.getCurrentSystemValue('participantPlaysFirst');
     
@@ -375,7 +375,7 @@ class KubicKodeGame extends GameInterface {
 
     // Check if game instance has its own implementation
     if (typeof this.gameInstance.establishFirstPlayers === 'function') {
-      const result = this.gameInstance.establishFirstPlayers();
+      const result = this.gameInstance.establishFirstPlayers(sessionContext);
       if (result) {
         // If game returned a player ID, set it as first
         this._setFirstPlayer(result);
