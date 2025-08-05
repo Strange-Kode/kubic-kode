@@ -239,6 +239,16 @@ export function useTicTacToe() {
         }
       }
 
+      // Handle game tied condition
+      if (data.type === "gameTied") {
+        setWinner({ id: null, name: "Tie", isTie: true });
+        setShowWinModal(true);
+
+        setTimeout(() => {
+          playerWins.fetchPlayerWins();
+        }, 100);
+      }
+
       if (
         data.type === "turnPlayed" ||
         data.type === "sessionParticipantJoined" ||

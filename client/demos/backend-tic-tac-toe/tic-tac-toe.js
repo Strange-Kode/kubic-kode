@@ -124,6 +124,19 @@ class TicTacToeGame {
         player_id: currentPlayer.getPlayerId(),
       };
     }
+
+    // Check for tie condition - all tiles filled but no winner
+    if (this.__checkTieCondition()) {
+      this._engine.stopGame();
+      console.log('Game is tied!');
+      return {
+        status: "ok",
+        player_has_won: false,
+        game_is_tied: true,
+        player_id: currentPlayer.getPlayerId(),
+      };
+    }
+
     this._engine.nextTurn();
     return {
       status: "ok",
@@ -154,6 +167,13 @@ class TicTacToeGame {
     }
 
     return false;
+  }
+
+  __checkTieCondition() {
+    const tileMap = this._engine.getTileMap();
+    
+    // Use built-in TileMap methods: tie occurs when all tiles are occupied
+    return tileMap.getOccupiedCount() === tileMap.getTotalTiles();
   }
 
   __countInDirection(startX, startY, dx, dy, type) {

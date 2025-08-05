@@ -52,6 +52,15 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", checkPlayableAccessMid
       payload: { winCount },
     });
   }
+  
+  if (roundStatus.game_is_tied) { // Game is tied
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "winCount",
+      payload: { winCount },
+    });
+  }
+  
   res.json(roundStatus);
   
   
@@ -60,15 +69,23 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", checkPlayableAccessMid
   // When all sequential computer players have played and next player is human: broadcast turnPlayed to session!
   // Also consider that if one of the computer players has won (compRoundStatus.player_has_won) the next
   // possible computer player does not have to play, it should instead break.
-  if (!roundStatus.player_has_won && gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
+  if (!roundStatus.player_has_won && !roundStatus.game_is_tied && gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
     const delay = 1000 + Math.floor(Math.random() * 1001);  // 1000 to 2000 ms
     setTimeout(() => {
       const computerMove = gameInstance.calculateComputerMove();
+      
       const computerPlayer = gameInstance.getGameEngine().getCurrentPlayer();
       let compRoundStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove.x, computerMove.y);
 
       if (compRoundStatus.player_has_won) { // computer has won
-        gameSession.increaseWinCounter();
+        let winCount = gameSession.getWinCounter();
+        GameEventService.broadcastToSession(gameSession, {
+          type: "winCount",
+          payload: { winCount },
+        });
+      }
+      
+      if (compRoundStatus.game_is_tied) { // computer move resulted in tie
         let winCount = gameSession.getWinCounter();
         GameEventService.broadcastToSession(gameSession, {
           type: "winCount",
@@ -91,6 +108,16 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", checkPlayableAccessMid
           }
         });
       }
+      
+      // If the game is tied, broadcast a tie event
+      if (compRoundStatus.game_is_tied) {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "gameTied",
+          payload: { 
+            playerId: compRoundStatus.player_id
+          }
+        });
+      }
     }, delay);
   }
   
@@ -108,6 +135,16 @@ ticTacToeRouter.post("/tic-tac-toe/play-turn/:sessionId", checkPlayableAccessMid
         payload: { 
           playerId: roundStatus.player_id,
           winCondition: roundStatus.winCondition || 'unknown'
+        }
+      });
+    }
+    
+    // If the game is tied, broadcast a tie event
+    if (roundStatus.game_is_tied) {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "gameTied",
+        payload: { 
+          playerId: roundStatus.player_id
         }
       });
     }
