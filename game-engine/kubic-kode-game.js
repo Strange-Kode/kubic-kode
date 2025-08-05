@@ -105,6 +105,18 @@ class KubicKodeGame extends GameInterface {
         this.gameOptions.setGameState('ended');
         this.gameSession.markEnded();
       }
+
+      // Record tie if it occurred and stop the game
+      if (result.game_is_tied) {
+        this.gameSession.gameHistory.addGameTiedEvent({
+          finalPosition: { x, y },
+          gameState: "tied",
+        });
+
+        // Stop the game and clear inactivity timer when game is tied
+        this.gameOptions.setGameState('ended');
+        this.gameSession.markEnded();
+      }
     } else {
       // Record invalid turn attempt - extract position data for history
       const { xPos: x, yPos: y } = turnData;

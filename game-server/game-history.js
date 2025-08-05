@@ -5,6 +5,7 @@ export class GameHistory {
     PLAYER_WON: 'playerWon',
     GAME_STARTED: 'gameStarted',
     GAME_ENDED: 'gameEnded',
+    GAME_TIED: 'gameTied',
     PARTICIPANT_JOINED: 'participantJoined',
     PARTICIPANT_LEFT: 'participantLeft',
     RESTART_VOTE_STARTED: 'restartVoteStarted',
@@ -196,6 +197,18 @@ export class GameHistory {
       playerId: playerId,
       participantId: participantId,
       payload: winData
+    });
+  }
+
+  /**
+   * Add a game tied event to game history
+   * @param {Object} tieData - Additional tie data (final state, etc.)
+   * @returns {Object} The event that was added
+   */
+  addGameTiedEvent(tieData = {}) {
+    return this.addEvent({
+      type: GameHistory.GAME_HISTORY_EVENT_TYPES.GAME_TIED,
+      payload: tieData
     });
   }
 

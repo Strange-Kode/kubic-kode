@@ -300,6 +300,15 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
     });
   }
   
+  // Handle tie condition
+  if (roundStatus.game_is_tied) {
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "winCount",
+      payload: { winCount },
+    });
+  }
+  
   // Send response immediately
   res.json(roundStatus);
   
@@ -323,6 +332,16 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
         }
       });
     }
+    
+    // If the game is tied, broadcast a tie event
+    if (roundStatus.game_is_tied) {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "gameTied",
+        payload: { 
+          message: "Game ended in a tie"
+        }
+      });
+    }
   } catch (broadcastError) {
     console.error('Broadcast error (non-blocking):', broadcastError);
     // Don't throw here - the turn was played successfully, just the broadcast failed
@@ -338,10 +357,10 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
   console.log(`[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
   
   // Keep playing computer turns while:
-  // 1. No one has won yet (or no initial status provided)
+  // 1. No one has won yet and game hasn't tied (or no initial status provided)
   // 2. Current player is a computer
   // 3. Game is still active
-  while ((!lastRoundStatus || !lastRoundStatus.player_has_won || !lastRoundStatus.game_is_tied) && 
+  while ((!lastRoundStatus || (!lastRoundStatus.player_has_won && !lastRoundStatus.game_is_tied)) && 
          gameInstance.getGameEngine().isGameStarted() &&
          gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
     
@@ -369,6 +388,15 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
           payload: { winCount },
         });
       }
+      
+      // Handle computer tie
+      if (compRoundStatus.game_is_tied) {
+        let winCount = gameSession.getWinCounter();
+        GameEventService.broadcastToSession(gameSession, {
+          type: "winCount",
+          payload: { winCount },
+        });
+      }
 
       // Broadcast computer turn
       GameEventService.broadcastToSession(gameSession, {
@@ -387,6 +415,19 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
         });
         
         // Stop the loop if computer won
+        break;
+      }
+      
+      // If the game is tied, broadcast a tie event
+      if (compRoundStatus.game_is_tied) {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "gameTied",
+          payload: { 
+            message: "Game ended in a tie"
+          }
+        });
+        
+        // Stop the loop if game tied
         break;
       }
       
