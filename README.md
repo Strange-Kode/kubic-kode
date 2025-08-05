@@ -330,6 +330,53 @@ If invalid options are provided, the API returns enhanced error information:
 
 This prevents players from changing fundamental game settings (like difficulty) mid-game to gain unfair advantages.
 
+## First Player Management
+
+kubic-kode provides flexible **first player management** through the `establishFirstPlayers()` system, allowing games to control turn order initialization.
+
+### How It Works
+
+The system supports multiple approaches for determining who goes first:
+
+1. **Participant-Specific**: A specific participant can be designated to go first
+2. **Game-Specific Logic**: Games can implement custom first player rules (e.g., X always first in tic-tac-toe)
+3. **Randomized by Play Style**: Automatic randomization based on the game's play style
+
+### Implementation
+
+Games can implement `establishFirstPlayers()` to define custom first player logic:
+
+```javascript
+establishFirstPlayers() {
+  // Example: In tic-tac-toe, X always goes first
+  const players = this.engine.getPlayerEntities();
+  const xPlayer = players.find(player => player.getMarkType() === 'X');
+  return xPlayer ? xPlayer.getPlayerId() : null;
+}
+```
+
+### Play Style Randomization
+
+When no specific first player is determined, the system automatically randomizes based on play style:
+
+- **`single-set`**: Randomizes all player order, first player gets the first turn
+- **`multi-set`**: All players act simultaneously, randomizes for consistency
+- **`multi-subset`**: Randomizes the order of player subsets
+- **`non-blocking`**: Returns random player without changing turn order
+
+### API Integration
+
+The `establishFirstPlayers` method is automatically called during game start and returns both the current player and the designated first player:
+
+```json
+{
+  "current_player_id": 1,
+  "first_player_id": 1,
+  "game_started": true,
+  "status": "New game created"
+}
+```
+
 ## Architecture
 
 ### Core Components
@@ -393,7 +440,8 @@ The **Game Contract** defines what methods your game implementation must provide
 - `stopGame()` - Stop the game (default: engine's stop)
 - `handleInactivity()` - Handle player inactivity (default: null)
 - `initializeGameOptions()` - Initialize game options
-- `applyGameOptions(options)` - Apply game options
+- `calculateComputerMove()` - Calculate AI player moves
+- `establishFirstPlayers()` - Determine which player goes first (default: randomized based on play style)
 
 #### Wrapper Methods (provided by KubicKodeGame)
 - `getGameOptions()` - Get game options instance
@@ -448,10 +496,14 @@ class MyGame {
   initializeGameOptions() {
     // New lifecycle-based approach
     this.getGameOptions().addOption('gridSize', 5, 'frozen');
-    this.getGameOptions().addOption('maxTurns', 25, 'pre-start', (value) => {
-      return value > 0 ? true : 'Max turns must be positive';
-    });
-    this.getGameOptions().addOption('soundEnabled', true, 'runtime');
+  }
+
+  establishFirstPlayers() {
+    // Optional: Define game-specific first player logic
+    // For example, in tic-tac-toe, X always goes first
+    const players = this.engine.getPlayerEntities();
+    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    return xPlayer ? xPlayer.getPlayerId() : null;
   }
 }
 ```

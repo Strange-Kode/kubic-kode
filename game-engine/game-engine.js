@@ -410,4 +410,43 @@ export class GameEngine {
     console.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
     return false;
   }
+
+  // Turn Order Management
+  // ---------------------
+
+  /**
+   * Get the current turn order
+   * @returns {Array} The turn order array
+   */
+  getTurnOrder() {
+    return [...this._turnOrder]; // Return a copy to prevent direct manipulation
+  }
+
+  /**
+   * Set the turn order
+   * @param {Array} turnOrder - The new turn order
+   */
+  setTurnOrder(turnOrder) {
+    this._turnOrder = [...turnOrder]; // Make a copy to prevent external manipulation
+  }
+
+  /**
+   * Get the current turn index
+   * @returns {number} The current turn index
+   */
+  getCurrentTurnIndex() {
+    return this._currentTurnIndex;
+  }
+
+  /**
+   * Set the current turn index
+   * @param {number} index - The new turn index
+   */
+  setCurrentTurnIndex(index) {
+    if (index >= 0 && index < this._turnOrder.length) {
+      this._currentTurnIndex = index;
+    } else {
+      console.warn(`[GameEngine] Invalid turn index: ${index}. Valid range: 0-${this._turnOrder.length - 1}`);
+    }
+  }
 }

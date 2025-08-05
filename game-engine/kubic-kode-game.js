@@ -3,6 +3,7 @@
 import { GameInterface } from "./game-interface.js";
 import { GameOptions } from "./game-options.js";
 import { gameContract } from "./game-contract.js";
+import { shuffleArray } from "../game-utility/game-utility.js";
 
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
@@ -354,6 +355,113 @@ class KubicKodeGame extends GameInterface {
   // Helper method to get the current value of a game option
   getOptionValue(key) {
     return this.gameOptions.getCurrentValue(key);
+  }
+
+  establishFirstPlayers() {
+    // Check system option for specific participant preference
+    const participantId = this.gameOptions.getCurrentSystemValue('participantPlaysFirst');
+    
+    // If a specific participant is configured via system options
+    if (participantId) {
+      const playerId = this.playerMappings[participantId];
+      if (playerId) {
+        // Set this player as first in turn order
+        this._setFirstPlayer(playerId);
+        return playerId;
+      } else {
+        console.warn(`establishFirstPlayers: Participant ${participantId} not found in player mappings`);
+      }
+    }
+
+    // Check if game instance has its own implementation
+    if (typeof this.gameInstance.establishFirstPlayers === 'function') {
+      const result = this.gameInstance.establishFirstPlayers();
+      if (result) {
+        // If game returned a player ID, set it as first
+        this._setFirstPlayer(result);
+        return result;
+      }
+    }
+
+    // No specific first player requested - randomize based on play style
+    return this._randomizeFirstPlayers();
+  }
+
+  // Helper method to set a specific player as first in turn order
+  _setFirstPlayer(playerId) {
+    const engine = this.gameInstance.getGameEngine();
+    const playStyle = engine.getPlayStyle();
+    
+    if (playStyle === "single-set" || playStyle === "multi-set") {
+      const currentOrder = engine.getTurnOrder();
+      const playerIndex = currentOrder.indexOf(playerId);
+      
+      if (playerIndex !== -1) {
+        // Move the player to the front
+        const reorderedPlayers = [playerId, ...currentOrder.filter(id => id !== playerId)];
+        engine.setTurnOrder(reorderedPlayers);
+        engine.setCurrentTurnIndex(0); // Reset to first position
+      }
+    } else if (playStyle === "multi-subset") {
+      // For multi-subset, ensure the player's subset goes first
+      const currentOrder = engine.getTurnOrder();
+      let targetSubsetIndex = -1;
+      
+      for (let i = 0; i < currentOrder.length; i++) {
+        if (currentOrder[i].includes(playerId)) {
+          targetSubsetIndex = i;
+          break;
+        }
+      }
+      
+      if (targetSubsetIndex !== -1 && targetSubsetIndex !== 0) {
+        // Move the target subset to the front
+        const modifiedOrder = [...currentOrder];
+        const targetSubset = modifiedOrder.splice(targetSubsetIndex, 1)[0];
+        modifiedOrder.unshift(targetSubset);
+        engine.setTurnOrder(modifiedOrder);
+        engine.setCurrentTurnIndex(0);
+      }
+    }
+    // For non-blocking, order doesn't matter
+  }
+
+  // Helper method to randomize first players based on play style
+  _randomizeFirstPlayers() {
+    const engine = this.gameInstance.getGameEngine();
+    const playStyle = engine.getPlayStyle();
+    const players = engine.getPlayerEntities();
+    
+    if (players.length === 0) {
+      return null;
+    }
+
+    if (playStyle === "single-set") {
+      // Randomize the order of all players
+      const shuffledIds = shuffleArray(players.map(p => p.getPlayerId()));
+      engine.setTurnOrder(shuffledIds);
+      engine.setCurrentTurnIndex(0);
+      return shuffledIds[0];
+    } else if (playStyle === "multi-set") {
+      // All players act simultaneously, but randomize for consistency
+      const shuffledIds = shuffleArray(players.map(p => p.getPlayerId()));
+      engine.setTurnOrder(shuffledIds);
+      return shuffledIds[0]; // Return first for consistency
+    } else if (playStyle === "multi-subset") {
+      // Randomize the order of subsets
+      const currentOrder = engine.getTurnOrder();
+      const shuffledOrder = shuffleArray(currentOrder);
+      engine.setTurnOrder(shuffledOrder);
+      engine.setCurrentTurnIndex(0);
+      // Return first player from first subset
+      return shuffledOrder[0] && shuffledOrder[0][0];
+    } else if (playStyle === "non-blocking") {
+      // Return a random player but don't change turn order
+      const randomPlayer = players[Math.floor(Math.random() * players.length)];
+      return randomPlayer.getPlayerId();
+    }
+    
+    return null;
   }
 
   /**

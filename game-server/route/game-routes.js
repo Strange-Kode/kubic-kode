@@ -11,7 +11,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 const validateSessionMiddleware = validateSession(sessionManager);
 
 // Shared function to handle game start logic
-const handleGameStart = (gameSession, options = {}) => {
+const handleGameStart = (gameSession, options = {}, requestingParticipantId = null) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
@@ -89,9 +89,11 @@ const handleGameStart = (gameSession, options = {}) => {
     }
   }
 
-  // Step 5: Return the current player
+  // Step 5: Establish first player(s) and return as current player(s)
+  const firstPlayerId = gameInstance.establishFirstPlayers();
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   result.current_player_id = currentPlayer.getPlayerId();
+  result.first_player_id = firstPlayerId;
   result.game_started = true;
   result.status = "New game created";
 
@@ -128,7 +130,7 @@ gameRouter.get("/game/start/:sessionId", validateSessionMiddleware, (req, res) =
     return res.status(403).json({ error: "This participant cannot start games." });
   }
 
-  const result = handleGameStart(gameSession);
+  const result = handleGameStart(gameSession, {}, participantId);
   res.json(result);
 });
 
@@ -139,7 +141,7 @@ gameRouter.post("/game/start/:sessionId", validateSessionMiddleware, checkPlayab
   const gameSession = req.gameSession;
   
   // Game options will be validated and applied according to the game's configuration
-  const result = handleGameStart(gameSession, options);
+  const result = handleGameStart(gameSession, options, participantId);
   res.json(result);
 });
 

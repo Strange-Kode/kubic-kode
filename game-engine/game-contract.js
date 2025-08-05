@@ -22,7 +22,8 @@ export class GameContract {
       'stopGame',
       'handleInactivity',
       'initializeGameOptions',
-      'calculateComputerMove'
+      'calculateComputerMove',
+      'establishFirstPlayers'
     ]);
 
     // Methods that are always provided by KubicKodeGame wrapper

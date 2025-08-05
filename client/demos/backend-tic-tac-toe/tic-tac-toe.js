@@ -73,6 +73,20 @@ class TicTacToeGame {
     return player;
   }
 
+  establishFirstPlayers() {
+    // In tic-tac-toe, X always goes first
+    // Find the player with mark type 'X'
+    const players = this._engine.getPlayerEntities();
+    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    
+    if (xPlayer) {
+      return xPlayer.getPlayerId();
+    }
+    
+    // Fallback: return first player if X player not found
+    return players.length > 0 ? players[0].getPlayerId() : null;
+  }
+
   resetForRestart() {
     // Reset winner state
     this._winner = null;
