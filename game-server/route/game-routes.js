@@ -341,7 +341,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
   // 1. No one has won yet (or no initial status provided)
   // 2. Current player is a computer
   // 3. Game is still active
-  while ((!lastRoundStatus || !lastRoundStatus.player_has_won) && 
+  while ((!lastRoundStatus || !lastRoundStatus.player_has_won || !lastRoundStatus.game_is_tied) && 
          gameInstance.getGameEngine().isGameStarted() &&
          gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
     
