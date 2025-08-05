@@ -86,6 +86,22 @@ export class TileMap {
   }
 
   /**
+   * Get all empty tile positions
+   * @returns {Array} - Array of {x, y} objects for empty tiles
+   */
+  getEmptyTiles() {
+    const empty = [];
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (!this.isTileOccupied(x, y)) {
+          empty.push({ x, y });
+        }
+      }
+    }
+    return empty;
+  }
+
+  /**
    * Count total number of occupied tiles
    * @returns {number} - Number of occupied tiles
    */
