@@ -47,6 +47,26 @@ export function pickProperties(source, props) {
   }, {});
 }
 
+// Middleware to validate session exists and attach it to request
+export function validateSession(sessionManager) {
+  return (req, res, next) => {
+    const { sessionId } = req.params;
+    const gameSession = sessionManager.getSession(sessionId);
+    
+    if (!gameSession) {
+      return res.status(404).json({
+        error: true,
+        message: "Game session not found",
+        session_id: sessionId
+      });
+    }
+    
+    // Attach session to request for use in route handlers
+    req.gameSession = gameSession;
+    next();
+  };
+}
+
 // Middleware to check if participant is playable (can perform game actions)
 export function checkPlayableAccess(sessionManager) {
   return (req, res, next) => {

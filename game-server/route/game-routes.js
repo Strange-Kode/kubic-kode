@@ -4,14 +4,14 @@ import { GameEventService } from "../game-event-service.js";
 
 const gameRouter = express.Router();
 
-import { serializeRecursively, checkPlayableAccess } from "../../game-utility/game-utility.js";
+import { serializeRecursively, checkPlayableAccess, validateSession } from "../../game-utility/game-utility.js";
 
-// Create middleware instance with session manager
+// Create middleware instances with session manager
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+const validateSessionMiddleware = validateSession(sessionManager);
 
 // Shared function to handle game start logic
-const handleGameStart = (sessionId, options = {}) => {
-  const gameSession = sessionManager.getSession(sessionId);
+const handleGameStart = (gameSession, options = {}) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
@@ -110,20 +110,15 @@ const handleGameStart = (sessionId, options = {}) => {
 };
 
 // Use the GET method if you want to start the game with default options, otherwise use POST.
-gameRouter.get("/game/start/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.get("/game/start/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.query;
+  const gameSession = req.gameSession;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required" });
   }
 
   // Check if participant is playable
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
-
   const participant = gameSession.getParticipantById(participantId);
   if (!participant) {
     return res.status(404).json({ error: "Participant not found." });
@@ -133,34 +128,30 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     return res.status(403).json({ error: "This participant cannot start games." });
   }
 
-  const result = handleGameStart(sessionId);
+  const result = handleGameStart(gameSession);
   res.json(result);
 });
 
 
 // Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
-gameRouter.post("/game/start/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.post("/game/start/:sessionId", validateSessionMiddleware, checkPlayableAccessMiddleware, (req, res) => {
   const { participantId, ...options } = req.body || {}; // Extract participantId and options from request body
+  const gameSession = req.gameSession;
+  
   // Game options will be validated and applied according to the game's configuration
-  const result = handleGameStart(sessionId, options);
+  const result = handleGameStart(gameSession, options);
   res.json(result);
 });
 
-gameRouter.get("/game/stop/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.get("/game/stop/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.query;
+  const gameSession = req.gameSession;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required" });
   }
 
   // Check if participant is playable
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
-
   const participant = gameSession.getParticipantById(participantId);
   if (!participant) {
     return res.status(404).json({ error: "Participant not found." });
@@ -197,9 +188,8 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
 });
 
 // Used to get current turn (=> current player id)
-gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/get-current-player/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   res.json({
@@ -210,9 +200,8 @@ gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   });
 });
 
-gameRouter.get("/game/is-active/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/is-active/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   res.json({
@@ -220,9 +209,8 @@ gameRouter.get("/game/is-active/:sessionId", (req, res) => {
   });
 });
 
-gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   const tileMap = gameInstance.getGameEngine().getTileMap();
@@ -236,9 +224,8 @@ gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
 });
 
 // Get game options information
-gameRouter.get("/game/options/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/options/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   const gameOptions = gameInstance.getGameOptions();

@@ -3,9 +3,12 @@ import { sessionManager } from "../session-manager.js"; // Holds all active Game
 import { GameEventService } from "../game-event-service.js";
 import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
 
-import { serializeRecursively } from "../../game-utility/game-utility.js";
+import { serializeRecursively, validateSession } from "../../game-utility/game-utility.js";
 
 const sessionRouter = express.Router();
+
+// Create middleware instance with session manager
+const validateSessionMiddleware = validateSession(sessionManager);
 
 // Init session, GET fallback (no turnConfig)
 sessionRouter.get("/session/init/:gameId", (req, res) => {
@@ -49,15 +52,9 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
 });
 
 // Join session
-sessionRouter.post("/session/:sessionId/join", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, res) => {
   const { participantName, participantType = "user" } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     let participantId = gameSession.addParticipant(
@@ -85,15 +82,9 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
 });
 
 // Join session as spectator
-sessionRouter.post("/session/:sessionId/spectate", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, (req, res) => {
   const { participantName } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     let participantId = gameSession.addParticipant(
@@ -121,17 +112,11 @@ sessionRouter.post("/session/:sessionId/spectate", (req, res) => {
 });
 
 // Leave session
-sessionRouter.post("/session/:sessionId/leave", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.body;
+  const gameSession = req.gameSession;
 
   // TODO: Validate that current user that's calling leave is authorized to do so.
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
 
   try {
     let participant = gameSession.getParticipantById(participantId);
@@ -154,43 +139,25 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
 });
 
 // @deprecated, use next route instead
-sessionRouter.get("/session/:sessionId/participants", (req, res) => {
+sessionRouter.get("/session/:sessionId/participants", validateSessionMiddleware, (req, res) => {
   console.warn(
     "session-routes.js::get /session/:sessionId/participants is deprecated, use /session/participants/list/:sessionId instead"
   );
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   res.json(session.listParticipants());
 });
 
 // List participants
-sessionRouter.get("/session/participants/list/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/participants/list/:sessionId", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   res.json(session.listParticipants());
 });
 
 // Get participant statistics
-sessionRouter.get("/session/participants/stats/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
 
   const allParticipants = gameSession.listParticipants();
   const playableParticipants = gameSession.getPlayableParticipants();
@@ -207,9 +174,8 @@ sessionRouter.get("/session/participants/stats/:sessionId", (req, res) => {
   });
 });
 
-sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
 
   gameSession.startRestartVote();
 
@@ -229,11 +195,9 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
   }
 });
 
-sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId, voteYes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
+  const gameSession = req.gameSession;
 
   try {
     gameSession.registerRestartVote(participantId, voteYes === true);
@@ -273,15 +237,9 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
 });
 
 // Get session game history with optional filters
-sessionRouter.post("/session/history/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (req, res) => {
   const filters = req.body || {};
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     // Convert string dates to Date objects if provided
@@ -309,15 +267,9 @@ sessionRouter.post("/session/history/:sessionId", (req, res) => {
 });
 
 // Subscribe to game history event types
-sessionRouter.post("/session/subscribe/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   if (!eventTypes || !Array.isArray(eventTypes) || eventTypes.length === 0) {
     return res.status(400).json({
@@ -359,15 +311,9 @@ sessionRouter.post("/session/subscribe/:sessionId", (req, res) => {
 });
 
 // Unsubscribe from game history event types
-sessionRouter.post("/session/unsubscribe/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   if (!eventTypes || !Array.isArray(eventTypes)) {
     return res.status(400).json({
@@ -408,14 +354,8 @@ sessionRouter.post("/session/unsubscribe/:sessionId", (req, res) => {
 });
 
 // Get current subscriptions for a session
-sessionRouter.get("/session/subscriptions/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
 
   try {
     const currentSubscriptions = gameSession.getGameHistorySubscriptions();
@@ -451,13 +391,8 @@ sessionRouter.get("/sessions/list", (req, res) => {
 });
 
 // Get detailed lobby information for a specific session
-sessionRouter.get("/session/lobby/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/lobby/:sessionId", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
   
   try {
     const lobbyStatus = session.getLobbyStatus();
@@ -509,8 +444,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
 // ---------------------------
 
 // Set lobby configuration (host only)
-sessionRouter.post("/session/:sessionId/config", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req, res) => {
   const { participantId, config } = req.body;
 
   if (!participantId) {
@@ -521,10 +455,7 @@ sessionRouter.post("/session/:sessionId/config", (req, res) => {
     return res.status(400).json({ error: "config object is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     // Validate that participant is the host
@@ -577,13 +508,8 @@ sessionRouter.post("/session/:sessionId/config", (req, res) => {
 });
 
 // Get lobby configuration
-sessionRouter.get("/session/:sessionId/config", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   try {
     res.json({
@@ -599,18 +525,15 @@ sessionRouter.get("/session/:sessionId/config", (req, res) => {
 });
 
 // Delete specific lobby configuration key (host only)
-sessionRouter.delete("/session/:sessionId/config/:configKey", (req, res) => {
-  const { sessionId, configKey } = req.params;
+sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMiddleware, (req, res) => {
+  const { configKey } = req.params;
   const { participantId } = req.body;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const oldValue = session.getLobbyConfig(configKey);
@@ -753,18 +676,14 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
 // --------------------------------------
 
 // Start sync phase (host only)
-sessionRouter.post("/session/:sessionId/sync/start", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.body;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     if (!session.isHost(participantId)) {
@@ -817,8 +736,7 @@ sessionRouter.post("/session/:sessionId/sync/start", (req, res) => {
 });
 
 // Set participant ready state
-sessionRouter.post("/session/:sessionId/ready", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
   const { participantId, ready } = req.body;
 
   if (!participantId) {
@@ -829,10 +747,7 @@ sessionRouter.post("/session/:sessionId/ready", (req, res) => {
     return res.status(400).json({ error: "ready must be a boolean value." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     session.setParticipantReady(participantId, ready);
@@ -887,13 +802,8 @@ sessionRouter.post("/session/:sessionId/ready", (req, res) => {
 });
 
 // Get ready states
-sessionRouter.get("/session/:sessionId/ready", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   try {
     res.json({
@@ -911,18 +821,14 @@ sessionRouter.get("/session/:sessionId/ready", (req, res) => {
 });
 
 // Kick participant (host only)
-sessionRouter.post("/session/:sessionId/kick", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, res) => {
   const { hostId, participantIdToKick } = req.body;
 
   if (!hostId || !participantIdToKick) {
     return res.status(400).json({ error: "hostId and participantIdToKick are required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const participantToKick = session.getParticipantById(participantIdToKick);
@@ -971,18 +877,14 @@ sessionRouter.post("/session/:sessionId/kick", (req, res) => {
 });
 
 // Transfer host (current host only)
-sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddleware, (req, res) => {
   const { currentHostId, newHostId } = req.body;
 
   if (!currentHostId || !newHostId) {
     return res.status(400).json({ error: "currentHostId and newHostId are required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     if (!session.isHost(currentHostId)) {
@@ -1028,8 +930,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
 // -------------------------
 
 // Send chat message
-sessionRouter.post("/session/:sessionId/chat", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, res) => {
   const { participantId, message } = req.body;
 
   if (!participantId) {
@@ -1044,10 +945,7 @@ sessionRouter.post("/session/:sessionId/chat", (req, res) => {
     return res.status(400).json({ error: "Message cannot exceed 500 characters." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const participant = session.getParticipantById(participantId);
@@ -1081,14 +979,9 @@ sessionRouter.post("/session/:sessionId/chat", (req, res) => {
 });
 
 // Get chat messages
-sessionRouter.get("/session/:sessionId/chat", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, res) => {
   const { limit = 50 } = req.query;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const messages = session.getChatMessages(parseInt(limit, 10));
