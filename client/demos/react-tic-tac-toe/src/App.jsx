@@ -200,6 +200,11 @@ function AppContent() {
       return "🔄 Restart Game Vote";
     }
 
+    // Handle tie condition
+    if (winner?.isTie) {
+      return "🤝 It's a Tie!";
+    }
+
     // Otherwise show win/loss title
     return winner?.id === participantId
       ? "🎉 You Won!"
@@ -225,7 +230,9 @@ function AppContent() {
       const isSpectator = currentParticipant?.type === "spectator";
 
       // Add context about who won the last game
-      const lastGameResult = winner
+      const lastGameResult = winner?.isTie
+        ? "The last game was a tie! 🤝"
+        : winner
         ? winner.id === participantId
           ? "You won the last game! 🎉"
           : `${winner.name} won the last game.`
@@ -282,6 +289,13 @@ function AppContent() {
     // Check if current participant is a spectator for regular win message too
     const currentParticipant = participants.find((p) => p.id === participantId);
     const isSpectator = currentParticipant?.type === "spectator";
+
+    // Handle tie message
+    if (winner?.isTie) {
+      return isSpectator
+        ? "The game ended in a tie! Players will vote on whether to play again."
+        : "The game ended in a tie! No winner this round.";
+    }
 
     if (isSpectator) {
       return `${
