@@ -177,6 +177,21 @@ For detailed implementation information, see [SPECTATOR_FUNCTIONALITY.md](SPECTA
 
 kubic-kode includes a lifecycle-based game options system that controls **when** options can be modified, ensuring game integrity while maintaining flexibility.
 
+### Option Namespaces
+
+The system supports two namespaces for organizing options:
+
+1. **`userspace`** (default): Game-specific options that developers typically configure
+   - Standard game settings like difficulty, grid size, win conditions
+   - UI preferences like sound settings, visual themes
+   - Custom game mechanics options
+
+2. **`systemspace`**: System-level options that require global uniqueness
+   - Internal engine settings
+   - Advanced configuration that affects multiple systems
+   - Options that should not conflict with user-defined options
+   - System option names must be unique across ALL namespaces
+
 ### Option Lifecycles
 
 1. **`frozen`**: Never changeable (core game rules like game type)
@@ -235,7 +250,30 @@ Content-Type: application/json
 }
 ```
 
-### Example Usage
+### initializeGameOptions Example
+
+Here's how to set up both userspace and systemspace options in your game:
+
+```javascript
+initializeGameOptions() {
+  // Userspace options (default namespace) - game-specific settings
+  this.getGameOptions().addOption('gridSize', 3, 'pre-start');
+  this.getGameOptions().addOption('difficulty', 'medium', 'pre-start');
+  this.getGameOptions().addOption('soundEnabled', true, 'runtime');
+  this.getGameOptions().addOption('timeLimit', 30, 'between-rounds');
+
+  // Systemspace options - system-level settings with global uniqueness
+  this.getGameOptions().addSystemOption('debugMode', false, 'runtime', null, 'Enable debug logging');
+  this.getGameOptions().addSystemOption('maxConcurrentGames', 10, 'frozen', null, 'System limit for concurrent games');
+  this.getGameOptions().addSystemOption('apiVersion', '2.1', 'frozen', null, 'API version for this game');
+
+  // Access values
+  const gridSize = this.getGameOptions().getCurrentValue('gridSize'); // userspace
+  const debugMode = this.getGameOptions().getCurrentSystemValue('debugMode'); // systemspace
+}
+```
+
+### API Usage Examples
 
 1. **Create a session with configurable TicTacToe**:
    ```bash
@@ -252,8 +290,21 @@ Content-Type: application/json
    POST /api/game/start/:sessionId
    {
      "gridSize": 5,
-     "winCondition": 4
+     "winCondition": 4,
+     "system::debugMode": true
    }
+   ```
+
+4. **Access different namespaces in code**:
+   ```javascript
+   // Userspace (default)
+   const gameSize = this.getGameOptions().getCurrentValue('gridSize');
+   
+   // Systemspace (explicit)
+   const debugEnabled = this.getGameOptions().getCurrentSystemValue('debugMode');
+   
+   // Alternative systemspace access
+   const debugEnabled2 = this.getGameOptions().getCurrentValue('debugMode', 'systemspace');
    ```
 
 ### Error Handling

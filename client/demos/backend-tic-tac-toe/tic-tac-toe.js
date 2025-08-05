@@ -39,11 +39,25 @@ class TicTacToeGame {
   }
 
   initializeGameOptions() {
-    this.getGameOptions().addFrozen("gridSize", 3); // TicTacToe (classic) is always 3x3
-    this.getGameOptions().addFrozen("winCondition", 3); // TicTacToe (classic) always requires 3 in a row
+    // System options are automatically available via systemspace namespace
+    // To discover available system options, use:
+    // console.log(this.getAvailableSystemOptions());
+    // To read a system option: this.getGameOptions().readSystemOption('participantPlaysFirst')
+    // Available system options include:
+    // - participantPlaysFirst: Which participant goes first (pre-start)
+    // - turnOrderType: How turn order is determined (pre-start) 
+    // - allowSpectatorVoting: Whether spectators can vote (runtime)
+    // - inactivityTimeout: Player inactivity timeout in ms (runtime)
+
+    // Example: Read a system option
+    // const firstParticipant = this.getGameOptions().readSystemOption('participantPlaysFirst');
+
+    // Game-specific options (userspace namespace - default)
+    this.getGameOptions().addOption("gridSize", 3, 'frozen'); // TicTacToe (classic) is always 3x3
+    this.getGameOptions().addOption("winCondition", 3, 'frozen'); // TicTacToe (classic) always requires 3 in a row
     
     // Add difficulty configuration for AI behavior
-    this.getGameOptions().addConfigurable("difficulty", "medium", (value) => {
+    this.getGameOptions().addOption("difficulty", "medium", 'runtime', (value) => {
       const validDifficulties = ["easy", "medium", "hard"];
       if (!validDifficulties.includes(value)) {
         return `Difficulty must be one of: ${validDifficulties.join(", ")}`;

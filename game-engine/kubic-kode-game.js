@@ -12,6 +12,9 @@ class KubicKodeGame extends GameInterface {
     this.gameOptions = new GameOptions();
     this.playerMappings = {}; // Store participantId -> playerId mappings
 
+    // Register system options that KubicKodeGame handles automatically
+    this._registerSystemOptions();
+
     // Validate that the game instance implements the required contract
     const validation = gameContract.validateGameInstance(gameInstance, gameInstance.constructor.name);
     if (!validation.valid) {
@@ -298,10 +301,22 @@ class KubicKodeGame extends GameInterface {
   }
 
   getInactivityTimeout() {
-    // Default implementation if game instance doesn't provide it
+    // Only provide inactivity timeout if game instance implements handleInactivity
+    if (typeof this.gameInstance.handleInactivity !== 'function') {
+      return null; // No inactivity timeout if game doesn't handle inactivity
+    }
+
+    // Check system option first
+    const systemTimeout = this.gameOptions.getCurrentSystemValue('inactivityTimeout');
+    if (systemTimeout !== null && systemTimeout !== undefined) {
+      return systemTimeout;
+    }
+
+    // Fall back to game instance implementation
     if (typeof this.gameInstance.getInactivityTimeout === 'function') {
       return this.gameInstance.getInactivityTimeout();
     }
+    
     return null; // Default: no inactivity timeout
   }
 
@@ -433,6 +448,129 @@ class KubicKodeGame extends GameInterface {
         gameEngine.updateTileMapDimensions(appliedOptions.gridSize, appliedOptions.gridSize);
       }
     }
+
+    // Handle system options automatically
+    this._handleSystemOptions(appliedOptions);
+  }
+
+  _handleSystemOptions(appliedOptions) {
+    // Handle participantPlaysFirst: Set up turn order with specified participant first
+    if ('system::participantPlaysFirst' in appliedOptions) {
+      this._applyParticipantPlaysFirst(appliedOptions['system::participantPlaysFirst']);
+    }
+
+    // Handle turnOrderType: Control how turn order is determined
+    if ('system::turnOrderType' in appliedOptions) {
+      this._applyTurnOrderType(appliedOptions['system::turnOrderType']);
+    }
+
+    // Handle allowSpectatorVoting: Configure spectator voting behavior
+    if ('system::allowSpectatorVoting' in appliedOptions) {
+      // This would be implemented in session management
+      // For now, just log that it's been set
+      console.log(`[KubicKodeGame] Spectator voting ${appliedOptions['system::allowSpectatorVoting'] ? 'enabled' : 'disabled'}`);
+    }
+
+    // Handle inactivityTimeout: Player inactivity timeout is automatically handled via getInactivityTimeout()
+    if ('system::inactivityTimeout' in appliedOptions) {
+      console.log(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions['system::inactivityTimeout']}ms`);
+    }
+  }
+
+  _applyParticipantPlaysFirst(participantId) {
+    if (!participantId) return; // null/undefined means no preference
+
+    console.log(`[KubicKodeGame] Setting participant ${participantId} to play first`);
+    
+    // Store this preference to apply when game starts
+    // The actual turn order will be set up in the game start logic
+    this._preferredFirstParticipant = participantId;
+  }
+
+  _applyTurnOrderType(orderType) {
+    console.log(`[KubicKodeGame] Turn order type set to: ${orderType}`);
+    this._turnOrderType = orderType;
+  }
+
+  // Developer convenience method to get all available system options
+  getAvailableSystemOptions() {
+    return this.gameOptions.getSystemOptions();
+  }
+
+  // Developer convenience method to read a system option
+  readSystemOption(key) {
+    return this.gameOptions.readSystemOption(key);
+  }
+
+  // Developer convenience method to get current system option value
+  getCurrentSystemValue(key) {
+    return this.gameOptions.getCurrentSystemValue(key);
+  }
+
+  // Register system options that KubicKodeGame handles automatically
+  _registerSystemOptions() {
+    // participantPlaysFirst: Allows specifying which participant should go first
+    this.gameOptions.addSystemOption(
+      'participantPlaysFirst', 
+      null, 
+      'pre-start',
+      (value) => {
+        if (value === null || value === undefined) {
+          return true; // Allow null/undefined (no preference)
+        }
+        if (typeof value !== 'string') {
+          return 'participantPlaysFirst must be a participant ID string or null';
+        }
+        return true;
+      },
+      'Specifies which participant should go first. Use participant ID or null for default order.'
+    );
+
+    // turnOrderType: Controls how turn order is determined
+    this.gameOptions.addSystemOption(
+      'turnOrderType',
+      'join-order',
+      'pre-start',
+      (value) => {
+        const validTypes = ['join-order', 'random', 'participant-order'];
+        if (!validTypes.includes(value)) {
+          return `turnOrderType must be one of: ${validTypes.join(', ')}`;
+        }
+        return true;
+      },
+      'Controls how turn order is determined: join-order (default), random, or participant-order'
+    );
+
+    // allowSpectatorVoting: Whether spectators can participate in restart voting
+    this.gameOptions.addSystemOption(
+      'allowSpectatorVoting',
+      false,
+      'runtime',
+      (value) => {
+        if (typeof value !== 'boolean') {
+          return 'allowSpectatorVoting must be a boolean';
+        }
+        return true;
+      },
+      'Whether spectators can participate in restart voting'
+    );
+
+    // inactivityTimeout: Player inactivity timeout in milliseconds
+    this.gameOptions.addSystemOption(
+      'inactivityTimeout',
+      null,
+      'runtime',
+      (value) => {
+        if (value === null || value === undefined) {
+          return true; // Allow null (no timeout)
+        }
+        if (typeof value !== 'number' || value < 1000) {
+          return 'inactivityTimeout must be a number >= 1000 (milliseconds) or null';
+        }
+        return true;
+      },
+      'Player inactivity timeout in milliseconds (how long a player has to make a move), or null for no timeout'
+    );
   }
 
   // Method to record custom events

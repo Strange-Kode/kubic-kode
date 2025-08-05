@@ -256,7 +256,7 @@ sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (re
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       totalEvents: history.length,
       history: history,
     });
@@ -298,7 +298,7 @@ sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       subscribedEventTypes: eventTypes,
       message: `Successfully subscribed to game history event types: ${eventTypes.join(
         ", "
@@ -341,7 +341,7 @@ sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware,
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       unsubscribedEventTypes: eventTypes,
       message: `Successfully unsubscribed from game history event types: ${eventTypes.join(
         ", "
@@ -362,7 +362,7 @@ sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       subscribedEventTypes: currentSubscriptions,
       totalSubscriptions: currentSubscriptions.length,
       note: "Subscriptions only apply to game history events. Regular session events (joins, leaves, etc.) are always broadcast.",
@@ -514,7 +514,7 @@ sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req,
   try {
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       config: session.getAllLobbyConfig(),
       host: session.getHost()
     });
@@ -808,7 +808,7 @@ sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, 
   try {
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       in_sync_phase: session.isInSyncPhase(),
       all_ready: session.areAllParticipantsReady(),
       ready_states: session.getAllReadyStates(),
@@ -988,7 +988,7 @@ sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, r
     
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       total_messages: messages.length,
       messages: messages
     });
