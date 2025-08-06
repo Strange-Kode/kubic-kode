@@ -280,13 +280,13 @@ class TicTacToeGame {
     const randomChances = {
       easy: 0.35,
       medium: 0.23,
-      hard: 0.2,  
+      hard: 0.2,
     }
     // Determine move strategy based on difficulty
     switch (difficulty) {
       case "easy":
         // Easy: Always use heuristics (current blocking logic)
-        return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, randomChances.easy));
+        return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, false, randomChances.easy));
         
       case "medium":
         // Medium: 70% minimax, 30% heuristics
@@ -309,7 +309,7 @@ class TicTacToeGame {
       default:
         // Fallback to medium
         const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
-        return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, randomChances.medium));
+        return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true, randomChances.medium));
     }
   }
 
