@@ -99,13 +99,13 @@ class KubicKodeGame extends GameInterface {
       );
 
       // Record win if it occurred and stop the game
-      if (playStatus.playerHasWon) {
+      if (playStatus.access('playerHasWon')) {
         this.gameSession.gameHistory.addPlayerWonEvent(
-          playStatus.playerId,
+          playStatus.access('playerId'),
           this.getParticipantIdForPlayer(playerId),
           {
             winCondition:
-              playStatus.winCondition || this.getWinConditionDescription(x, y),
+              playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
             finalPosition: { x, y },
             gameState: "completed",
           }
@@ -117,7 +117,7 @@ class KubicKodeGame extends GameInterface {
       }
 
       // Record tie if it occurred and stop the game
-      if (playStatus.gameIsTied) {
+      if (playStatus.access('gameIsTied')) {
         this.gameSession.gameHistory.addGameTiedEvent({
           finalPosition: { x, y },
           gameState: "tied",

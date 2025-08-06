@@ -292,7 +292,7 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
   }
   
   // Handle win condition
-  if (playStatus.playerHasWon) {
+  if (playStatus.access('playerHasWon')) {
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
@@ -302,7 +302,7 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
   }
   
   // Handle tie condition
-  if (playStatus.gameIsTied) {
+  if (playStatus.access('gameIsTied')) {
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
       type: "winCount",
@@ -325,18 +325,18 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
     });
     
     // If the player won, also broadcast a win event
-    if (playStatus.playerHasWon) {
+    if (playStatus.access('playerHasWon')) {
       GameEventService.broadcastToSession(gameSession, {
         type: "playerWon",
         payload: { 
-          playerId: playStatus.playerId,
-          winCondition: playStatus.winCondition || 'unknown'
+          playerId: playStatus.access('playerId'),
+          winCondition: playStatus.access('winCondition') || 'unknown'
         }
       });
     }
     
     // If the game is tied, broadcast a tie event
-    if (playStatus.gameIsTied) {
+    if (playStatus.access('gameIsTied')) {
       GameEventService.broadcastToSession(gameSession, {
         type: "gameTied",
         payload: { 
@@ -362,7 +362,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
   // 1. No one has won yet and game hasn't tied (or no initial status provided)
   // 2. Current player is a computer
   // 3. Game is still active
-  while ((!lastPlayStatus || (!lastPlayStatus.playerHasWon && !lastPlayStatus.gameIsTied)) && 
+  while ((!lastPlayStatus || (!lastPlayStatus.access('playerHasWon') && !lastPlayStatus.access('gameIsTied'))) && 
          gameInstance.getGameEngine().isGameStarted() &&
          gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
     
@@ -382,7 +382,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
       compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
 
       // Handle computer win
-      if (compPlayStatus.playerHasWon) {
+      if (compPlayStatus.access('playerHasWon')) {
         gameSession.increaseWinCounter();
         let winCount = gameSession.getWinCounter();
         GameEventService.broadcastToSession(gameSession, {
@@ -392,7 +392,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
       }
       
       // Handle computer tie
-      if (compPlayStatus.gameIsTied) {
+      if (compPlayStatus.access('gameIsTied')) {
         let winCount = gameSession.getWinCounter();
         GameEventService.broadcastToSession(gameSession, {
           type: "winCount",
@@ -410,12 +410,12 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
       });
       
       // If the computer won, also broadcast a win event
-      if (compPlayStatus.playerHasWon) {
+      if (compPlayStatus.access('playerHasWon')) {
         GameEventService.broadcastToSession(gameSession, {
           type: "playerWon",
           payload: { 
-            playerId: compPlayStatus.playerId,
-            winCondition: compPlayStatus.winCondition || 'unknown'
+            playerId: compPlayStatus.access('playerId'),
+            winCondition: compPlayStatus.access('winCondition') || 'unknown'
           }
         });
         
@@ -424,7 +424,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
       }
       
       // If the game is tied, broadcast a tie event
-      if (compPlayStatus.gameIsTied) {
+      if (compPlayStatus.access('gameIsTied')) {
         GameEventService.broadcastToSession(gameSession, {
           type: "gameTied",
           payload: { 
