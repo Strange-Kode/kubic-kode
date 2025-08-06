@@ -250,6 +250,10 @@ export class GameSession {
     );
   }
 
+  isRestartVoteInProgress() {
+    return this.restartVote !== null;
+  }
+
   isRestartVoteComplete() {
     if (!this.restartVote) return false;
     return (

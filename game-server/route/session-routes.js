@@ -177,6 +177,11 @@ sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddl
 sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
   const gameSession = req.gameSession;
 
+  // Check if a restart vote is already in progress
+  if (gameSession.isRestartVoteInProgress()) {
+    return res.json({ vote_inited: true, message: "Restart vote already in progress" });
+  }
+
   gameSession.startRestartVote();
 
   res.json({ vote_inited: true });
