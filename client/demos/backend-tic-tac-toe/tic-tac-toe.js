@@ -270,49 +270,46 @@ class TicTacToeGame {
     const computerMark = currentPlayer.getMarkType();
     const humanMark = computerMark === "X" ? "O" : "X";
     const difficulty = this.getOptionValue("difficulty");
-
-    // Collect all empty tiles for fallback
-    const emptyTiles = [];
-    for (let y = 0; y < tileMap.height; y++) {
-      for (let x = 0; x < tileMap.width; x++) {
-        if (tileMap.getTile(x, y) === null) {
-          emptyTiles.push({ x, y });
-        }
-      }
-    }
+    const emptyTiles = tileMap.getEmptyTiles();
 
     if (emptyTiles.length === 0) {
       return null; // No moves available
     }
 
+    // Random chances applies to "dumb" heuristic moves (no smart mode)
+    const randomChances = {
+      easy: 0.35,
+      medium: 0.23,
+      hard: 0.2,  
+    }
     // Determine move strategy based on difficulty
     switch (difficulty) {
       case "easy":
         // Easy: Always use heuristics (current blocking logic)
-        return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles));
+        return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, randomChances.easy));
         
       case "medium":
-        // Medium: 70% minimax, 30% smart heuristics (no extra randomness)
+        // Medium: 70% minimax, 30% heuristics
         if (Math.random() < 0.7) {
           const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
           return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         } else {
-          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
+          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, false, randomChances.medium));
         }
         
       case "hard":
-        // Hard: 90% minimax, 10% smart heuristics (no extra randomness) 
+        // Hard: 90% minimax, 10% heuristics
         if (Math.random() < 0.9) {
           const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
           return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
         } else {
-          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, true));
+          return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, false, randomChances.hard));
         }
         
       default:
         // Fallback to medium
         const minimaxMove = this._getMinimaxMove(tileMap, computerMark, humanMark);
-        return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles));
+        return this._convertMoveToTurnData(minimaxMove || this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, randomChances.medium));
     }
   }
 
@@ -346,10 +343,11 @@ class TicTacToeGame {
    * @param {string} humanMark - Human's mark type  
    * @param {Array} emptyTiles - Array of empty tile positions
    * @param {boolean} smartMode - If true, removes extra randomness for consistent play
+   * @param {number} randomChance - Chance of returning a random move (0.2 = 20%) (ignored if in smartMode)
    */
-  _getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, smartMode = false) {
-    // In smart mode (medium/hard), skip the 20% random chance
-    if (!smartMode && Math.random() < 0.2) {
+  _getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, smartMode = false, randomChance = 0.2) {
+    // In smart mode (medium/hard), skip the random chance
+    if (!smartMode && Math.random() < randomChance) {
       return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
     }
 
