@@ -147,6 +147,18 @@ export class TileMap {
     this.tiles = newTiles;
   }
 
+  getArea(startX, startY, endX, endY) {
+    const areaTiles = [];
+    for (let y = startY; y < endY; y++) {
+      const row = [];
+      for (let x = startX; x < endX; x++) {
+        row.push(this.tiles[y][x]);
+      }
+      areaTiles.push(row);
+    }
+    return areaTiles;
+  }
+
   *[Symbol.iterator]() {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {

@@ -11,6 +11,64 @@ import { serializeRecursively, checkPlayableAccess, validateSession } from "../.
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 const validateSessionMiddleware = validateSession(sessionManager);
 
+// Function to process tilemap data and generate debug information
+const processTileMapData = (tileMap) => {
+  const MAX_SIZE = 5;
+  const isLargeTileMap = tileMap.width > MAX_SIZE || tileMap.height > MAX_SIZE;
+  
+  // Always return the full tilemap to the client
+  const responseTileMap = serializeRecursively(tileMap);
+  
+  let debugInfo = {
+    total_tiles: tileMap.getTotalTiles(),
+    occupied_tiles: tileMap.getOccupiedCount(),
+    free_tiles: tileMap.getTotalTiles() - tileMap.getOccupiedCount(),
+    dimensions: { width: tileMap.width, height: tileMap.height },
+    is_large_tilemap: isLargeTileMap
+  };
+  
+  if (isLargeTileMap) {
+    // For large tilemaps, log only a subsection (center 10x10 area)
+    const startX = Math.max(0, Math.floor((tileMap.width - MAX_SIZE) / 2));
+    const startY = Math.max(0, Math.floor((tileMap.height - MAX_SIZE) / 2));
+    const endX = Math.min(tileMap.width, startX + MAX_SIZE);
+    const endY = Math.min(tileMap.height, startY + MAX_SIZE);
+    
+
+    const subSectionTiles = tileMap.getArea(startX, startY, endX, endY);
+    
+    const loggedTileMap = {
+      width: endX - startX,
+      height: endY - startY,
+      tiles: subSectionTiles,
+      is_subsection: true,
+      subsection_bounds: {
+        start_x: startX,
+        start_y: startY,
+        end_x: endX,
+        end_y: endY
+      }
+    };
+    
+    debugInfo.subsection_info = {
+      subsection_bounds: loggedTileMap.subsection_bounds,
+      subsection_dimensions: { width: loggedTileMap.width, height: loggedTileMap.height }
+    };
+    
+    kubicLog.debug(`game-routes.js::[processTileMapData] Large tilemap detected (${tileMap.width}x${tileMap.height}). Logging subsection: ${startX},${startY} to ${endX},${endY}`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Logged subsection:`, loggedTileMap.tiles);
+  } else {
+    // For small tilemaps, log the full tilemap
+    kubicLog.debug(`game-routes.js::[processTileMapData] Small tilemap (${tileMap.width}x${tileMap.height}). Logging full tilemap.`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Full tilemap:`, tileMap);
+  }
+  
+  // Log debug information
+  kubicLog.debug(`game-routes.js::[processTileMapData] Debug info:`, debugInfo);
+  
+  return responseTileMap;
+};
+
 // Shared function to handle game start logic
 const handleGameStart = (gameSession, options = {}, requestingParticipantId = null) => {
   const gameInstance = gameSession.getGameInstance();
@@ -239,13 +297,13 @@ gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, 
   const gameInstance = gameSession.getGameInstance();
 
   const tileMap = gameInstance.getGameEngine().getTileMap();
-  kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap:`, tileMap);
-  kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap:`, tileMap);
+  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
   
-  const serializedTileMap = serializeRecursively(tileMap);
-  kubicLog.debug(`game-routes.js::[get-tilemap] Serialized tileMap:`, serializedTileMap);
+  // Process tilemap data using the dedicated function
+  const response = processTileMapData(tileMap);
   
-  res.json(serializedTileMap);
+  res.json(response);
 });
 
 // Generic play turn endpoint for all games
