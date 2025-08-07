@@ -5,6 +5,8 @@ import { GameOptions } from "./game-options.js";
 import { gameContract } from "./game-contract.js";
 import { shuffleArray } from "../game-utility/game-utility.js";
 
+import { kubicLog } from "../kubic-log.js";
+
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
     super();
@@ -399,7 +401,7 @@ class KubicKodeGame extends GameInterface {
         this._setFirstPlayer(playerId);
         return playerId;
       } else {
-        console.warn(`establishFirstPlayers: Participant ${participantId} not found in player mappings`);
+        kubicLog.warn(`[KubicKodeGame]::establishFirstPlayers: Participant ${participantId} not found in player mappings`);
       }
     }
 
@@ -606,19 +608,19 @@ class KubicKodeGame extends GameInterface {
     if ('system::allowSpectatorVoting' in appliedOptions) {
       // This would be implemented in session management
       // For now, just log that it's been set
-      console.log(`[KubicKodeGame] Spectator voting ${appliedOptions['system::allowSpectatorVoting'] ? 'enabled' : 'disabled'}`);
+      kubicLog.debug(`[KubicKodeGame] Spectator voting ${appliedOptions['system::allowSpectatorVoting'] ? 'enabled' : 'disabled'}`);
     }
 
     // Handle inactivityTimeout: Player inactivity timeout is automatically handled via getInactivityTimeout()
     if ('system::inactivityTimeout' in appliedOptions) {
-      console.log(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions['system::inactivityTimeout']}ms`);
+      kubicLog.debug(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions['system::inactivityTimeout']}ms`);
     }
   }
 
   _applyParticipantPlaysFirst(participantId) {
     if (!participantId) return; // null/undefined means no preference
 
-    console.log(`[KubicKodeGame] Setting participant ${participantId} to play first`);
+    kubicLog.debug(`[KubicKodeGame] Setting participant ${participantId} to play first`);
     
     // Store this preference to apply when game starts
     // The actual turn order will be set up in the game start logic
@@ -626,7 +628,7 @@ class KubicKodeGame extends GameInterface {
   }
 
   _applyTurnOrderType(orderType) {
-    console.log(`[KubicKodeGame] Turn order type set to: ${orderType}`);
+    kubicLog.debug(`[KubicKodeGame] Turn order type set to: ${orderType}`);
     this._turnOrderType = orderType;
   }
 

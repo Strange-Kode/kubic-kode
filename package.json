@@ -16,7 +16,11 @@
     "start-frontend": "vite --config client/demos/react-tic-tac-toe/vite.config.js",
     "build-frontend": "vite build --config client/demos/react-tic-tac-toe/vite.config.js",
     "start-server": "node game-server/game-server.js",
-    "dev-server": "nodemon game-server/game-server.js"
+    "dev-server": "DEBUG_MODE=true DEBUG_LEVEL=trace nodemon game-server/game-server.js",
+    "dev-server:debug": "DEBUG_MODE=true DEBUG_LEVEL=info nodemon game-server/game-server.js",
+    "dev-server:debug:trace": "DEBUG_MODE=true DEBUG_LEVEL=trace nodemon game-server/game-server.js",
+    "dev-server:debug:error": "DEBUG_MODE=true DEBUG_LEVEL=error nodemon game-server/game-server.js",
+    "start-server:debug": "DEBUG_MODE=true DEBUG_LEVEL=info node game-server/game-server.js"
   },
   "keywords": [],
   "author": "Nils & Joakim Karlsson",

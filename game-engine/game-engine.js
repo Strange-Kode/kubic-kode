@@ -1,6 +1,7 @@
 import { TileMap } from "./tile-map.js";
 import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 import { GameStateMachine } from "./game-state-machine.js";
+import { kubicLog } from "../kubic-log.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
@@ -54,7 +55,7 @@ export class GameEngine {
     // Check if player is already registered to prevent duplicates
     const existingPlayer = this._player_entities.find(e => e.id === entity.id);
     if (existingPlayer) {
-      console.log(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
+      kubicLog.warn(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
       return; // Don't add duplicate players
     }
     
@@ -82,7 +83,7 @@ export class GameEngine {
     this._turnOrder = [];
     this._currentTurnIndex = 0;
     this._actedThisRound.clear();
-    console.log(`[GameEngine] Cleared all player entities and reset turn state`);
+    kubicLog.debug(`[GameEngine] Cleared all player entities and reset turn state`);
   }
 
   deregisterPlayerEntity(entityId) {
@@ -373,7 +374,7 @@ export class GameEngine {
    */
   getStateMachine() {
     if (!this._useStateMachine) {
-      console.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
+      kubicLog.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
       return null;
     }
     return this._stateMachine;
@@ -423,7 +424,7 @@ export class GameEngine {
     if (this._useStateMachine && this._stateMachine) {
       return await this._stateMachine.transitionTo(stateName, data);
     }
-    console.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
+    kubicLog.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
     return false;
   }
 
@@ -462,7 +463,7 @@ export class GameEngine {
     if (index >= 0 && index < this._turnOrder.length) {
       this._currentTurnIndex = index;
     } else {
-      console.warn(`[GameEngine] Invalid turn index: ${index}. Valid range: 0-${this._turnOrder.length - 1}`);
+      kubicLog.warn(`[GameEngine] Invalid turn index: ${index}. Valid range: 0-${this._turnOrder.length - 1}`);
     }
   }
 }

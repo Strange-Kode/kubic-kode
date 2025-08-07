@@ -1,6 +1,8 @@
 import { GameHistory } from './game-history.js';
 import { GameEventService } from './game-event-service.js';
 
+import { kubicLog } from "../kubic-log.js";
+
 /**
  * GameHistoryManager is a singleton that manages game history subscriptions
  * and provides a proxy to GameHistory instances that automatically handles
@@ -31,14 +33,14 @@ class GameHistoryManager {
     const invalidEventTypes = eventTypes.filter(type => !GameHistory.isValidEventType(type));
 
     if (invalidEventTypes.length > 0) {
-      console.warn(`[GameHistoryManager] Warning: Cannot subscribe to non-game-history events: ${invalidEventTypes.join(', ')}`);
+      kubicLog.warn(`[GameHistoryManager]::subscribe: Cannot subscribe to non-game-history events: ${invalidEventTypes.join(', ')}`);
     }
 
     validEventTypes.forEach(eventType => {
       sessionSubscriptions.add(eventType);
     });
 
-    console.log(`[GameHistoryManager] Session ${sessionId} subscribed to game history event types: ${Array.from(sessionSubscriptions).join(', ')}`);
+    kubicLog.debug(`[GameHistoryManager]::subscribe: Session ${sessionId} subscribed to game history event types: ${Array.from(sessionSubscriptions).join(', ')}`);
   }
 
   /**
@@ -52,7 +54,7 @@ class GameHistoryManager {
     }
 
     if (!this.subscriptions.has(sessionId)) {
-      console.log(`[GameHistoryManager] Session ${sessionId} has no subscriptions to unsubscribe from`);
+      kubicLog.warn(`[GameHistoryManager]::unsubscribe: Session ${sessionId} has no subscriptions to unsubscribe from`);
       return;
     }
 
@@ -61,15 +63,15 @@ class GameHistoryManager {
     const invalidEventTypes = eventTypes.filter(type => !GameHistory.isValidEventType(type));
 
     if (invalidEventTypes.length > 0) {
-      console.warn(`[GameHistoryManager] Warning: Cannot unsubscribe from non-game-history events: ${invalidEventTypes.join(', ')}`);
+      kubicLog.warn(`[GameHistoryManager]::unsubscribe: Warning - Cannot unsubscribe from non-game-history events: ${invalidEventTypes.join(', ')}`);
     }
 
     validEventTypes.forEach(eventType => {
       sessionSubscriptions.delete(eventType);
     });
 
-    console.log(`[GameHistoryManager] Session ${sessionId} unsubscribed from game history event types: ${validEventTypes.join(', ')}`);
-    console.log(`[GameHistoryManager] Session ${sessionId} remaining subscriptions: ${Array.from(sessionSubscriptions).join(', ')}`);
+    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} unsubscribed from game history event types: ${validEventTypes.join(', ')}`);
+    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} remaining subscriptions: ${Array.from(sessionSubscriptions).join(', ')}`);
   }
 
   /**
@@ -103,7 +105,7 @@ class GameHistoryManager {
    */
   clearSubscriptions(sessionId) {
     this.subscriptions.delete(sessionId);
-    console.log(`[GameHistoryManager] Cleared all subscriptions for session ${sessionId}`);
+    kubicLog.debug(`[GameHistoryManager]::clearSubscriptions: Cleared all subscriptions for session ${sessionId}`);
   }
 
   /**
@@ -153,11 +155,11 @@ class GameHistoryManager {
    */
   _broadcast(sessionId, historyEvent) {
     if (!this.isSubscribed(sessionId, historyEvent.type)) {
-      console.log(`[GameHistoryManager] Session ${sessionId} not subscribed to game history event type '${historyEvent.type}', skipping broadcast`);
+      kubicLog.warn(`[GameHistoryManager] Session ${sessionId} not subscribed to game history event type '${historyEvent.type}', skipping broadcast`);
       return;
     }
 
-    console.log(`[GameHistoryManager] Broadcasting game history event '${historyEvent.type}' to session ${sessionId}`);
+    kubicLog.debug(`[GameHistoryManager] Broadcasting game history event '${historyEvent.type}' to session ${sessionId}`);
 
     // Create a session-like object for broadcasting
     const sessionLike = {
@@ -184,9 +186,9 @@ class GameHistoryManager {
   removeSessionHistory(sessionId) {
     this.clearSubscriptions(sessionId);
     this.gameHistories.delete(sessionId);
-    console.log(`[GameHistoryManager] Removed session ${sessionId}`);
+    kubicLog.debug(`[GameHistoryManager]::removeSessionHistory: Removed session ${sessionId}`);
   }
 }
 
 // Export singleton instance
-export const gameHistoryManager = new GameHistoryManager(); 
+export const gameHistoryManager = new GameHistoryManager();

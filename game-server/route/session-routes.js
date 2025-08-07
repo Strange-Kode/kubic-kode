@@ -2,6 +2,7 @@ import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
 import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
+import { kubicLog } from "../../kubic-log.js";
 
 import { serializeRecursively, validateSession } from "../../game-utility/game-utility.js";
 
@@ -21,8 +22,8 @@ sessionRouter.get("/session/init/:gameId", (req, res) => {
     sessionState = sessionManager.createSession(gameId);
     session_created = true;
   }
-  console.log(`session-routes.js::session created: ${session_created}`);
-  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session created: ${session_created}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
   res.json({
     session_id: sessionState.sessionId,
     session_created: session_created,
@@ -43,8 +44,8 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
     sessionState = sessionManager.createSession(gameId, { ...otherOptions });
     session_created = true;
   }
-  console.log(`session-routes.js::session created: ${session_created}`);
-  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session created: ${session_created}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
   res.json({
     session_id: sessionState.sessionId,
     session_created: session_created,
@@ -72,11 +73,11 @@ sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, 
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the join was successful, just the broadcast failed
     }
   } catch (err) {
-    console.error("Join session error:", err);
+    kubicLog.error("session-routes.js::Join session error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -102,11 +103,11 @@ sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, (r
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the join was successful, just the broadcast failed
     }
   } catch (err) {
-    console.error("Join session as spectator error:", err);
+    kubicLog.error("session-routes.js::Join session as spectator error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -130,7 +131,7 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the leave was successful, just the broadcast failed
     }
   } catch (err) {
@@ -140,7 +141,7 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
 
 // @deprecated, use next route instead
 sessionRouter.get("/session/:sessionId/participants", validateSessionMiddleware, (req, res) => {
-  console.warn(
+  kubicLog.warn(
     "session-routes.js::get /session/:sessionId/participants is deprecated, use /session/participants/list/:sessionId instead"
   );
   const session = req.gameSession;
@@ -190,7 +191,7 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMid
       },
     });
   } catch (broadcastError) {
-    console.error("Broadcast error (non-blocking):", broadcastError);
+    kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
     // Don't throw here - the vote was started successfully, just the broadcast failed
   }
 });
@@ -228,7 +229,7 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
         gameSession.clearRestartVote();
       }
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the vote was registered successfully, just the broadcast failed
     }
   } catch (error) {
@@ -261,7 +262,7 @@ sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (re
       history: history,
     });
   } catch (err) {
-    console.error("Get session history error:", err);
+    kubicLog.error("session-routes.js::Get session history error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -305,7 +306,7 @@ sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (
       )}`,
     });
   } catch (err) {
-    console.error("Subscribe to event types error:", err);
+    kubicLog.error("session-routes.js::Subscribe to event types error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -348,7 +349,7 @@ sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware,
       )}`,
     });
   } catch (err) {
-    console.error("Unsubscribe from event types error:", err);
+    kubicLog.error("session-routes.js::Unsubscribe from event types error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -368,7 +369,7 @@ sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware
       note: "Subscriptions only apply to game history events. Regular session events (joins, leaves, etc.) are always broadcast.",
     });
   } catch (err) {
-    console.error("Get session subscriptions error:", err);
+    kubicLog.error("session-routes.js::Get session subscriptions error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -385,7 +386,7 @@ sessionRouter.get("/sessions/list", (req, res) => {
       sessions: sessionList
     });
   } catch (err) {
-    console.error("List sessions error:", err);
+    kubicLog.error("session-routes.js::List sessions error:", err);
     res.status(500).json({ error: "Failed to retrieve sessions list." });
   }
 });
@@ -401,7 +402,7 @@ sessionRouter.get("/session/lobby/:sessionId", validateSessionMiddleware, (req, 
       lobby: lobbyStatus
     });
   } catch (err) {
-    console.error("Get lobby status error:", err);
+    kubicLog.error("session-routes.js::Get lobby status error:", err);
     res.status(500).json({ error: "Failed to retrieve lobby status." });
   }
 });
@@ -435,7 +436,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
       sessions: sessionList
     });
   } catch (err) {
-    console.error("Get sessions by game variant error:", err);
+    kubicLog.error("session-routes.js::Get sessions by game variant error:", err);
     res.status(500).json({ error: "Failed to retrieve sessions for game variant." });
   }
 });
@@ -498,11 +499,11 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Lobby config broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Lobby config broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Set lobby config error:", err);
+    kubicLog.error("session-routes.js::Set lobby config error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -519,7 +520,7 @@ sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req,
       host: session.getHost()
     });
   } catch (err) {
-    console.error("Get lobby config error:", err);
+    kubicLog.error("session-routes.js::Get lobby config error:", err);
     res.status(500).json({ error: "Failed to retrieve lobby configuration." });
   }
 });
@@ -570,11 +571,11 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Lobby config deletion broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Lobby config deletion broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Delete lobby config error:", err);
+    kubicLog.error("session-routes.js::Delete lobby config error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -663,11 +664,11 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
         });
       }
     } catch (broadcastError) {
-      console.error("Auto-join broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Auto-join broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Auto-join session error:", err);
+    kubicLog.error("session-routes.js::Auto-join session error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -726,11 +727,11 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Sync phase start broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Sync phase start broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Start sync phase error:", err);
+    kubicLog.error("session-routes.js::Start sync phase error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -792,11 +793,11 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
         });
       }
     } catch (broadcastError) {
-      console.error("Ready state broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Ready state broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Set ready state error:", err);
+    kubicLog.error("session-routes.js::Set ready state error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -815,7 +816,7 @@ sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, 
       playable_participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
     });
   } catch (err) {
-    console.error("Get ready states error:", err);
+    kubicLog.error("session-routes.js::Get ready states error:", err);
     res.status(500).json({ error: "Failed to retrieve ready states." });
   }
 });
@@ -867,11 +868,11 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Kick participant broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Kick participant broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Kick participant error:", err);
+    kubicLog.error("session-routes.js::Kick participant error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -917,11 +918,11 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Host transfer broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Host transfer broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Transfer host error:", err);
+    kubicLog.error("session-routes.js::Transfer host error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -969,11 +970,11 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, 
         payload: { message: chatMessage }
       });
     } catch (broadcastError) {
-      console.error("Chat message broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Chat message broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Send chat message error:", err);
+    kubicLog.error("session-routes.js::Send chat message error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -993,7 +994,7 @@ sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, r
       messages: messages
     });
   } catch (err) {
-    console.error("Get chat messages error:", err);
+    kubicLog.error("session-routes.js::Get chat messages error:", err);
     res.status(500).json({ error: "Failed to retrieve chat messages." });
   }
 });

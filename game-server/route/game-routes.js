@@ -1,6 +1,7 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
+import { kubicLog } from "../../kubic-log.js";
 
 const gameRouter = express.Router();
 
@@ -113,10 +114,10 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
       type: "gameStarted",
       payload: { playerMappings: serializeRecursively(playerMappings) },
     });
-  } catch (broadcastError) {
-    console.error('Broadcast error (non-blocking):', broadcastError);
-    // Don't throw here - the game was started successfully, just the broadcast failed
-  }
+      } catch (broadcastError) {
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the game was started successfully, just the broadcast failed
+    }
 
   // After game start, check if the first player is a computer and handle computer turns
   // This is crucial for cases where the computer is the first player (alternating first player)
@@ -125,7 +126,7 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     // This handles the case where computer is first player or multiple computers in sequence
     setImmediate(() => {
       processComputerTurns(gameSession, null).catch(error => {
-        console.error('Error processing initial computer turns after game start:', error);
+        kubicLog.error('game-routes.js::Error processing initial computer turns after game start:', error);
       });
     });
   }
@@ -206,7 +207,7 @@ gameRouter.get("/game/stop/:sessionId", validateSessionMiddleware, (req, res) =>
       type: "gameStopped",
     });
   } catch (broadcastError) {
-    console.error('Broadcast error (non-blocking):', broadcastError);
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
     // Don't throw here - the game was stopped successfully, just the broadcast failed
   }
 });
@@ -238,11 +239,11 @@ gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, 
   const gameInstance = gameSession.getGameInstance();
 
   const tileMap = gameInstance.getGameEngine().getTileMap();
-  console.log(`[get-tilemap] Raw tileMap:`, tileMap);
-  console.log(`[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap:`, tileMap);
+  kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
   
   const serializedTileMap = serializeRecursively(tileMap);
-  console.log(`[get-tilemap] Serialized tileMap:`, serializedTileMap);
+  kubicLog.debug(`game-routes.js::[get-tilemap] Serialized tileMap:`, serializedTileMap);
   
   res.json(serializedTileMap);
 });
@@ -343,7 +344,7 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
       });
     }
   } catch (broadcastError) {
-    console.error('Broadcast error (non-blocking):', broadcastError);
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
     // Don't throw here - the turn was played successfully, just the broadcast failed
   }
 });
@@ -354,7 +355,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
   const gameInstance = gameSession.getGameInstance();
   let lastRoundStatus = initialRoundStatus;
   
-  console.log(`[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
+  kubicLog.debug(`game-routes.js::[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
   
   // Keep playing computer turns while:
   // 1. No one has won yet and game hasn't tied (or no initial status provided)
@@ -435,7 +436,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
       lastRoundStatus = compRoundStatus;
       
     } catch (error) {
-      console.error('Error during computer turn:', error);
+      kubicLog.error('game-routes.js::[processComputerTurns] Error during computer turn:', error);
       break; // Stop processing computer turns on error
     }
   }

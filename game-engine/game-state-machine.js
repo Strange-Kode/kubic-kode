@@ -1,3 +1,5 @@
+import { kubicLog } from "../kubic-log.js";
+
 /**
  * Game State Machine Implementation
  * 
@@ -33,7 +35,7 @@ export class GameState {
    */
   async onEnter(fromState, data = {}) {
     this._isActive = true;
-    console.log(`[GSM] Entering state: ${this._name}`);
+    kubicLog.debug(`[GSM] Entering state: ${this._name}`);
   }
 
   /**
@@ -42,7 +44,7 @@ export class GameState {
    */
   async onExit(toState, data = {}) {
     this._isActive = false;
-    console.log(`[GSM] Exiting state: ${this._name}`);
+    kubicLog.debug(`[GSM] Exiting state: ${this._name}`);
   }
 
   /**
@@ -224,7 +226,7 @@ export class GameStateMachine {
     }
 
     if (this._currentState === newState) {
-      console.warn(`[GSM] Already in state: ${stateName}`);
+      kubicLog.warn(`[GSM] Already in state: ${stateName}`);
       return false;
     }
 
@@ -244,7 +246,7 @@ export class GameStateMachine {
     
     this._addToHistory(stateName);
     
-    console.log(`[GSM] State transition: ${previousState?.getName() || 'null'} -> ${stateName}`);
+    kubicLog.debug(`[GSM] State transition: ${previousState?.getName() || 'null'} -> ${stateName}`);
     return true;
   }
 
@@ -334,7 +336,7 @@ export class GameStateMachine {
   pause() {
     this._paused = true;
     this._pausedState = this._currentState?.getName();
-    console.log(`[GSM] State machine paused in state: ${this._pausedState}`);
+    kubicLog.debug(`[GSM] State machine paused in state: ${this._pausedState}`);
   }
 
   /**
@@ -342,7 +344,7 @@ export class GameStateMachine {
    */
   resume() {
     this._paused = false;
-    console.log(`[GSM] State machine resumed in state: ${this._pausedState}`);
+    kubicLog.debug(`[GSM] State machine resumed in state: ${this._pausedState}`);
   }
 
   /**

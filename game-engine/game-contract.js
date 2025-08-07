@@ -1,3 +1,5 @@
+import { kubicLog } from "../kubic-log.js";
+
 // Game Contract - defines what methods game implementations must provide
 export class GameContract {
   constructor() {
@@ -83,9 +85,9 @@ export class GameContract {
       );
     }
 
-    console.log(`✅ ${className} implements required contract`);
-    console.log(`   Required methods: ${Array.from(this.requiredMethods).join(', ')}`);
-    console.log(`   Optional methods implemented: ${implementedMethods.filter(m => this.optionalMethods.has(m)).join(', ')}`);
+    kubicLog.trace(`✅ ${className} implements required contract`);
+    kubicLog.trace(`   Required methods: ${Array.from(this.requiredMethods).join(', ')}`);
+    kubicLog.trace(`   Optional methods implemented: ${implementedMethods.filter(m => this.optionalMethods.has(m)).join(', ')}`);
 
     return {
       valid: true,
@@ -126,4 +128,4 @@ export class GameContract {
 }
 
 // Default game contract instance
-export const gameContract = new GameContract(); 
+export const gameContract = new GameContract();

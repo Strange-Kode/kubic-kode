@@ -1,3 +1,5 @@
+import { kubicLog } from "../kubic-log.js";
+
 // GameOptions - manages game options with lifecycle-based modification rules
 export class GameOptions {
   constructor(options = {}) {
@@ -187,13 +189,13 @@ export class GameOptions {
   // Legacy methods for backwards compatibility
   // @deprecated
   addConfigurable(key, defaultValue, validator = null) {
-    console.warn(`addConfigurable is deprecated. Use addOption(key, defaultValue, 'runtime', validator) instead.`);
+    kubicLog.warn(`[GameOptions] addConfigurable is deprecated. Use addOption(key, defaultValue, 'runtime', validator) instead.`);
     this.addOption(key, defaultValue, 'runtime', validator);
   }
 
   // @deprecated
   addFrozen(key, value) {
-    console.warn(`addFrozen is deprecated. Use addOption(key, value, 'frozen') instead.`);
+    kubicLog.warn(`[GameOptions] addFrozen is deprecated. Use addOption(key, value, 'frozen') instead.`);
     this.addOption(key, value, 'frozen');
   }
 
