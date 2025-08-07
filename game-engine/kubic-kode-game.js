@@ -3,6 +3,7 @@
 import { GameInterface } from "./game-interface.js";
 import { GameOptions } from "./game-options.js";
 import { gameContract } from "./game-contract.js";
+import { PlayStatus } from "./play-status.js";
 import { shuffleArray } from "../game-utility/game-utility.js";
 
 import { kubicLog } from "../kubic-log.js";
@@ -65,39 +66,48 @@ class KubicKodeGame extends GameInterface {
 
   playTurn(playerId, turnData, metadata = {}) {
     // Delegate to the actual game with consistent turnData format
-    const result = this.gameInstance.playTurn(playerId, turnData, metadata);
+    let playStatus = this.gameInstance.playTurn(playerId, turnData, metadata);
+
+    // Ensure result is a PlayStatus instance
+    if (!(playStatus instanceof PlayStatus)) {
+      // Convert plain object to PlayStatus for backward compatibility
+      playStatus = new PlayStatus(playStatus);
+    }
+
+    // Add the playerId to the result
+    playStatus.playerId = playerId;
 
     // Only record history if the turn was valid
-    if (result.status === "ok" || result.status === "valid") {
+    if (playStatus.status === "ok" || playStatus.status === "valid") {
       // Reset inactivity timer back to the game's timeout value
       const inactivityManager = this.gameSession.getInactivityManager();
       if (inactivityManager) {
         inactivityManager.resetTimer();
-        result.time_left = inactivityManager.getTimeRemaining();
+        playStatus.timeLeft = inactivityManager.getTimeRemaining();
       }
 
       // Record the turn in history - extract position data for history
       const { xPos: x, yPos: y } = turnData;
       this.gameSession.gameHistory.addTurnPlayedEvent(
-        result.player_id,
+        playStatus.playerId,
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
           turnData, // Include full turn data for future extensibility
-          mark: result.mark || this.getCurrentPlayerMark(),
-          status: result.status,
+          mark: playStatus.mark || this.getCurrentPlayerMark(),
+          status: playStatus.status,
         }
       );
 
       // Record win if it occurred and stop the game
-      if (result.player_has_won) {
+      if (playStatus.access('playerHasWon')) {
         this.gameSession.gameHistory.addPlayerWonEvent(
-          result.player_id,
+          playStatus.access('playerId'),
           this.getParticipantIdForPlayer(playerId),
           {
             winCondition:
-              result.winCondition || this.getWinConditionDescription(x, y),
+              playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
             finalPosition: { x, y },
             gameState: "completed",
           }
@@ -109,7 +119,7 @@ class KubicKodeGame extends GameInterface {
       }
 
       // Record tie if it occurred and stop the game
-      if (result.game_is_tied) {
+      if (playStatus.access('gameIsTied')) {
         this.gameSession.gameHistory.addGameTiedEvent({
           finalPosition: { x, y },
           gameState: "tied",
@@ -129,13 +139,13 @@ class KubicKodeGame extends GameInterface {
           x,
           y,
           turnData, // Include full turn data for future extensibility
-          reason: result.type || "invalid_move",
-          status: result.status,
+          reason: playStatus.type || "invalid_move",
+          status: playStatus.status,
         }
       );
     }
 
-    return result;
+    return playStatus;
   }
   
   addPlayer(name, isComputer = false) {

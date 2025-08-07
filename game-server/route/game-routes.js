@@ -1,6 +1,7 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
+import { PlayStatus } from "../../game-engine/play-status.js";
 import { kubicLog } from "../../kubic-log.js";
 
 const gameRouter = express.Router();
@@ -337,11 +338,11 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
   }
 
   // Play the turn - pass turnData consistently for all games
-  let roundStatus;
+  let playStatus;
   try {
     // All games receive: playTurn(playerId, turnData)
     // turnData contains all move information (xPos, yPos, action, etc.)
-    roundStatus = gameInstance.playTurn(playerId, moveData);
+    playStatus = gameInstance.playTurn(playerId, moveData);
   } catch (error) {
     return res.status(400).json({ 
       error: "Invalid move.", 
@@ -350,7 +351,7 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
   }
   
   // Handle win condition
-  if (roundStatus.player_has_won) {
+  if (playStatus.access('playerHasWon')) {
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
@@ -360,7 +361,7 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
   }
   
   // Handle tie condition
-  if (roundStatus.game_is_tied) {
+  if (playStatus.access('gameIsTied')) {
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
       type: "winCount",
@@ -368,32 +369,33 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
     });
   }
   
-  // Send response immediately
-  res.json(roundStatus);
+  // Send response immediately - convert PlayStatus to snake_case for HTTP response
+  const responseData = playStatus instanceof PlayStatus ? playStatus.toSnakeCase() : playStatus;
+  res.json(responseData);
   
   // Handle computer players asynchronously
-  processComputerTurns(gameSession, roundStatus);
+  processComputerTurns(gameSession, playStatus);
   
   // Broadcast the turn event to all connected clients after sending the response
   try {
     GameEventService.broadcastToSession(gameSession, {
       type: "turnPlayed",
-      payload: { roundStatus }
+      payload: { roundStatus: responseData }
     });
     
     // If the player won, also broadcast a win event
-    if (roundStatus.player_has_won) {
+    if (playStatus.access('playerHasWon')) {
       GameEventService.broadcastToSession(gameSession, {
         type: "playerWon",
         payload: { 
-          playerId: roundStatus.player_id,
-          winCondition: roundStatus.winCondition || 'unknown'
+          playerId: playStatus.access('playerId'),
+          winCondition: playStatus.access('winCondition') || 'unknown'
         }
       });
     }
     
     // If the game is tied, broadcast a tie event
-    if (roundStatus.game_is_tied) {
+    if (playStatus.access('gameIsTied')) {
       GameEventService.broadcastToSession(gameSession, {
         type: "gameTied",
         payload: { 
@@ -409,9 +411,9 @@ gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (re
 
 // Standalone function to handle sequential computer players
 // This can be called from both the play-turn endpoint and handleGameStart
-const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
+const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
   const gameInstance = gameSession.getGameInstance();
-  let lastRoundStatus = initialRoundStatus;
+  let lastPlayStatus = initialPlayStatus;
   
   kubicLog.debug(`game-routes.js::[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
   
@@ -419,7 +421,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
   // 1. No one has won yet and game hasn't tied (or no initial status provided)
   // 2. Current player is a computer
   // 3. Game is still active
-  while ((!lastRoundStatus || (!lastRoundStatus.player_has_won && !lastRoundStatus.game_is_tied)) && 
+  while ((!lastPlayStatus || (!lastPlayStatus.access('playerHasWon') && !lastPlayStatus.access('gameIsTied'))) && 
          gameInstance.getGameEngine().isGameStarted() &&
          gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
     
@@ -435,11 +437,11 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
       const computerMove = gameInstance.calculateComputerMove();
       
       // Play computer turn - consistent format for all games
-      let compRoundStatus;
-      compRoundStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
+      let compPlayStatus;
+      compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
 
       // Handle computer win
-      if (compRoundStatus.player_has_won) {
+      if (compPlayStatus.access('playerHasWon')) {
         gameSession.increaseWinCounter();
         let winCount = gameSession.getWinCounter();
         GameEventService.broadcastToSession(gameSession, {
@@ -449,7 +451,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
       }
       
       // Handle computer tie
-      if (compRoundStatus.game_is_tied) {
+      if (compPlayStatus.access('gameIsTied')) {
         let winCount = gameSession.getWinCounter();
         GameEventService.broadcastToSession(gameSession, {
           type: "winCount",
@@ -457,19 +459,22 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
         });
       }
 
+      // Convert PlayStatus to snake_case for broadcast
+      const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
+
       // Broadcast computer turn
       GameEventService.broadcastToSession(gameSession, {
         type: "turnPlayed",
-        payload: { roundStatus: compRoundStatus },
+        payload: { roundStatus: compResponseData },
       });
       
       // If the computer won, also broadcast a win event
-      if (compRoundStatus.player_has_won) {
+      if (compPlayStatus.access('playerHasWon')) {
         GameEventService.broadcastToSession(gameSession, {
           type: "playerWon",
           payload: { 
-            playerId: compRoundStatus.player_id,
-            winCondition: compRoundStatus.winCondition || 'unknown'
+            playerId: compPlayStatus.access('playerId'),
+            winCondition: compPlayStatus.access('winCondition') || 'unknown'
           }
         });
         
@@ -478,7 +483,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
       }
       
       // If the game is tied, broadcast a tie event
-      if (compRoundStatus.game_is_tied) {
+      if (compPlayStatus.access('gameIsTied')) {
         GameEventService.broadcastToSession(gameSession, {
           type: "gameTied",
           payload: { 
@@ -491,7 +496,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
       }
       
       // Update lastRoundStatus for next iteration
-      lastRoundStatus = compRoundStatus;
+      lastPlayStatus = compPlayStatus;
       
     } catch (error) {
       kubicLog.error('game-routes.js::[processComputerTurns] Error during computer turn:', error);
@@ -499,7 +504,7 @@ const processComputerTurns = async (gameSession, initialRoundStatus = null) => {
     }
   }
   
-  return lastRoundStatus;
+  return lastPlayStatus;
 };
 
 // Get game options information

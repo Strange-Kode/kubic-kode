@@ -1,6 +1,7 @@
 // tic-tac-toe.js
 
 import { GameEngine } from "../../../game-engine/game-engine.js";
+import { PlayStatus } from "../../../game-engine/play-status.js";
 import PlayerEntity from "./game-entity/player-entity.js";
 import ticTacToeRouter from "./route/tic-tac-toe-routes.js";
 import { minimaxTicTacToe } from "../../../game-utility/ai-utility/minimax.js";
@@ -137,12 +138,9 @@ class TicTacToeGame {
 
     if (this._engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
-      return {
-        status: "invalid",
-        type: "occupied_tile",
-        player_has_won: false,
-        player_id: currentPlayer.getPlayerId(),
-      };
+      return PlayStatus.invalid(null, "Tile already occupied", {
+        type: "occupied_tile"
+      });
     }
 
     const mark = currentPlayer.placeMark({ x, y });
@@ -162,31 +160,24 @@ class TicTacToeGame {
       this._winner = currentPlayer;
       this._engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
-      return {
-        status: "ok",
-        player_has_won: true,
-        player_id: currentPlayer.getPlayerId(),
-      };
+      return PlayStatus.win(null, {
+        mark: mark
+      });
     }
 
     // Check for tie condition - all tiles filled but no winner
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
       console.log('Game is tied!');
-      return {
-        status: "ok",
-        player_has_won: false,
-        game_is_tied: true,
-        player_id: currentPlayer.getPlayerId(),
-      };
+      return PlayStatus.tie(null, {
+        mark: mark
+      });
     }
 
     this._engine.nextTurn();
-    return {
-      status: "ok",
-      player_has_won: false,
-      player_id: currentPlayer.getPlayerId(),
-    };
+    return PlayStatus.success(null, {
+      mark: mark
+    });
   }
 
   __checkWinCondition(lastMark) {

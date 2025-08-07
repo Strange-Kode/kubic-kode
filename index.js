@@ -18,6 +18,7 @@ export * as healthPointComponent from "./game-engine/game-entity/compose/health-
 export * as gameContract from "./game-engine/game-contract.js";
 export * as gameInterface from "./game-engine/game-interface.js";
 export * as gameOptions from "./game-engine/game-options.js";
+export * as playStatus from "./game-engine/play-status.js";
 export * as interfaceComplianceChecker from "./game-engine/interface-compliance-checker.js";
 export * as kubicKodeGame from "./game-engine/kubic-kode-game.js";
 export * as gameStateMachine from "./game-engine/game-state-machine.js";

@@ -4,6 +4,7 @@ import { gameEngine } from "kubic-kode";
 {{#USE_VIEWPORTS}}
 import { viewportPlayer } from "kubic-kode";
 {{/USE_VIEWPORTS}}
+import { PlayStatus } from "kubic-kode";
 
 // Extract specific classes for cleaner usage
 const { GameEngine } = gameEngine;
@@ -125,47 +126,31 @@ class {{GAME_CLASS_NAME}}Game {
 {{NEWLINE}}
 {{INDENT}}playTurn(playerId, xPos, yPos, metadata = {}) {
 {{INDENT}}{{INDENT}}if (!this.isGameActive()) {
-{{INDENT}}{{INDENT}}{{INDENT}}return { 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Game has ended",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
-{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(null, "Game has ended");
 {{INDENT}}{{INDENT}}}
 
 {{INDENT}}{{INDENT}}const player = this._engine.getPlayerById(playerId);
 {{INDENT}}{{INDENT}}if (!player) {
-{{INDENT}}{{INDENT}}{{INDENT}}return { status: "error", message: "Player not found" };
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(null, "Player not found");
 {{INDENT}}{{INDENT}}}
 
 {{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}// Validate turn for single-set play style
 {{INDENT}}{{INDENT}}const currentPlayer = this.getCurrentPlayer();
 {{INDENT}}{{INDENT}}if (currentPlayer.getPlayerId() !== playerId) {
-{{INDENT}}{{INDENT}}{{INDENT}}return { 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "It's not your turn",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
-{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(null, "It's not your turn");
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 
 {{INDENT}}{{INDENT}}// Check if position is valid and available
 {{INDENT}}{{INDENT}}const tileMap = this._engine.getTileMap();
 {{INDENT}}{{INDENT}}if (!tileMap.isValidPosition(xPos, yPos)) {
-{{INDENT}}{{INDENT}}{{INDENT}}return { 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Invalid position",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
-{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(null, "Invalid position");
 {{INDENT}}{{INDENT}}}
 
 {{INDENT}}{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}{{INDENT}}if (tileMap.getTile(xPos, yPos).hasEntity()) {
-{{INDENT}}{{INDENT}}{{INDENT}}return { 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "error", 
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Position already occupied",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId 
-{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(null, "Position already occupied");
 {{INDENT}}{{INDENT}}}
 
 {{INDENT}}{{INDENT}}// Place the player's piece
@@ -188,13 +173,9 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}if (hasWon) {
 {{INDENT}}{{INDENT}}{{INDENT}}this._winner = player;
 {{INDENT}}{{INDENT}}{{INDENT}}this._engine.endGame();
-{{INDENT}}{{INDENT}}{{INDENT}}return {
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Player wins!",
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}player_has_won: true,
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}game_ended: true
-{{INDENT}}{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.win(null, {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Player wins!"
+{{INDENT}}{{INDENT}}{{INDENT}}});
 {{INDENT}}{{INDENT}}}
 
 {{INDENT}}{{INDENT}}// Advance turn for single-set games
@@ -202,18 +183,14 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}this._engine.advanceTurn();
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 
-{{INDENT}}{{INDENT}}return {
-{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}return PlayStatus.success(null, {
 {{INDENT}}{{INDENT}}{{INDENT}}{{#USES_PIECES}}
-{{INDENT}}{{INDENT}}{{INDENT}}message: "Piece placed successfully",
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Piece placed successfully"
 {{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
 {{INDENT}}{{INDENT}}{{INDENT}}{{^USES_PIECES}}
-{{INDENT}}{{INDENT}}{{INDENT}}message: "Character moved successfully",
+{{INDENT}}{{INDENT}}{{INDENT}}message: "Character moved successfully"
 {{INDENT}}{{INDENT}}{{INDENT}}{{/USES_PIECES}}
-{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
-{{INDENT}}{{INDENT}}{{INDENT}}player_has_won: false,
-{{INDENT}}{{INDENT}}{{INDENT}}game_ended: false
-{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}});
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}checkWinCondition(player, xPos, yPos) {
@@ -242,12 +219,10 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}this._engine.advanceTurn();
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}
-{{INDENT}}{{INDENT}}return {
-{{INDENT}}{{INDENT}}{{INDENT}}status: "success",
+{{INDENT}}{{INDENT}}return PlayStatus.success(null, {
 {{INDENT}}{{INDENT}}{{INDENT}}message: "Player skipped due to inactivity",
-{{INDENT}}{{INDENT}}{{INDENT}}player_id: playerId,
-{{INDENT}}{{INDENT}}{{INDENT}}inactivity_handled: true
-{{INDENT}}{{INDENT}}};
+{{INDENT}}{{INDENT}}{{INDENT}}inactivityHandled: true
+{{INDENT}}{{INDENT}});
 {{INDENT}}}
 {{INDENT}}{{/HAS_INACTIVITY}}
 {{NEWLINE}}
