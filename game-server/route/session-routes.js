@@ -205,6 +205,16 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
   const { participantId, voteYes } = req.body;
   const gameSession = req.gameSession;
 
+  // Validate that the participant exists and is playable
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!gameSession.isParticipantPlayable(participant)) {
+    return res.status(400).json({ error: "Only playable participants (users and computers) can vote on restart. Spectators cannot vote." });
+  }
+
   try {
     gameSession.registerRestartVote(participantId, voteYes === true);
 
@@ -754,6 +764,16 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
   }
 
   const session = req.gameSession;
+
+  // Validate that the participant exists and is playable
+  const participant = session.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!session.isParticipantPlayable(participant)) {
+    return res.status(400).json({ error: "Only playable participants (users and computers) can set ready states. Spectators cannot set ready states." });
+  }
 
   try {
     session.setParticipantReady(participantId, ready);

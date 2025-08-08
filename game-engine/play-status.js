@@ -25,6 +25,17 @@ export class PlayStatus {
     this._properties.set('timeLeft', options.timeLeft || null); // remaining time for turn/game
   }
 
+  // Validate that playerId is a valid positive integer
+  static _validatePlayerId(playerId) {
+    if (playerId === null || playerId === undefined) {
+      throw new Error('PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)');
+    }
+    
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      throw new Error(`PlayStatus factory methods require a valid positive integer playerId, got: ${playerId} (type: ${typeof playerId})`);
+    }
+  }
+
   // Generic accessor method for safe property access
   // Throws an error if the property doesn't exist, preventing silent typos
   access(propertyName) {
@@ -55,6 +66,7 @@ export class PlayStatus {
 
   // Create a successful turn result
   static success(playerId, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'ok',
       playerId,
@@ -66,6 +78,7 @@ export class PlayStatus {
 
   // Create a winning turn result
   static win(playerId, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'ok',
       playerId,
@@ -78,6 +91,7 @@ export class PlayStatus {
 
   // Create a tie result
   static tie(playerId, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'ok',
       playerId,
@@ -90,6 +104,7 @@ export class PlayStatus {
 
   // Create an invalid turn result
   static invalid(playerId, message, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'invalid',
       playerId,
@@ -101,6 +116,7 @@ export class PlayStatus {
   // Create a result for games without winning concepts (e.g., scrollable tile maps)
   // These games don't have playerHasWon or gameIsTied concepts
   static nonCompetitive(playerId, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'ok',
       playerId,
@@ -112,6 +128,7 @@ export class PlayStatus {
 
   // Create a result for movement-based games (like tile map exploration)
   static movement(playerId, options = {}) {
+    PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
       status: 'ok',
       playerId,
