@@ -207,6 +207,8 @@ function handleSessionTermination(sessionId, participantId) {
 }
 
 function checkSessionViability(session) {
+    const sessionId = session.getSessionId();
+    const conns = connectionsBySession.get(sessionId) || [];
     const playableParticipants = session.getPlayableParticipants();
     const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
     
@@ -214,8 +216,27 @@ function checkSessionViability(session) {
     const gameInstance = session.getGameInstance();
     const requiredPlayers = gameInstance ? gameInstance.requiredPlayers() : 2;
     
+    // Check if there are no active connections (orphaned session)
+    if (conns.length === 0) {
+        kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
+        
+        // End the session
+        session.markEnded();
+        
+        // Clean up session immediately since no one can receive the broadcast
+        setTimeout(() => {
+            import('./session-manager.js').then(({ sessionManager }) => {
+                sessionManager.removeSession(sessionId);
+            }).catch(error => {
+                kubicLog.error(`[GameEventService]::checkSessionViability: Error removing orphaned session ${sessionId}:`, error);
+            });
+        }, 1000);
+        return;
+    }
+    
+    // Check if there are insufficient connected players
     if (connectedParticipants.length < requiredPlayers) {
-        kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${session.getSessionId()} has insufficient connected players (${connectedParticipants.length}/${requiredPlayers}), ending session`);
+        kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has insufficient connected players (${connectedParticipants.length}/${requiredPlayers}), ending session`);
         
         // End the session
         session.markEnded();
@@ -234,7 +255,7 @@ function checkSessionViability(session) {
         // Clean up session after a delay
         setTimeout(() => {
             import('./session-manager.js').then(({ sessionManager }) => {
-                sessionManager.removeSession(session.getSessionId());
+                sessionManager.removeSession(sessionId);
             }).catch(error => {
                 kubicLog.error(`[GameEventService]::checkSessionViability: Error removing session:`, error);
             });
@@ -297,6 +318,7 @@ function broadcastToSession(gameSession, messageObj) {
     const sessionId = gameSession.getSessionId()
     const gameInstance = gameSession.getGameInstance();
     const conns = connectionsBySession.get(sessionId) || [];
+
     // intercept and add message data
     const finalMessageObj = { ... messageObj };
     finalMessageObj.sessionData = {
@@ -304,6 +326,27 @@ function broadcastToSession(gameSession, messageObj) {
         turnNumber: gameInstance ? gameInstance.getGameEngine().getTurnNumber() : 0 // Handle null gameInstance case
     }
     const message = JSON.stringify(finalMessageObj);
+
+    // Early return if no connections available
+    if (conns.length === 0) {
+        kubicLog.debug(`[GameEventService]::broadcastToSession: No active connections for session ${sessionId}, skipping broadcast of ${messageObj.type} (unsent message: ${JSON.stringify(messageObj)})`);
+        
+        // Trigger session cleanup since no clients are connected to receive any broadcasts
+        // This prevents orphaned sessions from consuming resources
+        setTimeout(() => {
+            import('./session-manager.js').then(({ sessionManager }) => {
+                const session = sessionManager.getSession(sessionId);
+                if (session) {
+                    kubicLog.info(`[GameEventService]::broadcastToSession: Cleaning up orphaned session ${sessionId} with no active connections`);
+                    sessionManager.removeSession(sessionId);
+                }
+            }).catch(error => {
+                kubicLog.error(`[GameEventService]::broadcastToSession: Error cleaning up orphaned session ${sessionId}:`, error);
+            });
+        }, 1000); // Small delay to avoid immediate cleanup on temporary disconnections
+        
+        return;
+    }
 
     kubicLog.debug(`[GameEventService]::broadcastToSession: Broadcasting ${messageObj.type} to session ${sessionId} with ${conns.length} connections`);
     kubicLog.trace(`[GameEventService]::broadcastToSession: Message:`, finalMessageObj);

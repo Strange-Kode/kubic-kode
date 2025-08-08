@@ -205,22 +205,22 @@ class KubicKodeGame extends GameInterface {
     if (!this.gameInstance.handleInactivity) {
       return null;
     }
-    const result = this.gameInstance.handleInactivity();
+    const inactivityResult = this.gameInstance.handleInactivity();
 
     // Record inactivity win event
-    if (this.gameSession && result.winnerPlayerId) {
+    if (this.gameSession && inactivityResult.winnerPlayerId) {
       this.gameSession.gameHistory.addPlayerWonEvent(
-        result.winnerPlayerId,
-        this.getParticipantIdForPlayer(result.winnerPlayerId),
+        inactivityResult.winnerPlayerId,
+        this.getParticipantIdForPlayer(inactivityResult.winnerPlayerId),
         {
           winCondition: "inactivity",
-          inactivePlayerId: result.inactivePlayerId,
+          inactivePlayerId: inactivityResult.inactivePlayerId,
           gameState: "completed",
         }
       );
     }
 
-    return result;
+    return inactivityResult;
   }
 
   // Handle game stop with history recording
