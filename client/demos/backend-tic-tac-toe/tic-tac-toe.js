@@ -39,6 +39,10 @@ class TicTacToeGame {
     };
   }
 
+  requiredPlayers() {
+    return 2; // TicTacToe (classic) always requires 2 players
+  }
+
   initializeGameOptions() {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:

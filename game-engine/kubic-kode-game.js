@@ -167,8 +167,9 @@ class KubicKodeGame extends GameInterface {
   }
 
   startGame() {
-    if (this.gameInstance.getGameEngine().getPlayerEntities().length < 2) {
-      throw new Error("At least two players are required to start the game.");
+    let requiredPlayers = this.requiredPlayers();
+    if (this.gameInstance.getGameEngine().getPlayerEntities().length < requiredPlayers) {
+      throw new Error(`At least ${requiredPlayers} players are required to start the game.`);
     }
 
     // Transition game options to 'started' state - this locks pre-start options
@@ -184,6 +185,7 @@ class KubicKodeGame extends GameInterface {
         playerCount: this.gameInstance.getGameEngine().getPlayerEntities()
           .length,
         gameType: this.gameInstance.constructor.name,
+        requiredPlayers: requiredPlayers
       });
     }
 
@@ -361,6 +363,16 @@ class KubicKodeGame extends GameInterface {
     }
     
     return null; // Default: no inactivity timeout
+  }
+
+  requiredPlayers() {
+    // Delegate to the game instance to determine required players
+    if (typeof this.gameInstance.requiredPlayers === 'function') {
+      return this.gameInstance.requiredPlayers();
+    }
+    
+    // Default: require at least 2 players for most games
+    return 2;
   }
 
   calculateComputerMove(playerId) {
