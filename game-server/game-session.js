@@ -1,5 +1,6 @@
 import { InactivityManager } from "../game-utility/inactivity-manager.js";
 import { gameHistoryManager } from "./game-history-manager.js";
+import { kubicLog } from "../kubic-log.js";
 
 export class GameSession {
   constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
@@ -25,6 +26,7 @@ export class GameSession {
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
+    this.participantTokens = new Map(); // participantId -> encrypted game token
 
     // Get game history from the manager (returns a proxy)
     this.gameHistory = gameHistoryManager.getGameHistory(sessionId);
@@ -112,6 +114,14 @@ export class GameSession {
       this._readyStates.set(participantId, false);
     }
 
+    // Generate a game token for this participant
+    this.generateParticipantToken(participantId).then(token => {
+      this.participantTokens.set(participantId, token);
+      kubicLog.info(`[GameSession]::generateParticipantToken -  Generated game token for participant ${participantId} (${name}) in session ${this.sessionId}`);
+    }).catch(error => {
+      kubicLog.error(`[GameSession]::generateParticipantToken - Failed to generate game token for participant ${participantId}:`, error);
+    });
+
     // Add to game history
     this.gameHistory.addParticipantJoinedEvent(participantId, name);
 
@@ -128,8 +138,9 @@ export class GameSession {
     const participant = this.participants[index];
     this.participants.splice(index, 1);
 
-    // Remove from ready states
+    // Remove from ready states and tokens
     this._readyStates.delete(id);
+    this.participantTokens.delete(id);
 
     // Handle host transfer if host is leaving
     if (this._hostId === id) {
@@ -536,5 +547,59 @@ export class GameSession {
       participants: this.listParticipants(),
       recentChat: this.getChatMessages(10)
     };
+  }
+
+  // Game Token Management
+  // ---------------------
+
+  /**
+   * Get the game token for a specific participant
+   * @param {number} participantId - The participant ID
+   * @returns {string|null} - The encrypted game token for the participant, or null if not found
+   */
+  getParticipantToken(participantId) {
+    return this.participantTokens.get(participantId) || null;
+  }
+
+  /**
+   * Set the game token for a specific participant
+   * @param {number} participantId - The participant ID
+   * @param {string} token - The encrypted game token
+   */
+  setParticipantToken(participantId, token) {
+    this.participantTokens.set(participantId, token);
+  }
+
+  /**
+   * Get all participant tokens for this session
+   * @returns {Map<number, string>} - Map of participantId to encrypted game token
+   */
+  getAllParticipantTokens() {
+    return new Map(this.participantTokens);
+  }
+
+  /**
+   * Generate a new game token for a specific participant
+   * @param {number} participantId - The participant ID
+   * @returns {Promise<string>} - Promise that resolves to the encrypted game token
+   */
+  async generateParticipantToken(participantId) {
+    // Import the service dynamically to avoid circular dependencies
+    return import('./game-token-service.js').then(({ gameTokenService }) => {
+      return gameTokenService.instance.generateToken(this.sessionId, participantId);
+    });
+  }
+
+  /**
+   * Regenerate a game token for a specific participant
+   * @param {number} participantId - The participant ID
+   * @returns {Promise<string>} - Promise that resolves to the new encrypted game token
+   */
+  async regenerateParticipantToken(participantId) {
+    return this.generateParticipantToken(participantId).then(token => {
+      this.participantTokens.set(participantId, token);
+      kubicLog.info(`[GameSession]::regenerateParticipantToken - Regenerated game token for participant ${participantId} in session ${this.sessionId}`);
+      return token;
+    });
   }
 }

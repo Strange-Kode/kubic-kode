@@ -20,7 +20,7 @@ class SessionManager {
   }
 
   createSession(gameVariantId, options = {}) {
-    kubicLog.info("[SessionManager] creating game session...");
+    kubicLog.info("[SessionManager]::createSession - creating game session...");
     const sessionId = uuidv4(); // generate unique ID
 
     if (this.sessions.has(sessionId)) {
@@ -38,7 +38,7 @@ class SessionManager {
     validateGameInstance(gameInstance, gameInstance.constructor.name);
     
     kubicLog.info(
-      `[SessionManager] allocated new session id: ${sessionId} for game variant: ${gameVariantId}`
+      `[SessionManager]::createSession - allocated new session id: ${sessionId} for game variant: ${gameVariantId}`
     );
     
     // Create the session with sessionId, maxParticipants (default 2), and gameVariantId
@@ -49,6 +49,8 @@ class SessionManager {
     
     // Set the wrapper in the session
     session.setGameInstance(kubicKodeGame);
+    
+    kubicLog.info(`[SessionManager]::createSession - Created session: ${sessionId}`);
     
     this.sessions.set(sessionId, session);
     return session; // Return the session instance, not an object
@@ -70,7 +72,7 @@ class SessionManager {
   removeSession(sessionId) {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      kubicLog.warn(`[SessionManager] Session ${sessionId} not found for removal`);
+      kubicLog.warn(`[SessionManager]::removeSession - Session ${sessionId} not found for removal`);
       return false;
     }
 
@@ -81,10 +83,10 @@ class SessionManager {
       // Remove from sessions map
       this.sessions.delete(sessionId);
       
-      kubicLog.info(`[SessionManager] Successfully removed session ${sessionId}`);
+      kubicLog.info(`[SessionManager]::removeSession - Successfully removed session ${sessionId}`);
       return true;
     } catch (error) {
-      kubicLog.error(`[SessionManager] Error removing session ${sessionId}:`, error);
+      kubicLog.error(`[SessionManager]::removeSession - Error removing session ${sessionId}:`, error);
       return false;
     }
   }

@@ -1,8 +1,28 @@
+import dotenv from "dotenv";
+
+// Load environment variables from .env file FIRST, before any other imports
+dotenv.config();
+
+// Log only KUBIC_ environment variables (protecting sensitive ones)
+console.log("=== KUBIC Environment Variables Loaded ===");
+Object.keys(process.env)
+  .filter(key => key.startsWith('KUBIC_'))
+  .forEach(key => {
+    const value = process.env[key];
+    // Protect sensitive keys by showing [SET] instead of actual value
+    if (key.includes('SECRET') || key.includes('PASSWORD') || key.includes('KEY')) {
+      console.log(`${key}:`, value ? "[SET]" : "[NOT SET]");
+    } else {
+      console.log(`${key}:`, value);
+    }
+  });
+console.log("=====================================");
+
 import express from "express";
 import { kubicLog } from "../kubic-log.js";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.KUBIC_PORT || 3000;
 
 process.on('uncaughtException', (err) => {
     kubicLog.error('Uncaught Exception:', err.stack || err);
@@ -104,7 +124,7 @@ const server = app.listen(PORT, () => {
   console.log(`Kubic Kode Server running at http://localhost:${PORT}`);
   console.log(`Debug mode: ${kubicLog.isEnabled() ? 'enabled' : 'disabled'}`);
   if (kubicLog.isEnabled()) {
-    console.log(`Debug level: ${process.env.DEBUG_LEVEL || 'info'}`);
+    console.log(`Debug level: ${process.env.KUBIC_LOG_LEVEL || process.env.DEBUG_LEVEL || 'info'}`);
   }
 });
 
