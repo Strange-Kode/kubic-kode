@@ -47,6 +47,7 @@ class KubicKodeHelper {
     this.registeredGames = new Map();
     this.eventListeners = new Map();
     this.websocket = null;
+    this.gameToken = null; // Store the current game token
 
     // Create game object with proper context binding
     this.game = {
@@ -62,6 +63,7 @@ class KubicKodeHelper {
           playTurn: (x, y, options = {}) => {
             return this._makeRequest('POST', `/${gameId}/play-turn/${this.sessionId}`, { 
               participantId: this.participantId,
+              gameToken: this.gameToken,
               xPos: x, 
               yPos: y, 
               ...options 
@@ -70,6 +72,7 @@ class KubicKodeHelper {
           restartGame: (options = {}) => {
             return this._makeRequest('POST', `/${gameId}/restart-game/${this.sessionId}`, { 
               participantId: this.participantId,
+              gameToken: this.gameToken,
               ...options 
             });
           }
@@ -120,11 +123,29 @@ class KubicKodeHelper {
         case 'init':
           return await helper._makeRequest('GET', `/session/init/${helper.currentGame}`);
         case 'join':
-          return await helper._makeRequest('POST', `/session/${helper.sessionId}/join`, data);
+          const joinResult = await helper._makeRequest('POST', `/session/${helper.sessionId}/join`, data);
+          // Store game token in localStorage when joining
+          if (joinResult.success && joinResult.data.game_token) {
+            helper.gameToken = joinResult.data.game_token;
+            helper._storeGameToken(helper.sessionId, joinResult.data.game_token);
+          }
+          return joinResult;
         case 'spectate':
-          return await helper._makeRequest('POST', `/session/${helper.sessionId}/spectate`, data);
+          const spectateResult = await helper._makeRequest('POST', `/session/${helper.sessionId}/spectate`, data);
+          // Store game token in localStorage when spectating
+          if (spectateResult.success && spectateResult.data.game_token) {
+            helper.gameToken = spectateResult.data.game_token;
+            helper._storeGameToken(helper.sessionId, spectateResult.data.game_token);
+          }
+          return spectateResult;
         case 'leave':
-          return await helper._makeRequest('POST', `/session/${helper.sessionId}/leave`, data);
+          const leaveResult = await helper._makeRequest('POST', `/session/${helper.sessionId}/leave`, data);
+          // Clear game token from localStorage when leaving
+          if (leaveResult.success) {
+            helper._clearGameToken(helper.sessionId);
+            helper.gameToken = null;
+          }
+          return leaveResult;
         case 'participants':
           return await helper._makeRequest('GET', `/session/participants/list/${helper.sessionId}`);
         case 'participant-stats':
@@ -141,7 +162,7 @@ class KubicKodeHelper {
     },
 
     /**
-     * Game-related routes
+     * Game-related routes - All now use POST with game tokens
      */
     game: async (action, data = {}) => {
       const helper = this;
@@ -150,19 +171,42 @@ class KubicKodeHelper {
         throw new Error('No active session. Call session.init() first.');
       }
 
+      // Ensure we have a game token
+      if (!helper.gameToken) {
+        helper.gameToken = helper._getGameToken(helper.sessionId);
+        if (!helper.gameToken) {
+          throw new Error('No game token available. Join or spectate session first.');
+        }
+      }
+
       switch (action) {
         case 'start':
-          return await helper._makeRequest('POST', `/game/start/${helper.sessionId}`, { ...data, participantId: helper.participantId });
+          return await helper._makeRequest('POST', `/game/start/${helper.sessionId}`, { 
+            ...data, 
+            participantId: helper.participantId,
+            gameToken: helper.gameToken 
+          });
         case 'stop':
-          return await helper._makeRequest('GET', `/game/stop/${helper.sessionId}?participantId=${helper.participantId || ''}`);
+          return await helper._makeRequest('POST', `/game/stop/${helper.sessionId}`, { 
+            participantId: helper.participantId,
+            gameToken: helper.gameToken 
+          });
         case 'get-current-player':
-          return await helper._makeRequest('GET', `/game/get-current-player/${helper.sessionId}`);
+          return await helper._makeRequest('POST', `/game/get-current-player/${helper.sessionId}`, {
+            gameToken: helper.gameToken
+          });
         case 'is-active':
-          return await helper._makeRequest('GET', `/game/is-active/${helper.sessionId}`);
+          return await helper._makeRequest('POST', `/game/is-active/${helper.sessionId}`, {
+            gameToken: helper.gameToken
+          });
         case 'get-tilemap':
-          return await helper._makeRequest('GET', `/game/get-tilemap/${helper.sessionId}`);
+          return await helper._makeRequest('POST', `/game/get-tilemap/${helper.sessionId}`, {
+            gameToken: helper.gameToken
+          });
         case 'options':
-          return await helper._makeRequest('GET', `/game/options/${helper.sessionId}`);
+          return await helper._makeRequest('POST', `/game/options/${helper.sessionId}`, {
+            gameToken: helper.gameToken
+          });
         default:
           throw new Error(`Unknown game action: ${action}`);
       }
@@ -278,6 +322,72 @@ class KubicKodeHelper {
   }
 
   /**
+   * Store game token in localStorage
+   */
+  _storeGameToken(sessionId, gameToken) {
+    try {
+      const tokens = this._getAllGameTokens();
+      tokens[sessionId] = gameToken;
+      localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+      console.log(`🔐 Stored game token for session: ${sessionId}`);
+    } catch (error) {
+      console.error('Error storing game token:', error);
+    }
+  }
+
+  /**
+   * Get game token from localStorage
+   */
+  _getGameToken(sessionId) {
+    try {
+      const tokens = this._getAllGameTokens();
+      return tokens[sessionId] || null;
+    } catch (error) {
+      console.error('Error getting game token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear game token from localStorage
+   */
+  _clearGameToken(sessionId) {
+    try {
+      const tokens = this._getAllGameTokens();
+      delete tokens[sessionId];
+      localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+      console.log(`🔐 Cleared game token for session: ${sessionId}`);
+    } catch (error) {
+      console.error('Error clearing game token:', error);
+    }
+  }
+
+  /**
+   * Get all game tokens from localStorage
+   */
+  _getAllGameTokens() {
+    try {
+      const stored = localStorage.getItem('kubic_game_tokens');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Error getting all game tokens:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Clear all game tokens from localStorage
+   */
+  clearAllGameTokens() {
+    try {
+      localStorage.removeItem('kubic_game_tokens');
+      console.log('🔐 Cleared all game tokens');
+    } catch (error) {
+      console.error('Error clearing all game tokens:', error);
+    }
+  }
+
+  /**
    * Make HTTP request with retry logic
    */
   async _makeRequest(method, endpoint, data = null) {
@@ -355,6 +465,21 @@ class KubicKodeHelper {
     return result;
   }
 
+  async leaveSession() {
+    if (!this.participantId || !this.sessionId) {
+      throw new Error('No active session or participant to leave');
+    }
+    
+    const result = await this.route.session('leave', { participantId: this.participantId });
+    if (result.success) {
+      this.participantId = null;
+      this.sessionId = null;
+      this.gameToken = null;
+      this.disconnectWebSocket();
+    }
+    return result;
+  }
+
   async startGame(options = {}) {
     return await this.route.game('start', options);
   }
@@ -380,7 +505,8 @@ class KubicKodeHelper {
       sessionId: this.sessionId,
       currentGame: this.currentGame,
       registeredGames: Array.from(this.registeredGames.keys()),
-      config: this.config
+      config: this.config,
+      hasGameToken: !!this.gameToken
     };
   }
 }
