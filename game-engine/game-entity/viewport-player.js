@@ -1,6 +1,8 @@
 import { GameEntityPlayer } from './game-entity-player.js';
 import { Viewport } from '../viewport.js';
 
+import { kubicLog } from "../../kubic-log.js";
+
 /**
  * ViewportPlayer extends GameEntityPlayer to add viewport functionality.
  * This class provides viewport management capabilities for games that need
@@ -45,7 +47,7 @@ export class ViewportPlayer extends GameEntityPlayer {
             this.centerViewportOnPlayer();
         }
         
-        console.log(`${this.name} moved to (${x}, ${y})`);
+        kubicLog.debug(`[ViewportPlayer]::moveTo: ${this.name} moved to (${x}, ${y})`);
     }
 
     /**

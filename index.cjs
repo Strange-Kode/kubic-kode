@@ -18,6 +18,7 @@ const healthPointComponent = require("./game-engine/game-entity/compose/health-p
 const gameContract = require("./game-engine/game-contract");
 const gameInterface = require("./game-engine/game-interface");
 const gameOptions = require("./game-engine/game-options");
+const playStatus = require("./game-engine/play-status");
 const interfaceComplianceChecker = require("./game-engine/interface-compliance-checker");
 const kubicKodeGame = require("./game-engine/kubic-kode-game");
 
@@ -47,6 +48,7 @@ module.exports = {
   gameContract,
   gameInterface,
   gameOptions,
+  playStatus,
   interfaceComplianceChecker,
   kubicKodeGame,
   sessionManager,

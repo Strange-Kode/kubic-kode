@@ -10,6 +10,7 @@ export class GameSession {
     this.started = false;
     this.participant_alloc_idx = 0;
     this.winCounter = 0;
+    this.restartCounter = 0; // Track number of game restarts for alternating first player
     this.gameInstance = null;
     
     // Host information
@@ -43,6 +44,18 @@ export class GameSession {
 
   resetWinCounter() {
     this.winCounter = 0;
+  }
+
+  getRestartCounter() {
+    return this.restartCounter;
+  }
+
+  increaseRestartCounter() {
+    this.restartCounter++;
+  }
+
+  resetRestartCounter() {
+    this.restartCounter = 0;
   }
 
   allocateParticipantId() {
@@ -235,6 +248,10 @@ export class GameSession {
       voteYes,
       Object.keys(this.restartVote.votes).length
     );
+  }
+
+  isRestartVoteInProgress() {
+    return this.restartVote !== null;
   }
 
   isRestartVoteComplete() {

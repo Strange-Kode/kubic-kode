@@ -21,15 +21,20 @@ The project features a Node.js/Express backend for multiplayer session handling 
 ## Installation
 
 1. Clone the repository:
+
    ```sh
    git clone https://github.com/Strange-Kode/kubic-kode.git
    cd kubic-kode
    ```
+
 2. Install dependencies:
+
    ```sh
    npm install
    ```
+
 3. Copy and configure the environment file for the React demo:
+
    ```sh
    cp client/demos/react-tic-tac-toe/.env.example client/demos/react-tic-tac-toe/.env
    # Edit client/demos/react-tic-tac-toe/.env as needed
@@ -38,13 +43,17 @@ The project features a Node.js/Express backend for multiplayer session handling 
 ## Usage
 
 ### Start the Backend
+
 Run the backend server (default port: 3000):
+
 ```sh
 npm run dev-server
 ```
 
 ### Start the Frontend Demo
+
 In a separate terminal, start the React demo (default port: 3001):
+
 ```sh
 npm run start-frontend
 ```
@@ -64,7 +73,7 @@ kubic-kode now supports **scrollable TileMaps** - a powerful feature that enable
 - **Manual Scrolling**: Players can manually scroll their viewport
 - **Performance**: Only visible tiles are processed and sent to clients
 
-### Quick Start
+### Kubic Kode - Quick Start
 
 ```javascript
 // Create a game engine with scrollable tile map
@@ -94,23 +103,27 @@ kubic-kode supports **spectators** - special session participants who can observ
 ### Participant Types
 
 The system supports three participant types:
+
 - **`user`** - Regular human participant (can perform all game actions)
 - **`computer`** - AI participant (can perform all game actions)
 - **`spectator`** - Observer (can only view games, cannot perform actions)
 
 Each participant's playability is determined by the `isParticipantPlayable()` method:
+
 - Returns `true` for 'user' and 'computer' types
 - Returns `false` for 'spectator' type
 
 ### Spectator Capabilities
 
 ✅ **Spectators can:**
+
 - Join sessions and observe games
 - Receive all game broadcasts and updates via WebSocket
 - View game state, tile maps, and participant lists
 - Access read-only game information
 
 ❌ **Spectators cannot:**
+
 - Start or stop games
 - Make moves or perform game actions
 - Vote on restart requests
@@ -119,6 +132,7 @@ Each participant's playability is determined by the `isParticipantPlayable()` me
 ### API Usage
 
 #### Join as Spectator
+
 ```javascript
 // Using KubicKode helper
 const result = await KubicKode.spectateSession('Charlie');
@@ -131,6 +145,7 @@ POST /api/session/:sessionId/spectate
 ```
 
 #### Get Participant Statistics
+
 ```javascript
 // Using KubicKode helper
 const stats = await KubicKode.route.session('participant-stats');
@@ -141,6 +156,7 @@ GET /api/session/participants/stats/:sessionId
 ```
 
 #### Participant Playability Check
+
 ```javascript
 // Check if a participant can perform game actions
 const participant = gameSession.getParticipantById(participantId);
@@ -152,7 +168,8 @@ if (gameSession.isParticipantPlayable(participant)) {
 const isPlayable = gameSession.isParticipantPlayable(participant);
 ```
 
-#### Error Handling
+#### Participant - Error Handling
+
 ```javascript
 try {
   // This will fail for spectators
@@ -177,6 +194,21 @@ For detailed implementation information, see [SPECTATOR_FUNCTIONALITY.md](SPECTA
 
 kubic-kode includes a lifecycle-based game options system that controls **when** options can be modified, ensuring game integrity while maintaining flexibility.
 
+### Option Namespaces
+
+The system supports two namespaces for organizing options:
+
+1. **`userspace`** (default): Game-specific options that developers typically configure
+   - Standard game settings like difficulty, grid size, win conditions
+   - UI preferences like sound settings, visual themes
+   - Custom game mechanics options
+
+2. **`systemspace`**: System-level options that require global uniqueness
+   - Internal engine settings
+   - Advanced configuration that affects multiple systems
+   - Options that should not conflict with user-defined options
+   - System option names must be unique across ALL namespaces
+
 ### Option Lifecycles
 
 1. **`frozen`**: Never changeable (core game rules like game type)
@@ -192,11 +224,13 @@ kubic-kode includes a lifecycle-based game options system that controls **when**
 ### API Endpoints
 
 #### Get Game Options
+
 ```bash
 GET /api/game/options/:sessionId
 ```
 
 Returns information about available game options:
+
 ```json
 {
   "available": true,
@@ -225,6 +259,7 @@ Returns information about available game options:
 ```
 
 #### Start Game with Options
+
 ```bash
 POST /api/game/start/:sessionId
 Content-Type: application/json
@@ -235,30 +270,71 @@ Content-Type: application/json
 }
 ```
 
-### Example Usage
+### initializeGameOptions Example
+
+Here's how to set up both userspace and systemspace options in your game:
+
+```javascript
+initializeGameOptions() {
+  // Userspace options (default namespace) - game-specific settings
+  this.getGameOptions().addOption('gridSize', 3, 'pre-start');
+  this.getGameOptions().addOption('difficulty', 'medium', 'pre-start');
+  this.getGameOptions().addOption('soundEnabled', true, 'runtime');
+  this.getGameOptions().addOption('timeLimit', 30, 'between-rounds');
+
+  // Systemspace options - system-level settings with global uniqueness
+  this.getGameOptions().addSystemOption('debugMode', false, 'runtime', null, 'Enable debug logging');
+  this.getGameOptions().addSystemOption('maxConcurrentGames', 10, 'frozen', null, 'System limit for concurrent games');
+  this.getGameOptions().addSystemOption('apiVersion', '2.1', 'frozen', null, 'API version for this game');
+
+  // Access values
+  const gridSize = this.getGameOptions().getCurrentValue('gridSize'); // userspace
+  const debugMode = this.getGameOptions().getCurrentSystemValue('debugMode'); // systemspace
+}
+```
+
+### API Usage Examples
 
 1. **Create a session with configurable TicTacToe**:
+
    ```bash
    POST /api/session/init/tic-tac-toe-configurable
    ```
 
 2. **Check available options**:
+
    ```bash
    GET /api/game/options/:sessionId
    ```
 
 3. **Start game with custom options**:
+
    ```bash
    POST /api/game/start/:sessionId
    {
      "gridSize": 5,
-     "winCondition": 4
+     "winCondition": 4,
+     "system::debugMode": true
    }
    ```
 
-### Error Handling
+4. **Access different namespaces in code**:
+
+   ```javascript
+   // Userspace (default)
+   const gameSize = this.getGameOptions().getCurrentValue('gridSize');
+   
+   // Systemspace (explicit)
+   const debugEnabled = this.getGameOptions().getCurrentSystemValue('debugMode');
+   
+   // Alternative systemspace access
+   const debugEnabled2 = this.getGameOptions().getCurrentValue('debugMode', 'systemspace');
+   ```
+
+### Game Options - Error Handling
 
 If invalid options are provided, the API returns enhanced error information:
+
 ```json
 {
   "error": true,
@@ -278,6 +354,53 @@ If invalid options are provided, the API returns enhanced error information:
 ```
 
 This prevents players from changing fundamental game settings (like difficulty) mid-game to gain unfair advantages.
+
+## First Player Management
+
+kubic-kode provides flexible **first player management** through the `establishFirstPlayers()` system, allowing games to control turn order initialization.
+
+### How It Works
+
+The system supports multiple approaches for determining who goes first:
+
+1. **Participant-Specific**: A specific participant can be designated to go first
+2. **Game-Specific Logic**: Games can implement custom first player rules (e.g., X always first in tic-tac-toe)
+3. **Randomized by Play Style**: Automatic randomization based on the game's play style
+
+### Implementation
+
+Games can implement `establishFirstPlayers()` to define custom first player logic:
+
+```javascript
+establishFirstPlayers() {
+  // Example: In tic-tac-toe, X always goes first
+  const players = this.engine.getPlayerEntities();
+  const xPlayer = players.find(player => player.getMarkType() === 'X');
+  return xPlayer ? xPlayer.getPlayerId() : null;
+}
+```
+
+### Play Style Randomization
+
+When no specific first player is determined, the system automatically randomizes based on play style:
+
+- **`single-set`**: Randomizes all player order, first player gets the first turn
+- **`multi-set`**: All players act simultaneously, randomizes for consistency
+- **`multi-subset`**: Randomizes the order of player subsets
+- **`non-blocking`**: Returns random player without changing turn order
+
+### API Integration
+
+The `establishFirstPlayers` method is automatically called during game start and returns both the current player and the designated first player:
+
+```json
+{
+  "current_player_id": 1,
+  "first_player_id": 1,
+  "game_started": true,
+  "status": "New game created"
+}
+```
 
 ## Architecture
 
@@ -300,12 +423,14 @@ node game-script/setup-game.js
 ```
 
 This interactive script will:
+
 - Ask essential questions about your game (play style, grid size, multiplayer, etc.)
 - Generate all necessary server-side files from templates
 - Create the proper folder structure
 - Handle conflict resolution for existing files
 
 The generated files include:
+
 - Main game logic file
 - Player entity definitions
 - API routes
@@ -326,6 +451,7 @@ To create a new game manually:
 The **Game Contract** defines what methods your game implementation must provide:
 
 #### Required Methods (MUST implement)
+
 - `getGameEngine()` - Return the game engine instance
 - `playTurn(playerId, x, y, metadata)` - Handle a player's turn
 - `addPlayer(name, isComputer)` - Add a player to the game
@@ -333,6 +459,7 @@ The **Game Contract** defines what methods your game implementation must provide
 - `resetForRestart()` - Reset game state for restart
 
 #### Optional Methods (CAN implement)
+
 - `getTileMap()` - Return the tile map (default: engine's tile map)
 - `getCurrentTurnPlayers()` - Return current turn players (default: engine's players)
 - `getWinner()` - Return the winner (default: null)
@@ -342,9 +469,11 @@ The **Game Contract** defines what methods your game implementation must provide
 - `stopGame()` - Stop the game (default: engine's stop)
 - `handleInactivity()` - Handle player inactivity (default: null)
 - `initializeGameOptions()` - Initialize game options
-- `applyGameOptions(options)` - Apply game options
+- `calculateComputerMove()` - Calculate AI player moves
+- `establishFirstPlayers()` - Determine which player goes first (default: randomized based on play style)
 
 #### Wrapper Methods (provided by KubicKodeGame)
+
 - `getGameOptions()` - Get game options instance
 - `getOptionValue(key)` - Get value of a game option
 - `resetGameOptions()` - Reset game options
@@ -397,15 +526,20 @@ class MyGame {
   initializeGameOptions() {
     // New lifecycle-based approach
     this.getGameOptions().addOption('gridSize', 5, 'frozen');
-    this.getGameOptions().addOption('maxTurns', 25, 'pre-start', (value) => {
-      return value > 0 ? true : 'Max turns must be positive';
-    });
-    this.getGameOptions().addOption('soundEnabled', true, 'runtime');
+  }
+
+  establishFirstPlayers() {
+    // Optional: Define game-specific first player logic
+    // For example, in tic-tac-toe, X always goes first
+    const players = this.engine.getPlayerEntities();
+    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    return xPlayer ? xPlayer.getPlayerId() : null;
   }
 }
 ```
 
 Example game options definition:
+
 ```javascript
 // Lifecycle-based options (recommended)
 this.getGameOptions().addOption('gridSize', 3, 'frozen');                    // Never changeable
@@ -428,7 +562,7 @@ this.getGameOptions().addOption('maxRounds', 10, 'pre-start', (value) => {
 
 kubic-kode includes an optional **Game State Machine (GSM)** for complex games requiring structured state management. The GSM provides organized state transitions, pause/resume functionality, and event handling for sophisticated game architectures.
 
-### Quick Start
+### GSM - Quick Start
 
 ```javascript
 // Simple game (procedural)

@@ -1,6 +1,7 @@
 import { TileMap } from "./tile-map.js";
 import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 import { GameStateMachine } from "./game-state-machine.js";
+import { kubicLog } from "../kubic-log.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
@@ -51,6 +52,13 @@ export class GameEngine {
   }
 
   registerPlayerEntity(entity) {
+    // Check if player is already registered to prevent duplicates
+    const existingPlayer = this._player_entities.find(e => e.id === entity.id);
+    if (existingPlayer) {
+      kubicLog.warn(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
+      return; // Don't add duplicate players
+    }
+    
     this._player_entities.push(entity);
     
     // Register viewport for scrollable tile map if available
@@ -67,6 +75,15 @@ export class GameEngine {
       this._turnOrder = [this._player_entities.map(e => e.id)];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
+  }
+
+  // Clear all registered players (useful for game restart)
+  clearPlayerEntities() {
+    this._player_entities = [];
+    this._turnOrder = [];
+    this._currentTurnIndex = 0;
+    this._actedThisRound.clear();
+    kubicLog.debug(`[GameEngine] Cleared all player entities and reset turn state`);
   }
 
   deregisterPlayerEntity(entityId) {
@@ -357,7 +374,7 @@ export class GameEngine {
    */
   getStateMachine() {
     if (!this._useStateMachine) {
-      console.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
+      kubicLog.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
       return null;
     }
     return this._stateMachine;
@@ -407,7 +424,46 @@ export class GameEngine {
     if (this._useStateMachine && this._stateMachine) {
       return await this._stateMachine.transitionTo(stateName, data);
     }
-    console.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
+    kubicLog.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
     return false;
+  }
+
+  // Turn Order Management
+  // ---------------------
+
+  /**
+   * Get the current turn order
+   * @returns {Array} The turn order array
+   */
+  getTurnOrder() {
+    return [...this._turnOrder]; // Return a copy to prevent direct manipulation
+  }
+
+  /**
+   * Set the turn order
+   * @param {Array} turnOrder - The new turn order
+   */
+  setTurnOrder(turnOrder) {
+    this._turnOrder = [...turnOrder]; // Make a copy to prevent external manipulation
+  }
+
+  /**
+   * Get the current turn index
+   * @returns {number} The current turn index
+   */
+  getCurrentTurnIndex() {
+    return this._currentTurnIndex;
+  }
+
+  /**
+   * Set the current turn index
+   * @param {number} index - The new turn index
+   */
+  setCurrentTurnIndex(index) {
+    if (index >= 0 && index < this._turnOrder.length) {
+      this._currentTurnIndex = index;
+    } else {
+      kubicLog.warn(`[GameEngine] Invalid turn index: ${index}. Valid range: 0-${this._turnOrder.length - 1}`);
+    }
   }
 }

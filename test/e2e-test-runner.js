@@ -227,7 +227,7 @@ class E2ETestRunner {
 
       // Step 10: Play a turn (assuming it's Player 1's turn)
       console.log('  🎯 Step 10: Playing a turn...');
-      const playTurnResponse = await this.makeRequest(`/api/tic-tac-toe/play-turn/${sessionId}`, {
+      const playTurnResponse = await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
         method: 'POST',
         body: JSON.stringify({
           xPos: 0,
@@ -421,7 +421,7 @@ class E2ETestRunner {
 
       // Try invalid move (out of bounds)
       try {
-        await this.makeRequest(`/api/tic-tac-toe/play-turn/${sessionId}`, {
+        await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
           method: 'POST',
           body: JSON.stringify({
             xPos: 10,

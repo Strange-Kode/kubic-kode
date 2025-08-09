@@ -1,17 +1,77 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
+import { PlayStatus } from "../../game-engine/play-status.js";
+import { kubicLog } from "../../kubic-log.js";
 
 const gameRouter = express.Router();
 
-import { serializeRecursively, checkPlayableAccess } from "../../game-utility/game-utility.js";
+import { serializeRecursively, checkPlayableAccess, validateSession } from "../../game-utility/game-utility.js";
 
-// Create middleware instance with session manager
+// Create middleware instances with session manager
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+const validateSessionMiddleware = validateSession(sessionManager);
+
+// Function to process tilemap data and generate debug information
+const processTileMapData = (tileMap) => {
+  const MAX_SIZE = 5;
+  const isLargeTileMap = tileMap.width > MAX_SIZE || tileMap.height > MAX_SIZE;
+  
+  // Always return the full tilemap to the client
+  const responseTileMap = serializeRecursively(tileMap);
+  
+  let debugInfo = {
+    total_tiles: tileMap.getTotalTiles(),
+    occupied_tiles: tileMap.getOccupiedCount(),
+    free_tiles: tileMap.getTotalTiles() - tileMap.getOccupiedCount(),
+    dimensions: { width: tileMap.width, height: tileMap.height },
+    is_large_tilemap: isLargeTileMap
+  };
+  
+  if (isLargeTileMap) {
+    // For large tilemaps, log only a subsection (center 10x10 area)
+    const startX = Math.max(0, Math.floor((tileMap.width - MAX_SIZE) / 2));
+    const startY = Math.max(0, Math.floor((tileMap.height - MAX_SIZE) / 2));
+    const endX = Math.min(tileMap.width, startX + MAX_SIZE);
+    const endY = Math.min(tileMap.height, startY + MAX_SIZE);
+    
+
+    const subSectionTiles = tileMap.getArea(startX, startY, endX, endY);
+    
+    const loggedTileMap = {
+      width: endX - startX,
+      height: endY - startY,
+      tiles: subSectionTiles,
+      is_subsection: true,
+      subsection_bounds: {
+        start_x: startX,
+        start_y: startY,
+        end_x: endX,
+        end_y: endY
+      }
+    };
+    
+    debugInfo.subsection_info = {
+      subsection_bounds: loggedTileMap.subsection_bounds,
+      subsection_dimensions: { width: loggedTileMap.width, height: loggedTileMap.height }
+    };
+    
+    kubicLog.debug(`game-routes.js::[processTileMapData] Large tilemap detected (${tileMap.width}x${tileMap.height}). Logging subsection: ${startX},${startY} to ${endX},${endY}`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Logged subsection:`, loggedTileMap.tiles);
+  } else {
+    // For small tilemaps, log the full tilemap
+    kubicLog.debug(`game-routes.js::[processTileMapData] Small tilemap (${tileMap.width}x${tileMap.height}). Logging full tilemap.`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Full tilemap:`, tileMap);
+  }
+  
+  // Log debug information
+  kubicLog.debug(`game-routes.js::[processTileMapData] Debug info:`, debugInfo);
+  
+  return responseTileMap;
+};
 
 // Shared function to handle game start logic
-const handleGameStart = (sessionId, options = {}) => {
-  const gameSession = sessionManager.getSession(sessionId);
+const handleGameStart = (gameSession, options = {}, requestingParticipantId = null) => {
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
@@ -25,6 +85,12 @@ const handleGameStart = (sessionId, options = {}) => {
       game_started: true,
       status: "Game already previously started",
     };
+  }
+
+  // Increment restart counter when starting a game with participants
+  // This should happen before establishFirstPlayers so the counter reflects the correct game number
+  if (sessionParticipants.length > 0) {
+    gameSession.increaseRestartCounter();
   }
 
   // Step 1: Add playable participants as players to your game
@@ -89,9 +155,15 @@ const handleGameStart = (sessionId, options = {}) => {
     }
   }
 
-  // Step 5: Return the current player
+  // Step 5: Establish first player(s) and return as current player(s)
+  const sessionContext = {
+    restartCount: gameSession.getRestartCounter(),
+    winCount: gameSession.getWinCounter()
+  };
+  const firstPlayerId = gameInstance.establishFirstPlayers(sessionContext);
   const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
   result.current_player_id = currentPlayer.getPlayerId();
+  result.first_player_id = firstPlayerId;
   result.game_started = true;
   result.status = "New game created";
 
@@ -101,29 +173,36 @@ const handleGameStart = (sessionId, options = {}) => {
       type: "gameStarted",
       payload: { playerMappings: serializeRecursively(playerMappings) },
     });
-  } catch (broadcastError) {
-    console.error('Broadcast error (non-blocking):', broadcastError);
-    // Don't throw here - the game was started successfully, just the broadcast failed
+      } catch (broadcastError) {
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
+      // Don't throw here - the game was started successfully, just the broadcast failed
+    }
+
+  // After game start, check if the first player is a computer and handle computer turns
+  // This is crucial for cases where the computer is the first player (alternating first player)
+  if (currentPlayer.getPlayerType() === 'computer') {
+    // Process computer turns asynchronously to avoid blocking the game start response
+    // This handles the case where computer is first player or multiple computers in sequence
+    setImmediate(() => {
+      processComputerTurns(gameSession, null).catch(error => {
+        kubicLog.error('game-routes.js::Error processing initial computer turns after game start:', error);
+      });
+    });
   }
 
   return result;
 };
 
 // Use the GET method if you want to start the game with default options, otherwise use POST.
-gameRouter.get("/game/start/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.get("/game/start/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.query;
+  const gameSession = req.gameSession;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required" });
   }
 
   // Check if participant is playable
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
-
   const participant = gameSession.getParticipantById(participantId);
   if (!participant) {
     return res.status(404).json({ error: "Participant not found." });
@@ -133,34 +212,30 @@ gameRouter.get("/game/start/:sessionId", (req, res) => {
     return res.status(403).json({ error: "This participant cannot start games." });
   }
 
-  const result = handleGameStart(sessionId);
+  const result = handleGameStart(gameSession, {}, participantId);
   res.json(result);
 });
 
 
 // Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
-gameRouter.post("/game/start/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.post("/game/start/:sessionId", validateSessionMiddleware, checkPlayableAccessMiddleware, (req, res) => {
   const { participantId, ...options } = req.body || {}; // Extract participantId and options from request body
+  const gameSession = req.gameSession;
+  
   // Game options will be validated and applied according to the game's configuration
-  const result = handleGameStart(sessionId, options);
+  const result = handleGameStart(gameSession, options, participantId);
   res.json(result);
 });
 
-gameRouter.get("/game/stop/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+gameRouter.get("/game/stop/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.query;
+  const gameSession = req.gameSession;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required" });
   }
 
   // Check if participant is playable
-  const gameSession = sessionManager.getSession(sessionId);
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
-
   const participant = gameSession.getParticipantById(participantId);
   if (!participant) {
     return res.status(404).json({ error: "Participant not found." });
@@ -191,15 +266,14 @@ gameRouter.get("/game/stop/:sessionId", (req, res) => {
       type: "gameStopped",
     });
   } catch (broadcastError) {
-    console.error('Broadcast error (non-blocking):', broadcastError);
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
     // Don't throw here - the game was stopped successfully, just the broadcast failed
   }
 });
 
 // Used to get current turn (=> current player id)
-gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/get-current-player/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   res.json({
@@ -210,9 +284,8 @@ gameRouter.get("/game/get-current-player/:sessionId", (req, res) => {
   });
 });
 
-gameRouter.get("/game/is-active/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/is-active/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   res.json({
@@ -220,25 +293,223 @@ gameRouter.get("/game/is-active/:sessionId", (req, res) => {
   });
 });
 
-gameRouter.get("/game/get-tilemap/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   const tileMap = gameInstance.getGameEngine().getTileMap();
-  console.log(`[get-tilemap] Raw tileMap:`, tileMap);
-  console.log(`[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap:`, tileMap);
+  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
   
-  const serializedTileMap = serializeRecursively(tileMap);
-  console.log(`[get-tilemap] Serialized tileMap:`, serializedTileMap);
+  // Process tilemap data using the dedicated function
+  const response = processTileMapData(tileMap);
   
-  res.json(serializedTileMap);
+  res.json(response);
 });
 
-// Get game options information
-gameRouter.get("/game/options/:sessionId", (req, res) => {
+// Generic play turn endpoint for all games
+gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
   const { sessionId } = req.params;
+  const { participantId, ...moveData } = req.body;
+
   const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+  
+  // Get the current player from the game engine
+  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  
+  // Validate that the participant is the current player
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+  
+  // Find the player that corresponds to this participant
+  const playerMappings = gameInstance.getPlayerMappings();
+  const playerId = playerMappings[participantId];
+  
+  if (!playerId) {
+    return res.status(400).json({ error: "Participant is not a player in this game." });
+  }
+  
+  // Validate that it's this player's turn
+  if (playerId !== currentPlayer.getPlayerId()) {
+    return res.status(400).json({ error: "It's not your turn." });
+  }
+
+  // Play the turn - pass turnData consistently for all games
+  let playStatus;
+  try {
+    // All games receive: playTurn(playerId, turnData)
+    // turnData contains all move information (xPos, yPos, action, etc.)
+    playStatus = gameInstance.playTurn(playerId, moveData);
+  } catch (error) {
+    return res.status(400).json({ 
+      error: "Invalid move.", 
+      details: error.message 
+    });
+  }
+  
+  // Handle win condition
+  if (playStatus.access('playerHasWon')) {
+    gameSession.increaseWinCounter();
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "winCount",
+      payload: { winCount },
+    });
+  }
+  
+  // Handle tie condition
+  if (playStatus.access('gameIsTied')) {
+    let winCount = gameSession.getWinCounter();
+    GameEventService.broadcastToSession(gameSession, {
+      type: "winCount",
+      payload: { winCount },
+    });
+  }
+  
+  // Send response immediately - convert PlayStatus to snake_case for HTTP response
+  const responseData = playStatus instanceof PlayStatus ? playStatus.toSnakeCase() : playStatus;
+  res.json(responseData);
+  
+  // Handle computer players asynchronously
+  processComputerTurns(gameSession, playStatus);
+  
+  // Broadcast the turn event to all connected clients after sending the response
+  try {
+    GameEventService.broadcastToSession(gameSession, {
+      type: "turnPlayed",
+      payload: { roundStatus: responseData }
+    });
+    
+    // If the player won, also broadcast a win event
+    if (playStatus.access('playerHasWon')) {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "playerWon",
+        payload: { 
+          playerId: playStatus.access('playerId'),
+          winCondition: playStatus.access('winCondition') || 'unknown'
+        }
+      });
+    }
+    
+    // If the game is tied, broadcast a tie event
+    if (playStatus.access('gameIsTied')) {
+      GameEventService.broadcastToSession(gameSession, {
+        type: "gameTied",
+        payload: { 
+          message: "Game ended in a tie"
+        }
+      });
+    }
+  } catch (broadcastError) {
+    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
+    // Don't throw here - the turn was played successfully, just the broadcast failed
+  }
+});
+
+// Standalone function to handle sequential computer players
+// This can be called from both the play-turn endpoint and handleGameStart
+const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
+  const gameInstance = gameSession.getGameInstance();
+  let lastPlayStatus = initialPlayStatus;
+  
+  kubicLog.debug(`game-routes.js::[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
+  
+  // Keep playing computer turns while:
+  // 1. No one has won yet and game hasn't tied (or no initial status provided)
+  // 2. Current player is a computer
+  // 3. Game is still active
+  while ((!lastPlayStatus || (!lastPlayStatus.access('playerHasWon') && !lastPlayStatus.access('gameIsTied'))) && 
+         gameInstance.getGameEngine().isGameStarted() &&
+         gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
+    
+    try {
+      // Random delay for computer moves (1-2 seconds)
+      const delay = 1000 + Math.floor(Math.random() * 1001);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Get current computer player (may have changed due to turn order)
+      const computerPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+      
+      // Calculate computer move
+      const computerMove = gameInstance.calculateComputerMove();
+      
+      // Play computer turn - consistent format for all games
+      let compPlayStatus;
+      compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
+
+      // Handle computer win
+      if (compPlayStatus.access('playerHasWon')) {
+        gameSession.increaseWinCounter();
+        let winCount = gameSession.getWinCounter();
+        GameEventService.broadcastToSession(gameSession, {
+          type: "winCount",
+          payload: { winCount },
+        });
+      }
+      
+      // Handle computer tie
+      if (compPlayStatus.access('gameIsTied')) {
+        let winCount = gameSession.getWinCounter();
+        GameEventService.broadcastToSession(gameSession, {
+          type: "winCount",
+          payload: { winCount },
+        });
+      }
+
+      // Convert PlayStatus to snake_case for broadcast
+      const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
+
+      // Broadcast computer turn
+      GameEventService.broadcastToSession(gameSession, {
+        type: "turnPlayed",
+        payload: { roundStatus: compResponseData },
+      });
+      
+      // If the computer won, also broadcast a win event
+      if (compPlayStatus.access('playerHasWon')) {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "playerWon",
+          payload: { 
+            playerId: compPlayStatus.access('playerId'),
+            winCondition: compPlayStatus.access('winCondition') || 'unknown'
+          }
+        });
+        
+        // Stop the loop if computer won
+        break;
+      }
+      
+      // If the game is tied, broadcast a tie event
+      if (compPlayStatus.access('gameIsTied')) {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "gameTied",
+          payload: { 
+            message: "Game ended in a tie"
+          }
+        });
+        
+        // Stop the loop if game tied
+        break;
+      }
+      
+      // Update lastRoundStatus for next iteration
+      lastPlayStatus = compPlayStatus;
+      
+    } catch (error) {
+      kubicLog.error('game-routes.js::[processComputerTurns] Error during computer turn:', error);
+      break; // Stop processing computer turns on error
+    }
+  }
+  
+  return lastPlayStatus;
+};
+
+// Get game options information
+gameRouter.get("/game/options/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
   const gameOptions = gameInstance.getGameOptions();

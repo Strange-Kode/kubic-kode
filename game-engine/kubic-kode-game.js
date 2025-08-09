@@ -3,6 +3,10 @@
 import { GameInterface } from "./game-interface.js";
 import { GameOptions } from "./game-options.js";
 import { gameContract } from "./game-contract.js";
+import { PlayStatus } from "./play-status.js";
+import { shuffleArray } from "../game-utility/game-utility.js";
+
+import { kubicLog } from "../kubic-log.js";
 
 class KubicKodeGame extends GameInterface {
   constructor(gameInstance, gameSession) {
@@ -11,6 +15,9 @@ class KubicKodeGame extends GameInterface {
     this.gameSession = gameSession; // GameSession instance
     this.gameOptions = new GameOptions();
     this.playerMappings = {}; // Store participantId -> playerId mappings
+
+    // Register system options that KubicKodeGame handles automatically
+    this._registerSystemOptions();
 
     // Validate that the game instance implements the required contract
     const validation = gameContract.validateGameInstance(gameInstance, gameInstance.constructor.name);
@@ -57,39 +64,50 @@ class KubicKodeGame extends GameInterface {
   // Proxy methods
   // -------------
 
-  playTurn(playerId, x, y, metadata = {}) {
-    // Delegate to the actual game
-    const result = this.gameInstance.playTurn(playerId, x, y, metadata);
+  playTurn(playerId, turnData, metadata = {}) {
+    // Delegate to the actual game with consistent turnData format
+    let playStatus = this.gameInstance.playTurn(playerId, turnData, metadata);
+
+    // Ensure result is a PlayStatus instance
+    if (!(playStatus instanceof PlayStatus)) {
+      // Convert plain object to PlayStatus for backward compatibility
+      playStatus = new PlayStatus(playStatus);
+    }
+
+    // Add the playerId to the result
+    playStatus.playerId = playerId;
 
     // Only record history if the turn was valid
-    if (result.status === "ok" || result.status === "valid") {
+    if (playStatus.status === "ok" || playStatus.status === "valid") {
       // Reset inactivity timer back to the game's timeout value
       const inactivityManager = this.gameSession.getInactivityManager();
       if (inactivityManager) {
         inactivityManager.resetTimer();
-        result.time_left = inactivityManager.getTimeRemaining();
+        playStatus.timeLeft = inactivityManager.getTimeRemaining();
       }
 
-      // Record the turn in history
+      // Record the turn in history - extract position data for history
+      const { xPos: x, yPos: y } = turnData;
       this.gameSession.gameHistory.addTurnPlayedEvent(
-        result.player_id,
+        playStatus.playerId,
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
-          mark: result.mark || this.getCurrentPlayerMark(),
-          status: result.status,
+          turnData, // Include full turn data for future extensibility
+          mark: playStatus.mark || this.getCurrentPlayerMark(),
+          status: playStatus.status,
         }
       );
 
       // Record win if it occurred and stop the game
-      if (result.player_has_won) {
+      if (playStatus.access('playerHasWon')) {
         this.gameSession.gameHistory.addPlayerWonEvent(
-          result.player_id,
+          playStatus.access('playerId'),
           this.getParticipantIdForPlayer(playerId),
           {
             winCondition:
-              result.winCondition || this.getWinConditionDescription(x, y),
+              playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
             finalPosition: { x, y },
             gameState: "completed",
           }
@@ -99,21 +117,35 @@ class KubicKodeGame extends GameInterface {
         this.gameOptions.setGameState('ended');
         this.gameSession.markEnded();
       }
+
+      // Record tie if it occurred and stop the game
+      if (playStatus.access('gameIsTied')) {
+        this.gameSession.gameHistory.addGameTiedEvent({
+          finalPosition: { x, y },
+          gameState: "tied",
+        });
+
+        // Stop the game and clear inactivity timer when game is tied
+        this.gameOptions.setGameState('ended');
+        this.gameSession.markEnded();
+      }
     } else {
-      // Record invalid turn attempt
+      // Record invalid turn attempt - extract position data for history
+      const { xPos: x, yPos: y } = turnData;
       this.gameSession.gameHistory.addInvalidTurnAttemptedEvent(
         playerId,
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
-          reason: result.type || "invalid_move",
-          status: result.status,
+          turnData, // Include full turn data for future extensibility
+          reason: playStatus.type || "invalid_move",
+          status: playStatus.status,
         }
       );
     }
 
-    return result;
+    return playStatus;
   }
   
   addPlayer(name, isComputer = false) {
@@ -191,6 +223,12 @@ class KubicKodeGame extends GameInterface {
 
   // Handle game stop with history recording
   resetForRestart() {
+    // Clear all player entities to prevent duplicates during restart
+    const gameEngine = this.gameInstance.getGameEngine();
+    if (gameEngine && typeof gameEngine.clearPlayerEntities === 'function') {
+      gameEngine.clearPlayerEntities();
+    }
+
     const result = this.gameInstance.resetForRestart();
 
     // Record game reset event
@@ -306,10 +344,22 @@ class KubicKodeGame extends GameInterface {
   }
 
   getInactivityTimeout() {
-    // Default implementation if game instance doesn't provide it
+    // Only provide inactivity timeout if game instance implements handleInactivity
+    if (typeof this.gameInstance.handleInactivity !== 'function') {
+      return null; // No inactivity timeout if game doesn't handle inactivity
+    }
+
+    // Check system option first
+    const systemTimeout = this.gameOptions.getCurrentSystemValue('inactivityTimeout');
+    if (systemTimeout !== null && systemTimeout !== undefined) {
+      return systemTimeout;
+    }
+
+    // Fall back to game instance implementation
     if (typeof this.gameInstance.getInactivityTimeout === 'function') {
       return this.gameInstance.getInactivityTimeout();
     }
+    
     return null; // Default: no inactivity timeout
   }
 
@@ -347,6 +397,113 @@ class KubicKodeGame extends GameInterface {
   // Helper method to get the current value of a game option
   getOptionValue(key) {
     return this.gameOptions.getCurrentValue(key);
+  }
+
+  establishFirstPlayers(sessionContext = null) {
+    // Check system option for specific participant preference
+    const participantId = this.gameOptions.getCurrentSystemValue('participantPlaysFirst');
+    
+    // If a specific participant is configured via system options
+    if (participantId) {
+      const playerId = this.playerMappings[participantId];
+      if (playerId) {
+        // Set this player as first in turn order
+        this._setFirstPlayer(playerId);
+        return playerId;
+      } else {
+        kubicLog.warn(`[KubicKodeGame]::establishFirstPlayers: Participant ${participantId} not found in player mappings`);
+      }
+    }
+
+    // Check if game instance has its own implementation
+    if (typeof this.gameInstance.establishFirstPlayers === 'function') {
+      const result = this.gameInstance.establishFirstPlayers(sessionContext);
+      if (result) {
+        // If game returned a player ID, set it as first
+        this._setFirstPlayer(result);
+        return result;
+      }
+    }
+
+    // No specific first player requested - randomize based on play style
+    return this._randomizeFirstPlayers();
+  }
+
+  // Helper method to set a specific player as first in turn order
+  _setFirstPlayer(playerId) {
+    const engine = this.gameInstance.getGameEngine();
+    const playStyle = engine.getPlayStyle();
+    
+    if (playStyle === "single-set" || playStyle === "multi-set") {
+      const currentOrder = engine.getTurnOrder();
+      const playerIndex = currentOrder.indexOf(playerId);
+      
+      if (playerIndex !== -1) {
+        // Move the player to the front
+        const reorderedPlayers = [playerId, ...currentOrder.filter(id => id !== playerId)];
+        engine.setTurnOrder(reorderedPlayers);
+        engine.setCurrentTurnIndex(0); // Reset to first position
+      }
+    } else if (playStyle === "multi-subset") {
+      // For multi-subset, ensure the player's subset goes first
+      const currentOrder = engine.getTurnOrder();
+      let targetSubsetIndex = -1;
+      
+      for (let i = 0; i < currentOrder.length; i++) {
+        if (currentOrder[i].includes(playerId)) {
+          targetSubsetIndex = i;
+          break;
+        }
+      }
+      
+      if (targetSubsetIndex !== -1 && targetSubsetIndex !== 0) {
+        // Move the target subset to the front
+        const modifiedOrder = [...currentOrder];
+        const targetSubset = modifiedOrder.splice(targetSubsetIndex, 1)[0];
+        modifiedOrder.unshift(targetSubset);
+        engine.setTurnOrder(modifiedOrder);
+        engine.setCurrentTurnIndex(0);
+      }
+    }
+    // For non-blocking, order doesn't matter
+  }
+
+  // Helper method to randomize first players based on play style
+  _randomizeFirstPlayers() {
+    const engine = this.gameInstance.getGameEngine();
+    const playStyle = engine.getPlayStyle();
+    const players = engine.getPlayerEntities();
+    
+    if (players.length === 0) {
+      return null;
+    }
+
+    if (playStyle === "single-set") {
+      // Randomize the order of all players
+      const shuffledIds = shuffleArray(players.map(p => p.getPlayerId()));
+      engine.setTurnOrder(shuffledIds);
+      engine.setCurrentTurnIndex(0);
+      return shuffledIds[0];
+    } else if (playStyle === "multi-set") {
+      // All players act simultaneously, but randomize for consistency
+      const shuffledIds = shuffleArray(players.map(p => p.getPlayerId()));
+      engine.setTurnOrder(shuffledIds);
+      return shuffledIds[0]; // Return first for consistency
+    } else if (playStyle === "multi-subset") {
+      // Randomize the order of subsets
+      const currentOrder = engine.getTurnOrder();
+      const shuffledOrder = shuffleArray(currentOrder);
+      engine.setTurnOrder(shuffledOrder);
+      engine.setCurrentTurnIndex(0);
+      // Return first player from first subset
+      return shuffledOrder[0] && shuffledOrder[0][0];
+    } else if (playStyle === "non-blocking") {
+      // Return a random player but don't change turn order
+      const randomPlayer = players[Math.floor(Math.random() * players.length)];
+      return randomPlayer.getPlayerId();
+    }
+    
+    return null;
   }
 
   /**
@@ -441,6 +598,129 @@ class KubicKodeGame extends GameInterface {
         gameEngine.updateTileMapDimensions(appliedOptions.gridSize, appliedOptions.gridSize);
       }
     }
+
+    // Handle system options automatically
+    this._handleSystemOptions(appliedOptions);
+  }
+
+  _handleSystemOptions(appliedOptions) {
+    // Handle participantPlaysFirst: Set up turn order with specified participant first
+    if ('system::participantPlaysFirst' in appliedOptions) {
+      this._applyParticipantPlaysFirst(appliedOptions['system::participantPlaysFirst']);
+    }
+
+    // Handle turnOrderType: Control how turn order is determined
+    if ('system::turnOrderType' in appliedOptions) {
+      this._applyTurnOrderType(appliedOptions['system::turnOrderType']);
+    }
+
+    // Handle allowSpectatorVoting: Configure spectator voting behavior
+    if ('system::allowSpectatorVoting' in appliedOptions) {
+      // This would be implemented in session management
+      // For now, just log that it's been set
+      kubicLog.debug(`[KubicKodeGame] Spectator voting ${appliedOptions['system::allowSpectatorVoting'] ? 'enabled' : 'disabled'}`);
+    }
+
+    // Handle inactivityTimeout: Player inactivity timeout is automatically handled via getInactivityTimeout()
+    if ('system::inactivityTimeout' in appliedOptions) {
+      kubicLog.debug(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions['system::inactivityTimeout']}ms`);
+    }
+  }
+
+  _applyParticipantPlaysFirst(participantId) {
+    if (!participantId) return; // null/undefined means no preference
+
+    kubicLog.debug(`[KubicKodeGame] Setting participant ${participantId} to play first`);
+    
+    // Store this preference to apply when game starts
+    // The actual turn order will be set up in the game start logic
+    this._preferredFirstParticipant = participantId;
+  }
+
+  _applyTurnOrderType(orderType) {
+    kubicLog.debug(`[KubicKodeGame] Turn order type set to: ${orderType}`);
+    this._turnOrderType = orderType;
+  }
+
+  // Developer convenience method to get all available system options
+  getAvailableSystemOptions() {
+    return this.gameOptions.getSystemOptions();
+  }
+
+  // Developer convenience method to read a system option
+  readSystemOption(key) {
+    return this.gameOptions.readSystemOption(key);
+  }
+
+  // Developer convenience method to get current system option value
+  getCurrentSystemValue(key) {
+    return this.gameOptions.getCurrentSystemValue(key);
+  }
+
+  // Register system options that KubicKodeGame handles automatically
+  _registerSystemOptions() {
+    // participantPlaysFirst: Allows specifying which participant should go first
+    this.gameOptions.addSystemOption(
+      'participantPlaysFirst', 
+      null, 
+      'pre-start',
+      (value) => {
+        if (value === null || value === undefined) {
+          return true; // Allow null/undefined (no preference)
+        }
+        if (typeof value !== 'string') {
+          return 'participantPlaysFirst must be a participant ID string or null';
+        }
+        return true;
+      },
+      'Specifies which participant should go first. Use participant ID or null for default order.'
+    );
+
+    // turnOrderType: Controls how turn order is determined
+    this.gameOptions.addSystemOption(
+      'turnOrderType',
+      'join-order',
+      'pre-start',
+      (value) => {
+        const validTypes = ['join-order', 'random', 'participant-order'];
+        if (!validTypes.includes(value)) {
+          return `turnOrderType must be one of: ${validTypes.join(', ')}`;
+        }
+        return true;
+      },
+      'Controls how turn order is determined: join-order (default), random, or participant-order'
+    );
+
+    // allowSpectatorVoting: Whether spectators can participate in restart voting
+    this.gameOptions.addSystemOption(
+      'allowSpectatorVoting',
+      false,
+      'runtime',
+      (value) => {
+        if (typeof value !== 'boolean') {
+          return 'allowSpectatorVoting must be a boolean';
+        }
+        return true;
+      },
+      'Whether spectators can participate in restart voting'
+    );
+
+    // inactivityTimeout: Player inactivity timeout in milliseconds
+    this.gameOptions.addSystemOption(
+      'inactivityTimeout',
+      null,
+      'runtime',
+      (value) => {
+        if (value === null || value === undefined) {
+          return true; // Allow null (no timeout)
+        }
+        if (typeof value !== 'number' || value < 1000) {
+          return 'inactivityTimeout must be a number >= 1000 (milliseconds) or null';
+        }
+        return true;
+      },
+      'Player inactivity timeout in milliseconds (how long a player has to make a move), or null for no timeout'
+    );
   }
 
   // Method to record custom events

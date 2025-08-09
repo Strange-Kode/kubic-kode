@@ -86,6 +86,22 @@ export class TileMap {
   }
 
   /**
+   * Get all empty tile positions
+   * @returns {Array} - Array of {x, y} objects for empty tiles
+   */
+  getEmptyTiles() {
+    const empty = [];
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (!this.isTileOccupied(x, y)) {
+          empty.push({ x, y });
+        }
+      }
+    }
+    return empty;
+  }
+
+  /**
    * Count total number of occupied tiles
    * @returns {number} - Number of occupied tiles
    */
@@ -129,6 +145,18 @@ export class TileMap {
     this.width = newWidth;
     this.height = newHeight;
     this.tiles = newTiles;
+  }
+
+  getArea(startX, startY, endX, endY) {
+    const areaTiles = [];
+    for (let y = startY; y < endY; y++) {
+      const row = [];
+      for (let x = startX; x < endX; x++) {
+        row.push(this.tiles[y][x]);
+      }
+      areaTiles.push(row);
+    }
+    return areaTiles;
   }
 
   *[Symbol.iterator]() {

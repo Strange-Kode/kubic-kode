@@ -1,3 +1,5 @@
+import { kubicLog } from "../kubic-log.js";
+
 /**
  * Viewport represents a rectangular subset of a TileMap that a player can see.
  * It defines the visible area for a player, enabling fog-of-war and large world support.
@@ -13,7 +15,7 @@
  * 
  * // Check if a position is visible to this player
  * if (viewport.contains(10, 8)) {
- *   console.log('Player can see this position');
+ *   kubicLog.info('Player can see this position');
  * }
  * 
  * // Move the viewport to follow the player

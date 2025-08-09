@@ -3,6 +3,7 @@ import { gameRegistry } from "./game-registry.js";
 import { validateGameInstance } from "../game-engine/interface-compliance-checker.js";
 import { KubicKodeGame } from "../game-engine/kubic-kode-game.js";
 import { gameHistoryManager } from "./game-history-manager.js";
+import { kubicLog } from "../kubic-log.js";
 import { v4 as uuidv4 } from "uuid";
 
 class SessionManager {
@@ -19,7 +20,7 @@ class SessionManager {
   }
 
   createSession(gameVariantId, options = {}) {
-    console.log("creating game session...");
+    kubicLog.info("[SessionManager] creating game session...");
     const sessionId = uuidv4(); // generate unique ID
 
     if (this.sessions.has(sessionId)) {
@@ -36,8 +37,8 @@ class SessionManager {
     // Validate that the game instance implements the required interface
     validateGameInstance(gameInstance, gameInstance.constructor.name);
     
-    console.log(
-      `allocated new session id: ${sessionId} for game variant: ${gameVariantId}`
+    kubicLog.info(
+      `[SessionManager] allocated new session id: ${sessionId} for game variant: ${gameVariantId}`
     );
     
     // Create the session with sessionId, maxParticipants (default 2), and gameVariantId
@@ -69,7 +70,7 @@ class SessionManager {
   removeSession(sessionId) {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      console.log(`[SessionManager] Session ${sessionId} not found for removal`);
+      kubicLog.warn(`[SessionManager] Session ${sessionId} not found for removal`);
       return false;
     }
 
@@ -80,10 +81,10 @@ class SessionManager {
       // Remove from sessions map
       this.sessions.delete(sessionId);
       
-      console.log(`[SessionManager] Successfully removed session ${sessionId}`);
+      kubicLog.info(`[SessionManager] Successfully removed session ${sessionId}`);
       return true;
     } catch (error) {
-      console.error(`[SessionManager] Error removing session ${sessionId}:`, error);
+      kubicLog.error(`[SessionManager] Error removing session ${sessionId}:`, error);
       return false;
     }
   }

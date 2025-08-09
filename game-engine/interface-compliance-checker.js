@@ -1,11 +1,12 @@
 import { gameContract } from './game-contract.js';
+import { kubicLog } from "../kubic-log.js";
 
 // Utility to check if a game class implements the required contract
 export function checkGameContractCompliance(gameInstance, className = 'GameInstance') {
   try {
     return gameContract.validateGameInstance(gameInstance, className);
   } catch (error) {
-    console.error(`❌ ${className} contract validation failed:`, error.message);
+    kubicLog.error(`[InterfaceComplianceChecker] ${className} contract validation failed:`, error.message);
     return { valid: false, error: error.message };
   }
 }
@@ -17,6 +18,6 @@ export function validateGameInstance(gameInstance, className = 'GameInstance') {
 
 // Legacy function for backward compatibility
 export function checkGameInterfaceCompliance(gameInstance, className = 'GameInstance') {
-  console.warn('checkGameInterfaceCompliance is deprecated, use checkGameContractCompliance instead');
+  kubicLog.warn('[InterfaceComplianceChecker] checkGameInterfaceCompliance is deprecated, use checkGameContractCompliance instead');
   return checkGameContractCompliance(gameInstance, className);
 } 

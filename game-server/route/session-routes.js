@@ -2,10 +2,14 @@ import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
 import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
+import { kubicLog } from "../../kubic-log.js";
 
-import { serializeRecursively } from "../../game-utility/game-utility.js";
+import { serializeRecursively, validateSession } from "../../game-utility/game-utility.js";
 
 const sessionRouter = express.Router();
+
+// Create middleware instance with session manager
+const validateSessionMiddleware = validateSession(sessionManager);
 
 // Init session, GET fallback (no turnConfig)
 sessionRouter.get("/session/init/:gameId", (req, res) => {
@@ -18,8 +22,8 @@ sessionRouter.get("/session/init/:gameId", (req, res) => {
     sessionState = sessionManager.createSession(gameId);
     session_created = true;
   }
-  console.log(`session-routes.js::session created: ${session_created}`);
-  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session created: ${session_created}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
   res.json({
     session_id: sessionState.sessionId,
     session_created: session_created,
@@ -40,8 +44,8 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
     sessionState = sessionManager.createSession(gameId, { ...otherOptions });
     session_created = true;
   }
-  console.log(`session-routes.js::session created: ${session_created}`);
-  console.log(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session created: ${session_created}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
   res.json({
     session_id: sessionState.sessionId,
     session_created: session_created,
@@ -49,15 +53,9 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
 });
 
 // Join session
-sessionRouter.post("/session/:sessionId/join", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, res) => {
   const { participantName, participantType = "user" } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     let participantId = gameSession.addParticipant(
@@ -75,25 +73,19 @@ sessionRouter.post("/session/:sessionId/join", (req, res) => {
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the join was successful, just the broadcast failed
     }
   } catch (err) {
-    console.error("Join session error:", err);
+    kubicLog.error("session-routes.js::Join session error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Join session as spectator
-sessionRouter.post("/session/:sessionId/spectate", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, (req, res) => {
   const { participantName } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Game session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     let participantId = gameSession.addParticipant(
@@ -111,27 +103,21 @@ sessionRouter.post("/session/:sessionId/spectate", (req, res) => {
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the join was successful, just the broadcast failed
     }
   } catch (err) {
-    console.error("Join session as spectator error:", err);
+    kubicLog.error("session-routes.js::Join session as spectator error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Leave session
-sessionRouter.post("/session/:sessionId/leave", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.body;
+  const gameSession = req.gameSession;
 
   // TODO: Validate that current user that's calling leave is authorized to do so.
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
 
   try {
     let participant = gameSession.getParticipantById(participantId);
@@ -145,7 +131,7 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the leave was successful, just the broadcast failed
     }
   } catch (err) {
@@ -154,43 +140,25 @@ sessionRouter.post("/session/:sessionId/leave", (req, res) => {
 });
 
 // @deprecated, use next route instead
-sessionRouter.get("/session/:sessionId/participants", (req, res) => {
-  console.warn(
+sessionRouter.get("/session/:sessionId/participants", validateSessionMiddleware, (req, res) => {
+  kubicLog.warn(
     "session-routes.js::get /session/:sessionId/participants is deprecated, use /session/participants/list/:sessionId instead"
   );
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   res.json(session.listParticipants());
 });
 
 // List participants
-sessionRouter.get("/session/participants/list/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/participants/list/:sessionId", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   res.json(session.listParticipants());
 });
 
 // Get participant statistics
-sessionRouter.get("/session/participants/stats/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
 
   const allParticipants = gameSession.listParticipants();
   const playableParticipants = gameSession.getPlayableParticipants();
@@ -207,9 +175,13 @@ sessionRouter.get("/session/participants/stats/:sessionId", (req, res) => {
   });
 });
 
-sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  const gameSession = sessionManager.getSession(sessionId);
+sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
+
+  // Check if a restart vote is already in progress
+  if (gameSession.isRestartVoteInProgress()) {
+    return res.json({ vote_inited: true, message: "Restart vote already in progress" });
+  }
 
   gameSession.startRestartVote();
 
@@ -224,16 +196,14 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", (req, res) => {
       },
     });
   } catch (broadcastError) {
-    console.error("Broadcast error (non-blocking):", broadcastError);
+    kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
     // Don't throw here - the vote was started successfully, just the broadcast failed
   }
 });
 
-sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
   const { participantId, voteYes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
+  const gameSession = req.gameSession;
 
   try {
     gameSession.registerRestartVote(participantId, voteYes === true);
@@ -264,7 +234,7 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
         gameSession.clearRestartVote();
       }
     } catch (broadcastError) {
-      console.error("Broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
       // Don't throw here - the vote was registered successfully, just the broadcast failed
     }
   } catch (error) {
@@ -273,15 +243,9 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", (req, res) => {
 });
 
 // Get session game history with optional filters
-sessionRouter.post("/session/history/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (req, res) => {
   const filters = req.body || {};
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   try {
     // Convert string dates to Date objects if provided
@@ -298,26 +262,20 @@ sessionRouter.post("/session/history/:sessionId", (req, res) => {
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       totalEvents: history.length,
       history: history,
     });
   } catch (err) {
-    console.error("Get session history error:", err);
+    kubicLog.error("session-routes.js::Get session history error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Subscribe to game history event types
-sessionRouter.post("/session/subscribe/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   if (!eventTypes || !Array.isArray(eventTypes) || eventTypes.length === 0) {
     return res.status(400).json({
@@ -346,28 +304,22 @@ sessionRouter.post("/session/subscribe/:sessionId", (req, res) => {
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       subscribedEventTypes: eventTypes,
       message: `Successfully subscribed to game history event types: ${eventTypes.join(
         ", "
       )}`,
     });
   } catch (err) {
-    console.error("Subscribe to event types error:", err);
+    kubicLog.error("session-routes.js::Subscribe to event types error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Unsubscribe from game history event types
-sessionRouter.post("/session/unsubscribe/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const gameSession = req.gameSession;
 
   if (!eventTypes || !Array.isArray(eventTypes)) {
     return res.status(400).json({
@@ -395,40 +347,34 @@ sessionRouter.post("/session/unsubscribe/:sessionId", (req, res) => {
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       unsubscribedEventTypes: eventTypes,
       message: `Successfully unsubscribed from game history event types: ${eventTypes.join(
         ", "
       )}`,
     });
   } catch (err) {
-    console.error("Unsubscribe from event types error:", err);
+    kubicLog.error("session-routes.js::Unsubscribe from event types error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Get current subscriptions for a session
-sessionRouter.get("/session/subscriptions/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-
-  const gameSession = sessionManager.getSession(sessionId);
-
-  if (!gameSession) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware, (req, res) => {
+  const gameSession = req.gameSession;
 
   try {
     const currentSubscriptions = gameSession.getGameHistorySubscriptions();
 
     res.json({
       success: true,
-      sessionId: sessionId,
+      sessionId: req.params.sessionId,
       subscribedEventTypes: currentSubscriptions,
       totalSubscriptions: currentSubscriptions.length,
       note: "Subscriptions only apply to game history events. Regular session events (joins, leaves, etc.) are always broadcast.",
     });
   } catch (err) {
-    console.error("Get session subscriptions error:", err);
+    kubicLog.error("session-routes.js::Get session subscriptions error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -445,19 +391,14 @@ sessionRouter.get("/sessions/list", (req, res) => {
       sessions: sessionList
     });
   } catch (err) {
-    console.error("List sessions error:", err);
+    kubicLog.error("session-routes.js::List sessions error:", err);
     res.status(500).json({ error: "Failed to retrieve sessions list." });
   }
 });
 
 // Get detailed lobby information for a specific session
-sessionRouter.get("/session/lobby/:sessionId", (req, res) => {
-  const { sessionId } = req.params;
-  
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/lobby/:sessionId", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
   
   try {
     const lobbyStatus = session.getLobbyStatus();
@@ -466,7 +407,7 @@ sessionRouter.get("/session/lobby/:sessionId", (req, res) => {
       lobby: lobbyStatus
     });
   } catch (err) {
-    console.error("Get lobby status error:", err);
+    kubicLog.error("session-routes.js::Get lobby status error:", err);
     res.status(500).json({ error: "Failed to retrieve lobby status." });
   }
 });
@@ -500,7 +441,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
       sessions: sessionList
     });
   } catch (err) {
-    console.error("Get sessions by game variant error:", err);
+    kubicLog.error("session-routes.js::Get sessions by game variant error:", err);
     res.status(500).json({ error: "Failed to retrieve sessions for game variant." });
   }
 });
@@ -509,8 +450,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
 // ---------------------------
 
 // Set lobby configuration (host only)
-sessionRouter.post("/session/:sessionId/config", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req, res) => {
   const { participantId, config } = req.body;
 
   if (!participantId) {
@@ -521,10 +461,7 @@ sessionRouter.post("/session/:sessionId/config", (req, res) => {
     return res.status(400).json({ error: "config object is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     // Validate that participant is the host
@@ -567,50 +504,42 @@ sessionRouter.post("/session/:sessionId/config", (req, res) => {
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Lobby config broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Lobby config broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Set lobby config error:", err);
+    kubicLog.error("session-routes.js::Set lobby config error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Get lobby configuration
-sessionRouter.get("/session/:sessionId/config", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   try {
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       config: session.getAllLobbyConfig(),
       host: session.getHost()
     });
   } catch (err) {
-    console.error("Get lobby config error:", err);
+    kubicLog.error("session-routes.js::Get lobby config error:", err);
     res.status(500).json({ error: "Failed to retrieve lobby configuration." });
   }
 });
 
 // Delete specific lobby configuration key (host only)
-sessionRouter.delete("/session/:sessionId/config/:configKey", (req, res) => {
-  const { sessionId, configKey } = req.params;
+sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMiddleware, (req, res) => {
+  const { configKey } = req.params;
   const { participantId } = req.body;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const oldValue = session.getLobbyConfig(configKey);
@@ -647,11 +576,11 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", (req, res) => {
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Lobby config deletion broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Lobby config deletion broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Delete lobby config error:", err);
+    kubicLog.error("session-routes.js::Delete lobby config error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -740,11 +669,11 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
         });
       }
     } catch (broadcastError) {
-      console.error("Auto-join broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Auto-join broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Auto-join session error:", err);
+    kubicLog.error("session-routes.js::Auto-join session error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -753,18 +682,14 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
 // --------------------------------------
 
 // Start sync phase (host only)
-sessionRouter.post("/session/:sessionId/sync/start", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, (req, res) => {
   const { participantId } = req.body;
 
   if (!participantId) {
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     if (!session.isHost(participantId)) {
@@ -807,18 +732,17 @@ sessionRouter.post("/session/:sessionId/sync/start", (req, res) => {
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Sync phase start broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Sync phase start broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Start sync phase error:", err);
+    kubicLog.error("session-routes.js::Start sync phase error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Set participant ready state
-sessionRouter.post("/session/:sessionId/ready", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
   const { participantId, ready } = req.body;
 
   if (!participantId) {
@@ -829,10 +753,7 @@ sessionRouter.post("/session/:sessionId/ready", (req, res) => {
     return res.status(400).json({ error: "ready must be a boolean value." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     session.setParticipantReady(participantId, ready);
@@ -877,52 +798,43 @@ sessionRouter.post("/session/:sessionId/ready", (req, res) => {
         });
       }
     } catch (broadcastError) {
-      console.error("Ready state broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Ready state broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Set ready state error:", err);
+    kubicLog.error("session-routes.js::Set ready state error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Get ready states
-sessionRouter.get("/session/:sessionId/ready", (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
 
   try {
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       in_sync_phase: session.isInSyncPhase(),
       all_ready: session.areAllParticipantsReady(),
       ready_states: session.getAllReadyStates(),
       playable_participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
     });
   } catch (err) {
-    console.error("Get ready states error:", err);
+    kubicLog.error("session-routes.js::Get ready states error:", err);
     res.status(500).json({ error: "Failed to retrieve ready states." });
   }
 });
 
 // Kick participant (host only)
-sessionRouter.post("/session/:sessionId/kick", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, res) => {
   const { hostId, participantIdToKick } = req.body;
 
   if (!hostId || !participantIdToKick) {
     return res.status(400).json({ error: "hostId and participantIdToKick are required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const participantToKick = session.getParticipantById(participantIdToKick);
@@ -961,28 +873,24 @@ sessionRouter.post("/session/:sessionId/kick", (req, res) => {
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Kick participant broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Kick participant broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Kick participant error:", err);
+    kubicLog.error("session-routes.js::Kick participant error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Transfer host (current host only)
-sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddleware, (req, res) => {
   const { currentHostId, newHostId } = req.body;
 
   if (!currentHostId || !newHostId) {
     return res.status(400).json({ error: "currentHostId and newHostId are required." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     if (!session.isHost(currentHostId)) {
@@ -1015,11 +923,11 @@ sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
-      console.error("Host transfer broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Host transfer broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Transfer host error:", err);
+    kubicLog.error("session-routes.js::Transfer host error:", err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -1028,8 +936,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", (req, res) => {
 // -------------------------
 
 // Send chat message
-sessionRouter.post("/session/:sessionId/chat", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, res) => {
   const { participantId, message } = req.body;
 
   if (!participantId) {
@@ -1044,10 +951,7 @@ sessionRouter.post("/session/:sessionId/chat", (req, res) => {
     return res.status(400).json({ error: "Message cannot exceed 500 characters." });
   }
 
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const participant = session.getParticipantById(participantId);
@@ -1071,36 +975,31 @@ sessionRouter.post("/session/:sessionId/chat", (req, res) => {
         payload: { message: chatMessage }
       });
     } catch (broadcastError) {
-      console.error("Chat message broadcast error (non-blocking):", broadcastError);
+      kubicLog.error("session-routes.js::Chat message broadcast error (non-blocking):", broadcastError);
     }
 
   } catch (err) {
-    console.error("Send chat message error:", err);
+    kubicLog.error("session-routes.js::Send chat message error:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Get chat messages
-sessionRouter.get("/session/:sessionId/chat", (req, res) => {
-  const { sessionId } = req.params;
+sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, res) => {
   const { limit = 50 } = req.query;
-
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: "Session not found." });
-  }
+  const session = req.gameSession;
 
   try {
     const messages = session.getChatMessages(parseInt(limit, 10));
     
     res.json({
       success: true,
-      session_id: sessionId,
+      session_id: req.params.sessionId,
       total_messages: messages.length,
       messages: messages
     });
   } catch (err) {
-    console.error("Get chat messages error:", err);
+    kubicLog.error("session-routes.js::Get chat messages error:", err);
     res.status(500).json({ error: "Failed to retrieve chat messages." });
   }
 });

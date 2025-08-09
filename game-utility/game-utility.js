@@ -47,6 +47,26 @@ export function pickProperties(source, props) {
   }, {});
 }
 
+// Middleware to validate session exists and attach it to request
+export function validateSession(sessionManager) {
+  return (req, res, next) => {
+    const { sessionId } = req.params;
+    const gameSession = sessionManager.getSession(sessionId);
+    
+    if (!gameSession) {
+      return res.status(404).json({
+        error: true,
+        message: "Game session not found",
+        session_id: sessionId
+      });
+    }
+    
+    // Attach session to request for use in route handlers
+    req.gameSession = gameSession;
+    next();
+  };
+}
+
 // Middleware to check if participant is playable (can perform game actions)
 export function checkPlayableAccess(sessionManager) {
   return (req, res, next) => {
@@ -73,4 +93,14 @@ export function checkPlayableAccess(sessionManager) {
 
     next();
   };
+}
+
+// Utility function to shuffle an array using Fisher-Yates algorithm
+export function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }

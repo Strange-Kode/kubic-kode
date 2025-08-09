@@ -1,4 +1,5 @@
 import { WebSocketServer } from 'ws';
+import { kubicLog } from '../kubic-log.js';
 
 const connectionsBySession = new Map();
 let wss = null;
@@ -10,19 +11,19 @@ function initWebSocketServer(server) {
         const params = new URLSearchParams(req.url.split('?')[1]);
         const sessionId = params.get('sessionId');
 
-        console.log(`[GameEventService] New WebSocket connection for session: ${sessionId}`);
+        kubicLog.info(`[GameEventService] New WebSocket connection for session: ${sessionId}`);
 
         if (!connectionsBySession.has(sessionId)) {
             connectionsBySession.set(sessionId, []);
         }
         connectionsBySession.get(sessionId).push(ws);
 
-        console.log(`[GameEventService] Total connections for session ${sessionId}: ${connectionsBySession.get(sessionId).length}`);
+        kubicLog.debug(`[GameEventService] Total connections for session ${sessionId}: ${connectionsBySession.get(sessionId).length}`);
 
         ws.on('close', () => {
             const conns = connectionsBySession.get(sessionId) || [];
             connectionsBySession.set(sessionId, conns.filter(conn => conn !== ws));
-            console.log(`[GameEventService] WebSocket closed for session ${sessionId}, remaining connections: ${connectionsBySession.get(sessionId).length}`);
+            kubicLog.debug(`[GameEventService] WebSocket closed for session ${sessionId}, remaining connections: ${connectionsBySession.get(sessionId).length}`);
         });
     });
 }
@@ -39,14 +40,14 @@ function broadcastToSession(gameSession, messageObj) {
     }
     const message = JSON.stringify(finalMessageObj);
 
-    console.log(`[GameEventService] Broadcasting ${messageObj.type} to session ${sessionId} with ${conns.length} connections`);
-    console.log(`[GameEventService] Message:`, finalMessageObj);
+    kubicLog.debug(`[GameEventService] Broadcasting ${messageObj.type} to session ${sessionId} with ${conns.length} connections`);
+    kubicLog.trace(`[GameEventService] Message:`, finalMessageObj);
 
     conns.forEach(ws => {
         if (ws.readyState === ws.OPEN) {
             ws.send(message);
         } else {
-            console.log(`[GameEventService] Skipping closed WebSocket connection`);
+            kubicLog.debug(`[GameEventService] Skipping closed WebSocket connection`);
         }
     });
 }

@@ -1,12 +1,14 @@
 import express from "express";
+import { kubicLog } from "../kubic-log.js";
+
 const app = express();
 const PORT = 3000;
 
 process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err.stack || err);
+    kubicLog.error('Uncaught Exception:', err.stack || err);
 });
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection:', reason.stack || reason);
+    kubicLog.error('Unhandled Rejection:', reason.stack || reason);
 });
 
 import sessionRouter from "./route/session-routes.js";
@@ -100,6 +102,10 @@ app.get("/", (req, res) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Kubic Kode Server running at http://localhost:${PORT}`);
+  console.log(`Debug mode: ${kubicLog.isEnabled() ? 'enabled' : 'disabled'}`);
+  if (kubicLog.isEnabled()) {
+    console.log(`Debug level: ${process.env.DEBUG_LEVEL || 'info'}`);
+  }
 });
 
 GameEventService.initWebSocketServer(server);
