@@ -98,13 +98,20 @@ export function useTicTacToe() {
     }
   }, [needsName, shouldShowSpectator]);
 
-  // Auto-start game when 2 participants are present
+  // Auto-start game when 2 participants are present (only if current user is playable)
   useEffect(() => {
     if (shouldAutoStart) {
-      // console.log("[useTicTacToe] AUTO-START triggered: participants=2");
-      handleAutoStartGame();
+      // Check if current participant is playable before attempting auto-start
+      const currentParticipant = session.participants.find(p => p.id === session.participantId);
+      const isCurrentUserPlayable = currentParticipant && (currentParticipant.type === "user" || currentParticipant.type === "computer");
+      
+      if (isCurrentUserPlayable) {
+        // console.log("[useTicTacToe] AUTO-START triggered: participants=2");
+        handleAutoStartGame();
+      }
+      // If current user is spectator, let other playable participants handle the auto-start
     }
-  }, [shouldAutoStart]);
+  }, [shouldAutoStart, session.participants, session.participantId]);
 
   // Handle name submission from modal
   const handleNameSubmit = useCallback(
@@ -333,9 +340,17 @@ export function useTicTacToe() {
     handleWebSocketEvent
   );
 
+
   // Determine current game phase
   const getGamePhase = useCallback(() => {
-    if (overallLoading) return "loading";
+    if (overallLoading) {
+      console.log("[useTicTacToe] Still loading:", {
+        sessionLoading: session.isSessionLoading,
+        gameLoading: game.isGameLoading,
+        localLoading: isLoading
+      });
+      return "loading";
+    }
     if (combinedError) return "error";
     if (showNameModal) return "name-selection";
     if (session.participants.length < 2) return "waiting-for-players";
@@ -444,10 +459,29 @@ export function useTicTacToe() {
     getGridDimensions: game.getGridDimensions,
 
     // Pass-through session actions (for advanced use)
+    initializeSession: session.initializeSession,
     joinSession: session.joinSession,
     joinAsSpectator: session.joinAsSpectator,
     addAIParticipant: session.addAIParticipant,
     startGame: game.startGame,
     checkSessionAvailability: session.checkSessionAvailability,
+    leaveSession: session.leaveSession,
+    
+    // Session state sync for browser integration
+    syncSessionState: async (newSessionId, newParticipantId, newPlayerName) => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        await session.syncSessionState(newSessionId, newParticipantId);
+        if (newPlayerName) setPlayerName(newPlayerName);
+        await refreshData();
+      } catch (err) {
+        console.error("[useTicTacToe] Error syncing session state:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
   };
 }
