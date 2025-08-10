@@ -9,7 +9,8 @@ export class GameContract {
       'playTurn',
       'addPlayer',
       'startGame',
-      'resetForRestart'
+      'resetForRestart',
+      'requiredPlayers'
     ]);
 
     // Optional methods that game implementations CAN provide

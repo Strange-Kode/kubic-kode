@@ -11,25 +11,24 @@ export function useSession() {
   const [participantId, setParticipantId] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [maxParticipants, setMaxParticipants] = useState(2); // default fallback
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState(null);
 
   // Fetch helper
   const { get, post } = useFetch();
 
-  // Initialize session on mount
-  useEffect(() => {
-    initializeSession();
-  }, []);
+  // No automatic initialization - session must be explicitly created
 
   // Initialize session with backend
-  const initializeSession = useCallback(async () => {
+  const initializeSession = useCallback(async (forceNew = false) => {
     // console.log("[useSession] Initializing session...");
     setIsSessionLoading(true);
     setSessionError(null);
 
     try {
-      const result = await get("/api/session/init/tic-tac-toe-classic");
+      const result = forceNew 
+        ? await post("/api/session/init/tic-tac-toe-classic", { forceNew: true })
+        : await get("/api/session/init/tic-tac-toe-classic");
 
       if (result.success) {
         const newSessionId = result.data.session_id;
@@ -37,12 +36,14 @@ export function useSession() {
         // console.log(
         //   `[useSession] Session initialized: session_id=${newSessionId}`
         // );
+        return { success: true, sessionId: newSessionId };
       } else {
         throw new Error(result.error || "Failed to initialize session");
       }
     } catch (error) {
       console.error("[useSession] Failed to initialize session:", error);
       setSessionError(error.message);
+      return { success: false, error: error.message };
     } finally {
       setIsSessionLoading(false);
     }
@@ -50,15 +51,17 @@ export function useSession() {
 
   // Join session with participant name
   const joinSession = useCallback(
-    async (name, participantType = "user") => {
-      if (!sessionId) {
+    async (name, participantType = "user", targetSessionId = null) => {
+      const activeSessionId = targetSessionId || sessionId;
+      
+      if (!activeSessionId) {
         throw new Error("Session not initialized");
       }
 
       // console.log(`[useSession] Joining session with name: ${name}`);
 
       try {
-        const result = await post(`/api/session/${sessionId}/join`, {
+        const result = await post(`/api/session/${activeSessionId}/join`, {
           participantName: name,
           participantType: participantType,
         });
@@ -66,6 +69,12 @@ export function useSession() {
         if (result.success) {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
+          
+          // If we joined a different session, update our session state
+          if (targetSessionId && targetSessionId !== sessionId) {
+            setSessionId(targetSessionId);
+          }
+          
           // console.log(
           //   `[useSession] Joined session: participant_id=${newParticipantId}`
           // );
@@ -244,6 +253,44 @@ export function useSession() {
   const isHost =
     participants.length > 0 && participants[0]?.id === participantId;
 
+  // Direct state sync function for session browser integration
+  const syncSessionState = useCallback(async (newSessionId, newParticipantId) => {
+    if (newSessionId) setSessionId(newSessionId);
+    if (newParticipantId) setParticipantId(newParticipantId);
+    
+    // Trigger a data refresh after state sync
+    await fetchParticipants();
+  }, [fetchParticipants]);
+
+  // Leave current session
+  const leaveSession = useCallback(async () => {
+    if (!sessionId || !participantId) {
+      return { success: false, error: "No active session to leave" };
+    }
+
+    console.log("[useSession] Leaving session:", { sessionId, participantId });
+
+    try {
+      const result = await post(`/api/session/${sessionId}/leave`, {
+        participantId
+      });
+
+      if (result.success) {
+        // Clear session state
+        setSessionId(null);
+        setParticipantId(null);
+        setParticipants([]);
+        console.log("[useSession] Successfully left session");
+        return { success: true };
+      } else {
+        throw new Error(result.error || "Failed to leave session");
+      }
+    } catch (error) {
+      console.error("[useSession] Error leaving session:", error);
+      return { success: false, error: error.message };
+    }
+  }, [sessionId, participantId, post]);
+
   return {
     // Session state
     sessionId,
@@ -261,5 +308,7 @@ export function useSession() {
     addAIParticipant,
     fetchParticipants,
     checkSessionAvailability,
+    syncSessionState,
+    leaveSession,
   };
 }

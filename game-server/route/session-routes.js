@@ -205,6 +205,16 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
   const { participantId, voteYes } = req.body;
   const gameSession = req.gameSession;
 
+  // Validate that the participant exists and is playable
+  const participant = gameSession.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!gameSession.isParticipantPlayable(participant)) {
+    return res.status(400).json({ error: "Only playable participants (users and computers) can vote on restart. Spectators cannot vote." });
+  }
+
   try {
     gameSession.registerRestartVote(participantId, voteYes === true);
 
@@ -755,6 +765,16 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
 
   const session = req.gameSession;
 
+  // Validate that the participant exists and is playable
+  const participant = session.getParticipantById(participantId);
+  if (!participant) {
+    return res.status(404).json({ error: "Participant not found." });
+  }
+
+  if (!session.isParticipantPlayable(participant)) {
+    return res.status(400).json({ error: "Only playable participants (users and computers) can set ready states. Spectators cannot set ready states." });
+  }
+
   try {
     session.setParticipantReady(participantId, ready);
     const participant = session.getParticipantById(participantId);
@@ -1001,6 +1021,152 @@ sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, r
   } catch (err) {
     kubicLog.error("session-routes.js::Get chat messages error:", err);
     res.status(500).json({ error: "Failed to retrieve chat messages." });
+  }
+});
+
+// Connection Management Routes
+// ---------------------------
+
+// Get session connection status
+sessionRouter.get("/session/:sessionId/status", validateSessionMiddleware, (req, res) => {
+  const session = req.gameSession;
+  
+  try {
+    const status = session.getSessionStatus();
+    const participants = session.listParticipants();
+    
+    res.json({
+      success: true,
+      session_id: req.params.sessionId,
+      status: status,
+      participants: participants
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Get session status error:", err);
+    res.status(500).json({ error: "Failed to retrieve session status." });
+  }
+});
+
+// Get all sessions with status
+sessionRouter.get("/sessions/status", (req, res) => {
+  try {
+    const sessionsWithStatus = sessionManager.getSessionsWithStatus();
+    const stats = sessionManager.getSessionStats();
+    
+    res.json({
+      success: true,
+      sessions: sessionsWithStatus,
+      stats: stats
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Get sessions status error:", err);
+    res.status(500).json({ error: "Failed to retrieve sessions status." });
+  }
+});
+
+// Get viable sessions (sessions with enough connected players)
+sessionRouter.get("/sessions/viable", (req, res) => {
+  try {
+    const viableSessions = sessionManager.getViableSessions();
+    
+    res.json({
+      success: true,
+      sessions: viableSessions,
+      count: viableSessions.length
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Get viable sessions error:", err);
+    res.status(500).json({ error: "Failed to retrieve viable sessions." });
+  }
+});
+
+// Clean up inactive sessions
+sessionRouter.post("/sessions/cleanup", (req, res) => {
+  const { maxInactiveTime } = req.body || {};
+  
+  try {
+    const inactiveTime = maxInactiveTime || 30 * 60 * 1000; // 30 minutes default
+    sessionManager.cleanupInactiveSessions(inactiveTime);
+    
+    const stats = sessionManager.getSessionStats();
+    
+    res.json({
+      success: true,
+      message: "Session cleanup completed",
+      stats: stats
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Session cleanup error:", err);
+    res.status(500).json({ error: "Failed to cleanup sessions." });
+  }
+});
+
+// Heartbeat endpoint for clients to confirm they're still alive
+sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, (req, res) => {
+  const { participantId } = req.body;
+  const session = req.gameSession;
+  
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+  
+  try {
+    const participant = session.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found in session." });
+    }
+    
+    // Update participant connection status
+    session.updateParticipantConnection(participantId, true);
+    
+    res.json({
+      success: true,
+      timestamp: Date.now(),
+      participant_id: participantId
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Heartbeat error:", err);
+    res.status(500).json({ error: "Failed to process heartbeat." });
+  }
+});
+
+// Force disconnect a participant (admin function)
+sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, (req, res) => {
+  const { participantId, reason = "Admin disconnect" } = req.body;
+  const session = req.gameSession;
+  
+  if (!participantId) {
+    return res.status(400).json({ error: "participantId is required." });
+  }
+  
+  try {
+    const participant = session.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found in session." });
+    }
+    
+    // Mark participant as disconnected
+    session.handleParticipantDisconnection(participantId);
+    
+    // Broadcast disconnection event
+    GameEventService.broadcastToSession(session, {
+      type: "participantDisconnected",
+      payload: {
+        participantId: participantId,
+        participantName: participant.name,
+        reason: reason,
+        disconnectedAt: new Date().toISOString()
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: `Participant ${participant.name} has been disconnected`,
+      participant_id: participantId
+    });
+  } catch (err) {
+    kubicLog.error("session-routes.js::Force disconnect error:", err);
+    res.status(500).json({ error: "Failed to disconnect participant." });
   }
 });
 

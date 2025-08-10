@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useFetch } from "./useFetch.js";
 
 /**
@@ -14,6 +14,9 @@ export function useGame(sessionId, participantId) {
   const [isGameLoading, setIsGameLoading] = useState(false);
   const [gameError, setGameError] = useState(null);
   const [lastMoveResult, setLastMoveResult] = useState(null);
+  
+  // Concurrency protection
+  const refreshInProgressRef = useRef(false);
 
   // Fetch helper
   const { get, post } = useFetch();
@@ -189,12 +192,26 @@ export function useGame(sessionId, participantId) {
       return;
     }
 
-    // console.log("[useGame] Refreshing all game data");
-    await Promise.all([
-      checkGameStatus(),
-      fetchGameState(),
-      fetchCurrentPlayer(),
-    ]);
+    // Prevent concurrent refresh calls
+    if (refreshInProgressRef.current) {
+      return;
+    }
+
+    refreshInProgressRef.current = true;
+    setIsGameLoading(true);
+    setGameError(null);
+
+    try {
+      await checkGameStatus();
+      await fetchGameState();
+      await fetchCurrentPlayer();
+    } catch (error) {
+      console.error("[useGame] Error refreshing game data:", error);
+      setGameError(error.message);
+    } finally {
+      refreshInProgressRef.current = false;
+      setIsGameLoading(false);
+    }
   }, [sessionId, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
 
   // Auto-check game status when sessionId changes
@@ -202,7 +219,7 @@ export function useGame(sessionId, participantId) {
     if (sessionId) {
       checkGameStatus();
     }
-  }, [sessionId, checkGameStatus]);
+  }, [sessionId]);
 
   // Helper to get tile at position (for UI rendering only)
   const getTile = useCallback(

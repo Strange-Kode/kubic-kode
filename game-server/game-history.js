@@ -228,14 +228,15 @@ export class GameHistory {
   /**
    * Add a participant joined event to game history
    * @param {string} participantId - ID of the participant who joined
-   * @param {string} name - Name of the participant
+   * @param {string} participantName - Name of the participant
+   * @param {string} participantType - Type of the participant (e.g., 'user', 'computer', 'spectator')
    * @returns {Object} The event that was added
    */
-  addParticipantJoinedEvent(participantId, name) {
+  addParticipantJoinedEvent(participantId, participantName, participantType) {
     return this.addEvent({
       type: GameHistory.GAME_HISTORY_EVENT_TYPES.PARTICIPANT_JOINED,
       participantId: participantId,
-      payload: { name: name }
+      payload: { name: participantName, type: participantType }
     });
   }
 

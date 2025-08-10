@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export function useGameWebSocket(sessionId, onEvent) {
+export function useGameWebSocket(sessionId, participantId, onEvent) {
   const wsRef = useRef(null);
   const onEventRef = useRef(onEvent);
 
@@ -11,14 +11,14 @@ export function useGameWebSocket(sessionId, onEvent) {
 
   useEffect(() => {
     // console.log(
-    //   `[useGameWebSocket] useEffect triggered. sessionId: ${sessionId}`
+    //   `[useGameWebSocket] useEffect triggered. sessionId: ${sessionId}, participantId: ${participantId}`
     // );
-    if (!sessionId) return;
+    if (!sessionId || !participantId) return;
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const hostIP = import.meta.env.VITE_HOST_IP;
     const hostPort = import.meta.env.VITE_HOST_PORT;
-    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}`;
+    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}&participantId=${participantId}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -37,12 +37,11 @@ export function useGameWebSocket(sessionId, onEvent) {
       const data = JSON.parse(event.data);
       // console.log(`[useGameWebSocket] Received WebSocket message:`, data);
       // console.log(`[useGameWebSocket] Message type: ${data.type}`);
-      // console.log(`[useGameWebSocket] Session ID: ${sessionId}`);
       onEventRef.current?.(data);
     };
 
     return () => {
       ws.close();
     };
-  }, [sessionId]);
+  }, [sessionId, participantId]);
 }
