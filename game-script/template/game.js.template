@@ -66,13 +66,13 @@ class {{GAME_CLASS_NAME}}Game {
 {{NEWLINE}}
 {{INDENT}}initializeGameOptions() {
 {{INDENT}}{{INDENT}}{{#IS_SCROLLABLE}}
-{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridWidth", {{DEFAULT_GRID_WIDTH}}, 'runtime', (value) => {
 {{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid width must be a number between 3 and 50';
 {{INDENT}}{{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{INDENT}}return true;
 {{INDENT}}{{INDENT}}});
-{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridHeight", {{DEFAULT_GRID_HEIGHT}}, (value) => {
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridHeight", {{DEFAULT_GRID_HEIGHT}}, 'runtime', (value) => {
 {{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid height must be a number between 3 and 50';
 {{INDENT}}{{INDENT}}{{INDENT}}}
@@ -80,7 +80,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}});
 {{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
 {{INDENT}}{{INDENT}}{{^IS_SCROLLABLE}}
-{{INDENT}}{{INDENT}}this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridSize", {{DEFAULT_GRID_WIDTH}}, 'frozen');
 {{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
 {{INDENT}}}
 {{NEWLINE}}

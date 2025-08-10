@@ -15,9 +15,3 @@ export function checkGameContractCompliance(gameInstance, className = 'GameInsta
 export function validateGameInstance(gameInstance, className = 'GameInstance') {
   return checkGameContractCompliance(gameInstance, className);
 }
-
-// Legacy function for backward compatibility
-export function checkGameInterfaceCompliance(gameInstance, className = 'GameInstance') {
-  kubicLog.warn('[InterfaceComplianceChecker] checkGameInterfaceCompliance is deprecated, use checkGameContractCompliance instead');
-  return checkGameContractCompliance(gameInstance, className);
-} 

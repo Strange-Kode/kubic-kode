@@ -153,15 +153,7 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
   }
 });
 
-// @deprecated, use next route instead
-sessionRouter.get("/session/:sessionId/participants", validateSessionMiddleware, (req, res) => {
-  kubicLog.warn(
-    "session-routes.js::get /session/:sessionId/participants is deprecated, use /session/participants/list/:sessionId instead"
-  );
-  const session = req.gameSession;
 
-  res.json(session.listParticipants());
-});
 
 // List participants
 sessionRouter.get("/session/participants/list/:sessionId", validateSessionMiddleware, (req, res) => {

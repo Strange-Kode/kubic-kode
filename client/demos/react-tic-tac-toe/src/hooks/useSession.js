@@ -268,7 +268,7 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/${sessionId}/participants`);
+      const result = await get(`/api/session/participants/list/${sessionId}`);
 
       if (result.success) {
         const participantsList = result.data;

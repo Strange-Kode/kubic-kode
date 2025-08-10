@@ -591,10 +591,6 @@ this.getGameOptions().addOption('maxRounds', 10, 'pre-start', (value) => {
   if (value < 1 || value > 100) return 'Max rounds must be between 1 and 100';
   return true;
 });
-
-// Legacy methods (still supported for backwards compatibility)
-// this.getGameOptions().addFrozen('gridSize', 3);
-// this.getGameOptions().addConfigurable('maxRounds', 10, validator);
 ```
 
 ## Game State Machine (GSM)

@@ -186,18 +186,7 @@ export class GameOptions {
     return this.getNamespaceOptions('systemspace');
   }
 
-  // Legacy methods for backwards compatibility
-  // @deprecated
-  addConfigurable(key, defaultValue, validator = null) {
-    kubicLog.warn(`[GameOptions] addConfigurable is deprecated. Use addOption(key, defaultValue, 'runtime', validator) instead.`);
-    this.addOption(key, defaultValue, 'runtime', validator);
-  }
 
-  // @deprecated
-  addFrozen(key, value) {
-    kubicLog.warn(`[GameOptions] addFrozen is deprecated. Use addOption(key, value, 'frozen') instead.`);
-    this.addOption(key, value, 'frozen');
-  }
 
   // Game state management
   setGameState(newState) {
@@ -419,29 +408,7 @@ export class GameOptions {
     
     return final;
   }
-
-  // Check if an option is configurable (legacy support) - checks userspace only
-  // @deprecated
-  isConfigurable(key) {
-    try {
-      const option = this.readOption(key, 'userspace');
-      return option && option.lifecycle !== 'frozen';
-    } catch {
-      return false;
-    }
-  }
-
-  // Check if an option is frozen (legacy support) - checks userspace only
-  // @deprecated
-  isFrozen(key) {
-    try {
-      const option = this.readOption(key, 'userspace');
-      return option && option.lifecycle === 'frozen';
-    } catch {
-      return false;
-    }
-  }
-
+  
   // Check if an option is currently locked (supports system:: prefix)
   isLocked(key) {
     try {

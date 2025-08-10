@@ -574,7 +574,7 @@ class KubicKodeGame extends GameInterface {
    * Game Options Pattern for Game Implementations:
    * 
    * 1. In initializeGameOptions(), register your options:
-   *    this.getGameOptions().addConfigurable('gridSize', 5, (value) => {
+   *    this.getGameOptions().addOption('gridSize', 5, 'runtime', (value) => {
    *      if (value < 3 || value > 10) return 'Grid size must be 3-10';
    *      return true;
    *    });
@@ -613,7 +613,7 @@ class KubicKodeGame extends GameInterface {
    *   }
    * 
    *   initializeGameOptions() {
-   *     this.getGameOptions().addConfigurable('gridSize', 5, (value) => {
+   *     this.getGameOptions().addOption('gridSize', 5, 'runtime', (value) => {
    *       if (value < 3 || value > 10) return 'Grid size must be 3-10';
    *       return true;
    *     });

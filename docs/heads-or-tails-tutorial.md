@@ -11,7 +11,8 @@ This tutorial will guide you through creating a complete turn-based heads or tai
 ## Project Structure
 
 We'll create the following structure:
-```
+
+```text
 heads-or-tails-game/
 ├── game/
 │   ├── backend-hot/
@@ -55,14 +56,16 @@ Before diving into the implementation, let's understand the key concepts of the 
 
 The **GameContract** defines what methods game implementations must provide:
 
-#### **Required Methods** (MUST implement):
+#### **Required Methods** (MUST implement)
+
 - `getGameEngine()` - Return the game engine instance
 - `playTurn()` - Handle a player's turn
 - `addPlayer()` - Add a new player to the game
 - `startGame()` - Start the game
 - `resetForRestart()` - Reset game state for restart
 
-#### **Optional Methods** (CAN implement, defaults provided):
+#### **Optional Methods** (CAN implement, defaults provided)
+
 - `getTileMap()` - Return the game board
 - `getCurrentTurnPlayers()` - Get players whose turn it is
 - `getWinner()` - Get the current winner
@@ -74,7 +77,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `initializeGameOptions()` - Set up game options
 - `calculateComputerMove()` - Calculate AI moves
 
-#### **Wrapper Methods** (Always provided by KubicKodeGame):
+#### **Wrapper Methods** (Always provided by KubicKodeGame)
+
 - `getGameOptions()` - Access game options
 - `getOptionValue()` - Get current option values
 - `resetGameOptions()` - Reset options to defaults
@@ -87,7 +91,7 @@ The **GameOptions** system provides a centralized way to manage configurable gam
 
 ```javascript
 // In initializeGameOptions()
-this.getGameOptions().addConfigurable('maxRounds', 10, (value) => {
+this.getGameOptions().addOption('maxRounds', 10, 'runtime', (value) => {
   if (value < 1 || value > 50) return 'Max rounds must be 1-50';
   return true;
 });
@@ -97,31 +101,39 @@ const maxRounds = this.getOptionValue('maxRounds');
 ```
 
 **Key Features:**
+
 - **Validation**: Options are validated when applied
 - **Applied Values**: Tracks currently applied values
 - **Frozen vs Configurable**: Some options can be locked after game starts
 - **No Boilerplate**: Games don't need to implement option handling manually
 
 ### Game Entities
+
 A **Game Entity** is a fundamental object in kubic-kode that represents any game object (players, pieces, etc.). Entities have:
+
 - **ID**: Unique identifier
 - **Name**: Human-readable name
 - **Position**: Location on the game board (x, y coordinates)
 - **Custom properties**: Game-specific data (like score, player type, etc.)
 
 In our heads or tails game, we create two types of entities:
+
 - **PlayerEntity**: Represents each player with their score, guess history, and player type
 - **CoinEntity**: Represents the coin that gets flipped
 
 ### Game Engine
+
 The **GameEngine** is the core component that manages:
+
 - **Turn sequencing**: Who plays when
 - **Player management**: Adding/removing players
 - **Game state**: Whether the game is active, started, or stopped
 - **Tile map**: The game board (even if we don't use it visually)
 
 ### KubicKodeGame Wrapper
+
 **KubicKodeGame** is a proxy class that wraps your game implementation and provides:
+
 - **History recording**: Automatically logs all game events
 - **Method delegation**: Forwards calls to your actual game instance
 - **Session integration**: Connects your game to the session management system
@@ -129,26 +141,34 @@ The **GameEngine** is the core component that manages:
 - **No boilerplate**: Automatically handles common operations like tile map resizing
 
 ### Session Management
+
 **GameSession** handles multiplayer functionality:
+
 - **Participant tracking**: Who's in the game
 - **Session state**: Whether the game has started
 - **Game instance**: The actual game logic
 - **WebSocket integration**: Real-time communication
 
 ### Core Routes
+
 kubic-kode provides two main route systems:
+
 - **sessionRoutes**: Handle session creation, joining, and management
 - **gameRoutes**: Handle game lifecycle (start, restart, get stats, etc.)
 
 ### WebSocket Communication
+
 **WebSockets** provide real-time bidirectional communication:
+
 - **Server to Client**: Game state updates, turn notifications, player actions
 - **Client to Server**: Player moves, game actions
 - **Automatic reconnection**: Handles connection drops gracefully
 - **Session-based**: Messages are scoped to specific game sessions
 
 ### Game Registry
+
 The **GameRegistry** is a factory system that:
+
 - **Registers game types**: Associates game IDs with factory functions
 - **Creates game instances**: Spawns new games when sessions are created
 - **Enables extensibility**: Allows multiple game types in one server
@@ -442,14 +462,14 @@ class HeadsOrTailsGame {
   // Game Options Pattern (Optional)
   // This allows the game to be configurable via the game options system
   initializeGameOptions() {
-    // Register configurable options
-    this.getGameOptions().addConfigurable('maxRounds', 10, (value) => {
+    // Register configurable options (runtime lifecycle - can be changed during game)
+    this.getGameOptions().addOption('maxRounds', 10, 'runtime', (value) => {
       if (value < 1 || value > 50) return 'Max rounds must be 1-50';
       return true;
     });
 
-    // Register frozen options (cannot be changed after game starts)
-    this.getGameOptions().addFrozen('gameType', 'heads-or-tails');
+    // Register frozen options (frozen lifecycle - cannot be changed after game starts)
+    this.getGameOptions().addOption('gameType', 'heads-or-tails', 'frozen');
   }
 
   // Custom option handling (optional)
@@ -1278,6 +1298,7 @@ Update your `package.json` to include the development script:
 ## Step 7: Running the Game
 
 1. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -1297,8 +1318,6 @@ Update your `package.json` to include the development script:
 3. **Scoring**: Players earn points for correct guesses
 4. **Game End**: After 10 rounds, the player with the most points wins
 5. **Real-time Updates**: WebSocket connections provide real-time game state updates
-
-
 
 ## Key Features Implemented
 
@@ -1333,4 +1352,4 @@ You can easily extend this game by:
 5. **Leverage Defaults**: Don't implement optional methods unless you need custom behavior
 6. **Use Wrapper Methods**: Take advantage of the wrapper methods provided by KubicKodeGame
 
-This tutorial demonstrates how to build a complete turn-based game using the kubic-kode framework, from backend game logic to frontend user interface. The modular architecture and no-boilerplate design make it easy to extend and modify the game as needed. 
+This tutorial demonstrates how to build a complete turn-based game using the kubic-kode framework, from backend game logic to frontend user interface. The modular architecture and no-boilerplate design make it easy to extend and modify the game as needed.
