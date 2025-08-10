@@ -48,9 +48,11 @@ class SessionManager {
     
     // Create the wrapper with the session reference
     const kubicKodeGame = new KubicKodeGame(gameInstance, session);
+    console.log(`[SessionManager] Created KubicKodeGame wrapper:`, kubicKodeGame.constructor.name);
     
     // Set the wrapper in the session
     session.setGameInstance(kubicKodeGame);
+    console.log(`[SessionManager] Set game instance in session. Type:`, session.getGameInstance().constructor.name);
     
     kubicLog.info(`[SessionManager]::createSession - Created session: ${sessionId}`);
     

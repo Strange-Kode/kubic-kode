@@ -67,8 +67,10 @@ export function useGame(sessionId, participantId, getGameToken) {
       });
 
       if (result.success) {
-        // console.log("[useGame] Current player:", result.data.current_player_id);
-        setCurrentPlayerId(result.data.current_player_id);
+        // console.log("[useGame] Current players:", result.data.current_player_ids);
+        // For backward compatibility with existing UI, take the first player ID
+        const currentPlayerIds = result.data.current_player_ids || [];
+        setCurrentPlayerId(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
       } else {
         console.error(
           "[useGame] Failed to fetch current player:",
@@ -113,7 +115,9 @@ export function useGame(sessionId, participantId, getGameToken) {
         // console.log("[useGame] Game started successfully:", result.data);
         setGameStarted(true);
         setGameActive(true);
-        setCurrentPlayerId(result.data.current_player_id);
+        // For backward compatibility with existing UI, take the first player ID
+        const currentPlayerIds = result.data.current_player_ids || [];
+        setCurrentPlayerId(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
 
         // Fetch initial game state after starting
         await fetchGameState();

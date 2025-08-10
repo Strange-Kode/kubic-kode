@@ -285,7 +285,9 @@ export function useKubicKode(gameId = null) {
     });
 
     if (result.success) {
-      setCurrentPlayer(result.data.current_player_id);
+      // For backward compatibility with existing UI, take the first player ID
+      const currentPlayerIds = result.data.current_player_ids || [];
+      setCurrentPlayer(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
     }
     return result;
   }, [sessionId, participantId, apiCall, post, getGameToken]);

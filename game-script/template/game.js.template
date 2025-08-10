@@ -43,9 +43,8 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}return this._engine;
 {{INDENT}}}
 {{NEWLINE}}
-{{INDENT}}getCurrentPlayer() {
-{{INDENT}}{{INDENT}}const currentPlayerList = this._engine.getCurrentTurnPlayers();
-{{INDENT}}{{INDENT}}return currentPlayerList.pop();
+{{INDENT}}getCurrentTurnPlayers() {
+{{INDENT}}{{INDENT}}return this._engine.getCurrentTurnPlayers();
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}getGameStats() {
@@ -136,8 +135,11 @@ class {{GAME_CLASS_NAME}}Game {
 
 {{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}// Validate turn for single-set play style
-{{INDENT}}{{INDENT}}const currentPlayer = this.getCurrentPlayer();
-{{INDENT}}{{INDENT}}if (currentPlayer.getPlayerId() !== playerId) {
+{{INDENT}}{{INDENT}}const currentPlayers = this.getCurrentTurnPlayers();
+{{INDENT}}{{INDENT}}const currentPlayerIds = Array.isArray(currentPlayers) 
+{{INDENT}}{{INDENT}}{{INDENT}}? currentPlayers.map(p => p.getPlayerId()) 
+{{INDENT}}{{INDENT}}{{INDENT}}: [currentPlayers?.getPlayerId()];
+{{INDENT}}{{INDENT}}if (!currentPlayerIds.includes(playerId)) {
 {{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(playerId, "It's not your turn");
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
@@ -209,14 +211,21 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}return 30000;
 {{INDENT}}}
 {{NEWLINE}}
-{{INDENT}}handleInactivity(playerId) {
-{{INDENT}}{{INDENT}}// TODO: Implement what happens when a player is inactive
+{{INDENT}}handleInactivity(playerId = null, player = null) {
+{{INDENT}}{{INDENT}}// Handle player inactivity - playerId and player entity are provided
 {{INDENT}}{{INDENT}}// For example: skip their turn, make random move, forfeit, etc.
+{{INDENT}}{{INDENT}}// If no playerId provided, get the current players
+{{INDENT}}{{INDENT}}if (!playerId) {
+{{INDENT}}{{INDENT}}{{INDENT}}const currentPlayers = this.getCurrentTurnPlayers();
+{{INDENT}}{{INDENT}}{{INDENT}}const currentPlayer = Array.isArray(currentPlayers) ? currentPlayers[0] : currentPlayers;
+{{INDENT}}{{INDENT}}{{INDENT}}playerId = currentPlayer?.getPlayerId();
+{{INDENT}}{{INDENT}}{{INDENT}}player = currentPlayer;
+{{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}console.log(`Player ${playerId} is inactive`);
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}// Example: Skip turn for single-set games
 {{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}{{INDENT}}this._engine.advanceTurn();
+{{INDENT}}{{INDENT}}this._engine.nextTurn();
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}return PlayStatus.success(playerId, {
@@ -227,7 +236,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{/HAS_INACTIVITY}}
 {{NEWLINE}}
 {{INDENT}}{{#SUPPORTS_AI}}
-{{INDENT}}calculateComputerMove(playerId) {
+{{INDENT}}calculateComputerMove(playerId, currentPlayer) {
 {{INDENT}}{{INDENT}}// TODO: Implement AI logic for computer players
 {{INDENT}}{{INDENT}}// This is a simple random move implementation - replace with your AI logic
 {{INDENT}}{{INDENT}}const tileMap = this._engine.getTileMap();
@@ -266,7 +275,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}gameStats: this.getGameStats(),
 {{INDENT}}{{INDENT}}{{INDENT}}tileMap: this._engine.getTileMap().toJSON(),
 {{INDENT}}{{INDENT}}{{INDENT}}playerCount: this._engine.getPlayerEntities().length,
-{{INDENT}}{{INDENT}}{{INDENT}}currentTurn: this.getCurrentPlayer()?.getPlayerId() || null
+{{INDENT}}{{INDENT}}{{INDENT}}currentTurn: this.getCurrentTurnPlayers()?.map(p => p.getPlayerId()) || []
 {{INDENT}}{{INDENT}}};
 {{INDENT}}}
 {{NEWLINE}}

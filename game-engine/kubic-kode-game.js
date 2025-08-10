@@ -65,6 +65,8 @@ class KubicKodeGame extends GameInterface {
   // -------------
 
   playTurn(playerId, turnData, metadata = {}) {
+    console.log(`[KubicKodeGame] playTurn called with playerId: ${playerId}, turnData:`, turnData);
+    
     // Delegate to the actual game with consistent turnData format
     let playStatus = this.gameInstance.playTurn(playerId, turnData, metadata);
 
@@ -79,15 +81,47 @@ class KubicKodeGame extends GameInterface {
 
     // Only record history if the turn was valid
     if (playStatus.status === "ok" || playStatus.status === "valid") {
-      // Reset inactivity timer back to the game's timeout value
+      // Mark player as having acted and reset inactivity timer
       const inactivityManager = this.gameSession.getInactivityManager();
       if (inactivityManager) {
+        inactivityManager.markPlayerActed(playerId);
         inactivityManager.resetTimer();
         playStatus.timeLeft = inactivityManager.getTimeRemaining();
       }
 
+      // Check if turn should be advanced based on play style
+      const engine = this.gameInstance.getGameEngine();
+      const playStyle = engine.getPlayStyle();
+      
+      if (playStyle === "single-set") {
+        // For single-set, advance turn and clear acted players for next turn
+        engine.nextTurn(playerId);
+        if (inactivityManager) {
+          inactivityManager.clearActedPlayers();
+        }
+      } else if (playStyle === "multi-set" || playStyle === "multi-subset") {
+        // For multi-set/multi-subset, check if all players have acted
+        engine.nextTurn(playerId);
+        const currentPlayers = engine.getCurrentTurnPlayers();
+        
+        if (inactivityManager && inactivityManager.haveAllPlayersActed(currentPlayers)) {
+          // All players acted, clear for next turn
+          inactivityManager.clearActedPlayers();
+        }
+      } else if (playStyle === "non-blocking") {
+        // For non-blocking, advance turn number but don't clear acted players
+        // Let the game implementation manage player action tracking
+        engine.nextTurn(playerId);
+        // Note: inactivityManager.clearActedPlayers() is not called for non-blocking
+        // as players can act at any time and the game manages action tracking
+      }
+
       // Record the turn in history - extract position data for history
       const { xPos: x, yPos: y } = turnData;
+      
+      // Get the player entity to save player information
+      const player = this.gameInstance.getGameEngine().getPlayerById(playerId);
+      
       this.gameSession.gameHistory.addTurnPlayedEvent(
         playStatus.playerId,
         this.getParticipantIdForPlayer(playerId),
@@ -95,23 +129,37 @@ class KubicKodeGame extends GameInterface {
           x,
           y,
           turnData, // Include full turn data for future extensibility
-          mark: playStatus.mark || this.getCurrentPlayerMark(),
+          player: player ? player.toJSON() : null, // Save player object
           status: playStatus.status,
         }
       );
 
+      // Debug: Log the playStatus object to see what it contains
+      console.log(`[KubicKodeGame] playStatus object:`, playStatus);
+      console.log(`[KubicKodeGame] playStatus.access('playerHasWon'):`, playStatus.access('playerHasWon'));
+      console.log(`[KubicKodeGame] playStatus.access('playerId'):`, playStatus.access('playerId'));
+      
       // Record win if it occurred and stop the game
       if (playStatus.access('playerHasWon')) {
-        this.gameSession.gameHistory.addPlayerWonEvent(
-          playStatus.access('playerId'),
-          this.getParticipantIdForPlayer(playerId),
-          {
-            winCondition:
-              playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
-            finalPosition: { x, y },
-            gameState: "completed",
-          }
-        );
+        console.log(`[KubicKodeGame] Recording win for player ${playStatus.access('playerId')}`);
+        const participantId = this.getParticipantIdForPlayer(playerId);
+        console.log(`[KubicKodeGame] Participant ID for player ${playerId}: ${participantId}`);
+        
+        try {
+          this.gameSession.gameHistory.addPlayerWonEvent(
+            playStatus.access('playerId'),
+            participantId,
+            {
+              winCondition:
+                playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
+              finalPosition: { x, y },
+              gameState: "completed",
+            }
+          );
+          console.log(`[KubicKodeGame] Successfully recorded win event`);
+        } catch (error) {
+          console.error(`[KubicKodeGame] Error recording win event:`, error);
+        }
 
         // Stop the game and clear inactivity timer when someone wins
         this.gameOptions.setGameState('ended');
@@ -193,7 +241,7 @@ class KubicKodeGame extends GameInterface {
   }
 
   // Handle inactivity with history recording
-  handleInactivity() {
+  handleInactivity(playerId = null, player = null) {
     // Only handle inactivity if the game is still running
     if (!this.gameInstance.getGameEngine().isGameStarted()) {
       return {
@@ -205,7 +253,7 @@ class KubicKodeGame extends GameInterface {
     if (!this.gameInstance.handleInactivity) {
       return null;
     }
-    const inactivityResult = this.gameInstance.handleInactivity();
+    const inactivityResult = this.gameInstance.handleInactivity(playerId, player);
 
     // Record inactivity win event
     if (this.gameSession && inactivityResult.winnerPlayerId) {
@@ -248,7 +296,17 @@ class KubicKodeGame extends GameInterface {
   getParticipantIdForPlayer(playerId) {
     if (!this.gameSession) return null;
 
-    // Find the participant that corresponds to this player
+    // First try to use the player mappings (most reliable)
+    if (this.playerMappings) {
+      // Find the participant ID that maps to this player ID
+      for (const [participantId, mappedPlayerId] of Object.entries(this.playerMappings)) {
+        if (mappedPlayerId === playerId) {
+          return participantId;
+        }
+      }
+    }
+
+    // Fallback: Find the participant that corresponds to this player by name
     // This assumes the player name matches the participant name
     const participant = this.gameSession
       .getParticipants()
@@ -272,12 +330,6 @@ class KubicKodeGame extends GameInterface {
     const players = this.gameInstance.getGameEngine().getPlayerEntities();
     const player = players.find((p) => p.getPlayerId() === playerId);
     return player ? player.getPlayerName() : null;
-  }
-
-  // Helper method to get current player's mark
-  getCurrentPlayerMark() {
-    const currentPlayer = this.gameInstance.getGameEngine().getCurrentPlayer();
-    return currentPlayer ? currentPlayer.markType : null;
   }
 
   // Helper method to get win condition description
@@ -375,10 +427,10 @@ class KubicKodeGame extends GameInterface {
     return 2;
   }
 
-  calculateComputerMove(playerId) {
+  calculateComputerMove(playerId, computerPlayer) {
     // Default implementation if game instance doesn't provide it
     if (typeof this.gameInstance.calculateComputerMove === 'function') {
-      return this.gameInstance.calculateComputerMove(playerId);
+      return this.gameInstance.calculateComputerMove(playerId, computerPlayer);
     }
     return null; // Default: no computer move calculation
   }

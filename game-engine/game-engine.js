@@ -163,17 +163,6 @@ export class GameEngine {
     // Fallback: all players
     return this._player_entities;
   }
-  // @deprecated (use getCurrentTurnPlayers instead)
-  getCurrentPlayer() {
-    const turn = this.getCurrentTurnPlayers();
-    if (Array.isArray(turn)) {
-      // Return the first player entity in the group
-      return turn[0];
-    }
-    else {
-      return turn;
-    }
-  }
 
   getPlayerById(playerId) {
     return this._player_entities.find(e => e.id === playerId);

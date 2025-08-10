@@ -22,12 +22,7 @@ class TicTacToeGame {
   getGameEngine() {
     return this._engine;
   }
-
-  getCurrentPlayer() {
-    const currentPlayerList = this._engine.getCurrentTurnPlayers();
-    return currentPlayerList.pop();
-  }
-
+  
   getGameStats() {
     return {
       gridSize: this.getOptionValue("gridSize"),
@@ -241,12 +236,11 @@ class TicTacToeGame {
     return this._winner;
   }
 
-  handleInactivity() {
+  handleInactivity(playerId = null, player = null) {
     const players = this._engine.getPlayerEntities();
-    const currentPlayerId = this._engine.getCurrentPlayer().getPlayerId();
 
     const winner = players.find(
-      (player) => player.getPlayerId() !== currentPlayerId
+      (player) => player.getPlayerId() !== playerId
     );
     this._winner = winner || null;
 
@@ -254,13 +248,12 @@ class TicTacToeGame {
     this._engine.stopGame();
 
     return {
-      inactivePlayerId: currentPlayerId,
+      inactivePlayerId: playerId,
       winnerPlayerId: this._winner?.getPlayerId(),
     };
   }
 
-  calculateComputerMove() {
-    const currentPlayer = this._engine.getCurrentPlayer();
+  calculateComputerMove(playerId, currentPlayer) {
     const tileMap = this._engine.getTileMap();
     const computerMark = currentPlayer.getMarkType();
     const humanMark = computerMark === "X" ? "O" : "X";

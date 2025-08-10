@@ -23,8 +23,8 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}const gameInstance = gameSession.getGameInstance();
 {{INDENT}}
 {{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}// Get the current player from the game engine
-{{INDENT}}const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+{{INDENT}}// Get the current players from the game engine
+{{INDENT}}const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
 {{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}
 {{INDENT}}// Validate that the participant exists
@@ -43,7 +43,10 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}
 {{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}// Validate that it's this player's turn
-{{INDENT}}if (playerId !== currentPlayer.getPlayerId()) {
+{{INDENT}}const currentPlayerIds = Array.isArray(currentPlayers) 
+{{INDENT}}{{INDENT}}? currentPlayers.map(p => p.getPlayerId()) 
+{{INDENT}}{{INDENT}}: [currentPlayers?.getPlayerId()];
+{{INDENT}}if (!currentPlayerIds.includes(playerId)) {
 {{INDENT}}{{INDENT}}return res.status(400).json({ error: "It's not your turn." });
 {{INDENT}}}
 {{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}

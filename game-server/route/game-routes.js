@@ -92,9 +92,13 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
 
   // Check if game is already started
   if (gameInstance.getGameEngine().isGameStarted()) {
-    const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+    const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+    // Always return an array of player IDs to support all play styles
+    const currentPlayerIds = Array.isArray(currentPlayers) 
+      ? currentPlayers.map(p => p.getPlayerId()) 
+      : [currentPlayers?.getPlayerId()].filter(Boolean);
     return {
-      current_player_id: currentPlayer.getPlayerId(),
+      current_player_ids: currentPlayerIds,
       game_started: true,
       status: "Game already previously started",
     };
@@ -173,10 +177,15 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     restartCount: gameSession.getRestartCounter(),
     winCount: gameSession.getWinCounter()
   };
-  const firstPlayerId = gameInstance.establishFirstPlayers(sessionContext);
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-  result.current_player_id = currentPlayer.getPlayerId();
-  result.first_player_id = firstPlayerId;
+  const firstPlayerIds = gameInstance.establishFirstPlayers(sessionContext);
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  // Always return an array of player IDs to support all play styles
+  const currentPlayerIds = Array.isArray(currentPlayers) 
+    ? currentPlayers.map(p => p.getPlayerId()) 
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
+  result.current_player_ids = currentPlayerIds;
+  // Always return an array of first player IDs to support all play styles
+  result.first_player_ids = firstPlayerIds ? [firstPlayerIds] : [];
   result.game_started = true;
   result.status = "New game created";
 
@@ -191,11 +200,14 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
       // Don't throw here - the game was started successfully, just the broadcast failed
     }
 
-  // After game start, check if the first player is a computer and handle computer turns
-  // This is crucial for cases where the computer is the first player (alternating first player)
-  if (currentPlayer.getPlayerType() === 'computer') {
+  // After game start, check if any current players are computers and handle computer turns
+  // This is crucial for cases where computers are first players (alternating first player)
+  const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
+  const computerPlayers = playersArray.filter(player => player?.getPlayerType() === 'computer');
+  
+  if (computerPlayers.length > 0) {
     // Process computer turns asynchronously to avoid blocking the game start response
-    // This handles the case where computer is first player or multiple computers in sequence
+    // This handles the case where computers are first players or multiple computers in sequence
     setImmediate(() => {
       processComputerTurns(gameSession, null).catch(error => {
         kubicLog.error('game-routes.js::Error processing initial computer turns after game start:', error);
@@ -267,11 +279,13 @@ gameRouter.post("/game/get-current-player/:sessionId", validateGameTokenWithPart
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  // Always return an array of player IDs to support all play styles
+  const currentPlayerIds = Array.isArray(currentPlayers) 
+    ? currentPlayers.map(p => p.getPlayerId()) 
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
   res.json({
-    current_player_id: gameInstance
-      .getGameEngine()
-      .getCurrentPlayer()
-      .getPlayerId(),
+    current_player_ids: currentPlayerIds,
   });
 });
 
@@ -306,8 +320,8 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   const gameSession = req.gameSession; // Now available from middleware
   const gameInstance = gameSession.getGameInstance();
   
-  // Get the current player from the game engine
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  // Get the current players from the game engine
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
   
   // Validate that the participant is the current player
   const participant = gameSession.getParticipantById(participantId);
@@ -400,99 +414,142 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   }
 });
 
-// Standalone function to handle sequential computer players
-// This can be called from both the play-turn endpoint and handleGameStart
+// Handle sequential computer players
 const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
   const gameInstance = gameSession.getGameInstance();
   let lastPlayStatus = initialPlayStatus;
   
-  kubicLog.debug(`game-routes.js::[processComputerTurns] Starting - Current player:`, gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerId(), 'Type:', gameInstance.getGameEngine().getCurrentPlayer()?.getPlayerType());
-  
-  // Keep playing computer turns while:
+  // Keep processing computer turns while:
   // 1. No one has won yet and game hasn't tied (or no initial status provided)
-  // 2. Current player is a computer
+  // 2. Current players include computers
   // 3. Game is still active
   while ((!lastPlayStatus || (!lastPlayStatus.access('playerHasWon') && !lastPlayStatus.access('gameIsTied'))) && 
-         gameInstance.getGameEngine().isGameStarted() &&
-         gameInstance.getGameEngine().getCurrentPlayer().getPlayerType() === 'computer') {
+         gameInstance.getGameEngine().isGameStarted()) {
     
-    try {
-      // Random delay for computer moves (1-2 seconds)
-      const delay = 1000 + Math.floor(Math.random() * 1001);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
-      // Get current computer player (may have changed due to turn order)
-      const computerPlayer = gameInstance.getGameEngine().getCurrentPlayer();
-      
-      // Calculate computer move
-      const computerMove = gameInstance.calculateComputerMove();
-      
-      // Play computer turn - consistent format for all games
-      let compPlayStatus;
-      compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
-
-      // Handle computer win
-      if (compPlayStatus.access('playerHasWon')) {
-        gameSession.increaseWinCounter();
-        let winCount = gameSession.getWinCounter();
-        GameEventService.broadcastToSession(gameSession, {
-          type: "winCount",
-          payload: { winCount },
-        });
-      }
-      
-      // Handle computer tie
-      if (compPlayStatus.access('gameIsTied')) {
-        let winCount = gameSession.getWinCounter();
-        GameEventService.broadcastToSession(gameSession, {
-          type: "winCount",
-          payload: { winCount },
-        });
-      }
-
-      // Convert PlayStatus to snake_case for broadcast
-      const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
-
-      // Broadcast computer turn
-      GameEventService.broadcastToSession(gameSession, {
-        type: "turnPlayed",
-        payload: { roundStatus: compResponseData },
-      });
-      
-      // If the computer won, also broadcast a win event
-      if (compPlayStatus.access('playerHasWon')) {
-        GameEventService.broadcastToSession(gameSession, {
-          type: "playerWon",
-          payload: { 
-            playerId: compPlayStatus.access('playerId'),
-            winCondition: compPlayStatus.access('winCondition') || 'unknown'
-          }
-        });
-        
-        // Stop the loop if computer won
-        break;
-      }
-      
-      // If the game is tied, broadcast a tie event
-      if (compPlayStatus.access('gameIsTied')) {
-        GameEventService.broadcastToSession(gameSession, {
-          type: "gameTied",
-          payload: { 
-            message: "Game ended in a tie"
-          }
-        });
-        
-        // Stop the loop if game tied
-        break;
-      }
-      
-      // Update lastRoundStatus for next iteration
-      lastPlayStatus = compPlayStatus;
-      
-    } catch (error) {
-      kubicLog.error('game-routes.js::[processComputerTurns] Error during computer turn:', error);
-      break; // Stop processing computer turns on error
+    // Get current players for this iteration
+    const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+    const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
+    
+    // Extract computer players from current players
+    const computerPlayers = playersArray.filter(player => player?.getPlayerType() === 'computer');
+    
+    // If no computer players, break the loop
+    if (computerPlayers.length === 0) {
+      break;
     }
+    
+    kubicLog.debug(`game-routes.js::[processComputerTurns] Processing ${computerPlayers.length} computer player(s):`, 
+      computerPlayers.map(p => `${p.getPlayerId()} (${p.getPlayerType()})`));
+    
+    // Process each computer player in the current turn
+    for (const computerPlayer of computerPlayers) {
+      try {
+        // Random delay for computer moves (1-2 seconds)
+        const delay = 1000 + Math.floor(Math.random() * 1001);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Calculate computer move
+        const computerMove = gameInstance.calculateComputerMove(computerPlayer.getPlayerId(), computerPlayer);
+        
+        // Play computer turn - consistent format for all games
+        let compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
+
+        // Handle computer win
+        if (compPlayStatus.access('playerHasWon')) {
+          // Record the win in game history
+          try {
+            const playerMappings = gameInstance.getPlayerMappings();
+            let participantId = null;
+            
+            for (const [pid, playerId] of Object.entries(playerMappings)) {
+              if (playerId === compPlayStatus.access('playerId')) {
+                participantId = pid;
+                break;
+              }
+            }
+            
+            console.log(`[game-routes] Recording computer win for player ${compPlayStatus.access('playerId')} -> participant ${participantId}`);
+            
+            gameSession.getGameHistory().addPlayerWonEvent(
+              compPlayStatus.access('playerId'),
+              participantId,
+              {
+                winCondition: compPlayStatus.access('winCondition') || 'unknown',
+                finalPosition: { x: computerMove.xPos, y: computerMove.yPos },
+                gameState: "completed",
+              }
+            );
+            console.log(`[game-routes] Successfully recorded computer win event in history`);
+          } catch (error) {
+            console.error(`[game-routes] Error recording computer win event:`, error);
+          }
+          
+          gameSession.increaseWinCounter();
+          let winCount = gameSession.getWinCounter();
+          GameEventService.broadcastToSession(gameSession, {
+            type: "winCount",
+            payload: { winCount },
+          });
+        }
+        
+        // Handle computer tie
+        if (compPlayStatus.access('gameIsTied')) {
+          let winCount = gameSession.getWinCounter();
+          GameEventService.broadcastToSession(gameSession, {
+            type: "winCount",
+            payload: { winCount },
+          });
+        }
+
+        // Convert PlayStatus to snake_case for broadcast
+        const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
+
+        // Broadcast computer turn
+        GameEventService.broadcastToSession(gameSession, {
+          type: "turnPlayed",
+          payload: { roundStatus: compResponseData },
+        });
+        
+        // If the computer won, also broadcast a win event
+        if (compPlayStatus.access('playerHasWon')) {
+          GameEventService.broadcastToSession(gameSession, {
+            type: "playerWon",
+            payload: { 
+              playerId: compPlayStatus.access('playerId'),
+              winCondition: compPlayStatus.access('winCondition') || 'unknown'
+            }
+          });
+          
+          // Stop processing if computer won
+          return compPlayStatus;
+        }
+        
+        // If the game is tied, broadcast a tie event
+        if (compPlayStatus.access('gameIsTied')) {
+          GameEventService.broadcastToSession(gameSession, {
+            type: "gameTied",
+            payload: { 
+              message: "Game ended in a tie"
+            }
+          });
+          
+          // Stop processing if game tied
+          return compPlayStatus;
+        }
+        
+        // Update lastPlayStatus for next iteration
+        lastPlayStatus = compPlayStatus;
+        
+      } catch (error) {
+        kubicLog.error(`game-routes.js::[processComputerTurns] Error during computer turn for player ${computerPlayer.getPlayerId()}:`, error);
+        // Continue with next computer player instead of breaking completely
+        continue;
+      }
+    }
+    
+    // After processing all computer players in the current turn, check if the next turn also has computer players
+    // The game engine should have advanced to the next turn after each playTurn call
+    // If the next turn also has computer players, the while loop will continue
   }
   
   return lastPlayStatus;

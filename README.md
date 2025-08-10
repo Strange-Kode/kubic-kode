@@ -396,8 +396,8 @@ The `establishFirstPlayers` method is automatically called during game start and
 
 ```json
 {
-  "current_player_id": 1,
-  "first_player_id": 1,
+  "current_player_ids": [1],
+  "first_player_ids": [1],
   "game_started": true,
   "status": "New game created"
 }
@@ -419,10 +419,6 @@ kubic-kode uses a secure game token authentication system for all game operation
 All game routes use POST requests with game tokens:
 
 ```javascript
-// Before (deprecated)
-GET /api/game/get-tilemap/{sessionId}
-
-// After (current)
 POST /api/game/get-tilemap/{sessionId}
 {
   "gameToken": "participant_game_token"

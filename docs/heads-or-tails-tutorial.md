@@ -422,16 +422,15 @@ class HeadsOrTailsGame {
     return 30_000; // 30 seconds
   }
 
-  handleInactivity() {
+  handleInactivity(playerId = null, player = null) {
     const players = this.engine.getPlayerEntities();
-    const currentPlayerId = this.engine.getCurrentPlayer().getPlayerId();
 
     const winner = players.find(
-      (player) => player.getPlayerId() !== currentPlayerId
+      (player) => player.getPlayerId() !== playerId
     );
     this.winner = winner || null;
     return {
-      inactivePlayerId: currentPlayerId,
+      inactivePlayerId: playerId,
       winnerPlayerId: this.winner?.getPlayerId(),
     };
   }
@@ -487,10 +486,14 @@ hotRouter.post("/hot/play-turn/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
   
-  // Get the current player from the game engine
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  // Get the current players from the game engine
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  const currentPlayerIds = Array.isArray(currentPlayers) 
+    ? currentPlayers.map(p => p.getPlayerId()) 
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
+  const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
 
-  let roundStatus = gameInstance.playTurn(currentPlayer.getPlayerId(), guess);
+  let roundStatus = gameInstance.playTurn(currentPlayerId, guess);
   
   res.json(roundStatus);
 
@@ -1116,7 +1119,8 @@ function headsOrTailsGame() {
         
         updateGameState(gameStats) {
             const players = gameStats.players || [];
-            const currentPlayerId = gameStats.current_player_id;
+            const currentPlayerIds = gameStats.current_player_ids || [];
+            const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
             
             // Find current player and opponent
             this.currentPlayer = players.find(p => p.id === currentPlayerId);
