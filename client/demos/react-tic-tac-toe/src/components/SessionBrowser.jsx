@@ -43,13 +43,11 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
   // Auto-refresh session list periodically to catch new sessions
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isLoading) {
-        fetchSessionsByGame("tic-tac-toe-classic", false);
-      }
+      fetchSessionsByGame("tic-tac-toe-classic", false);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [fetchSessionsByGame, isLoading]);
+  }, [fetchSessionsByGame]);
 
   // Show error modal when error occurs
   useEffect(() => {

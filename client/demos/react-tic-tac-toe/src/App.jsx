@@ -94,20 +94,24 @@ function AppContent() {
   };
 
   const handleSessionBrowserJoin = async (joinResult) => {
-    console.log("[App] Session browser join result:", joinResult);
-    
-    if (joinResult.sessionId && joinResult.participantId && joinResult.playerName) {
+    // console.log("[App] Session browser join result:", joinResult);
+
+    if (
+      joinResult.sessionId &&
+      joinResult.participantId &&
+      joinResult.playerName
+    ) {
       // Sync the main app state with the session browser join result
       syncSessionState(
         joinResult.sessionId,
-        joinResult.participantId, 
+        joinResult.participantId,
         joinResult.playerName
       );
-      
+
       // Ensure loading state is reset after sync
       // The syncSessionState triggers data fetching which should reset loading states
     } else {
-      console.error("[App] Invalid join result:", joinResult);
+      // console.error("[App] Invalid join result:", joinResult);
       await refreshData();
     }
   };
@@ -121,12 +125,16 @@ function AppContent() {
           const initResult = await initializeSession(true);
           if (initResult.success) {
             // Use joinSession directly with the session ID from initialization
-            const joinResult = await joinSession(playerName, "user", initResult.sessionId);
+            const joinResult = await joinSession(
+              playerName,
+              "user",
+              initResult.sessionId
+            );
             if (!joinResult.success) {
-              console.error("[App] Failed to join newly created session:", joinResult.error);
+              // console.error("[App] Failed to join newly created session:", joinResult.error);
             }
           } else {
-            console.error("[App] Failed to initialize session:", initResult.error);
+            // console.error("[App] Failed to initialize session:", initResult.error);
           }
         }}
         onSessionJoined={handleSessionBrowserJoin}
@@ -538,17 +546,21 @@ function AppContent() {
                         {sessionId || "Not initialized"}
                       </Text>
                       <Text>
-                        <strong>Are you the host?:</strong> {isHost ? "Yes" : "No"}
+                        <strong>Are you the host?:</strong>{" "}
+                        {isHost ? "Yes" : "No"}
                       </Text>
                     </VStack>
-                    <Button 
-                      colorScheme="red" 
-                      size="sm" 
+                    <Button
+                      colorScheme="red"
+                      size="sm"
                       variant="outline"
                       onClick={async () => {
                         const result = await leaveSession();
                         if (!result.success) {
-                          console.error("Failed to leave session:", result.error);
+                          console.error(
+                            "Failed to leave session:",
+                            result.error
+                          );
                         }
                       }}
                     >
@@ -709,8 +721,8 @@ function AppContent() {
                         <Button colorScheme="blue" onClick={handleQuickJoin}>
                           Create/Join Session
                         </Button>
-                        <Button 
-                          colorScheme="green" 
+                        <Button
+                          colorScheme="green"
                           variant="outline"
                           onClick={() => setShowSessionBrowser(true)}
                         >
@@ -922,6 +934,7 @@ function AppContent() {
         onClose={() => setShowSessionBrowser(false)}
         onSessionJoined={handleSessionBrowserJoin}
         currentSessionId={sessionId}
+        wI
       />
     </Box>
   );

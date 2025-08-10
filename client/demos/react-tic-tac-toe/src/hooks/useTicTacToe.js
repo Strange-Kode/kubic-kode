@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "./useSession.js";
 import { useGame } from "./useGame.js";
 import { useGameWebSocket } from "./useGameWebSocket.js";
@@ -23,6 +23,9 @@ export function useTicTacToe() {
   const [lastTimerUpdate, setLastTimerUpdate] = useState(null);
   const [gameDisabledByInactivity, setGameDisabledByInactivity] =
     useState(false);
+  
+  // Debouncing for refresh calls
+  const refreshTimeoutRef = useRef(null);
 
   // Hook dependencies
   const session = useSession();
@@ -41,6 +44,19 @@ export function useTicTacToe() {
       setError(err.message);
     }
   }, [session, game]);
+
+  // Debounced refresh function to prevent excessive WebSocket-triggered refreshes
+  const debouncedRefreshData = useCallback(() => {
+    // Clear existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Set new timeout
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshData();
+    }, 100); // 100ms debounce
+  }, [refreshData]);
 
   // Live timer calculation with interpolation - always sync to backend authority
   const getLiveTimer = useCallback(() => {
@@ -223,15 +239,14 @@ export function useTicTacToe() {
   // Handle WebSocket events including win conditions
   const handleWebSocketEvent = useCallback(
     (data) => {
-      // console.log("[useTicTacToe] WebSocket event received:", data);
+      console.log("[useTicTacToe] WebSocket event received:", data);
 
-      if (
-        data.type === "turnPlayed" &&
-        data.payload?.roundStatus?.player_has_won
-      ) {
-        // Find the winner participant
+      // Handle player won event
+      if (data.type === "playerWon") {
+        console.log("[useTicTacToe] Player won event:", data.payload);
+        // Find the winner participant using playerId from backend
         const winnerParticipant = session.participants.find(
-          (p) => p.id === data.payload.roundStatus.player_id
+          (p) => p.id === data.payload?.playerId
         );
 
         if (winnerParticipant) {
@@ -256,12 +271,17 @@ export function useTicTacToe() {
         }, 100);
       }
 
-      if (
-        data.type === "turnPlayed" ||
+      // Only refresh for non-winning turns and participant changes
+      if (data.type === "turnPlayed") {
+        // Skip refresh if this is a winning move or tie - let win modal show
+        if (!data.payload?.roundStatus?.player_has_won && !data.payload?.gameTied) {
+          debouncedRefreshData();
+        }
+      } else if (
         data.type === "sessionParticipantJoined" ||
         data.type === "sessionParticipantLeft"
       ) {
-        refreshData();
+        debouncedRefreshData();
       }
 
       // Handle restart voting events
@@ -293,9 +313,9 @@ export function useTicTacToe() {
           // Always use backend time as authoritative source
           setInactivityTimer(backendTimeLeft);
           setLastTimerUpdate(Date.now());
-          console.log(
-            `[Timer Sync] Backend reports ${backendTimeLeft}s left, frontend baseline reset`
-          );
+          // console.log(
+          //   `[Timer Sync] Backend reports ${backendTimeLeft}s left, frontend baseline reset`
+          // );
         }
       }
 
@@ -314,15 +334,15 @@ export function useTicTacToe() {
           );
 
           if (winnerParticipant) {
-            console.log(
-              "[useTicTacToe] Game won by inactivity:",
-              winnerParticipant.name
-            );
+            // console.log(
+            //   "[useTicTacToe] Game won by inactivity:",
+            //   winnerParticipant.name
+            // );
             setWinner(winnerParticipant);
             setShowWinModal(true);
 
             // Refresh data and win counts after inactivity win
-            refreshData();
+            debouncedRefreshData();
             setTimeout(() => {
               playerWins.fetchPlayerWins();
             }, 100);
@@ -330,7 +350,7 @@ export function useTicTacToe() {
         }
       }
     },
-    [session.participants, refreshData, restartVoting, playerWins]
+    [session.participants, debouncedRefreshData, restartVoting, playerWins]
   );
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
@@ -399,11 +419,14 @@ export function useTicTacToe() {
     );
   }, [session.participantId, session.participants]);
 
-  // Log flow transitions for debugging
+  // Cleanup timeout on unmount
   useEffect(() => {
-    const phase = getGamePhase();
-    // console.log(`[useTicTacToe] Flow transition → ${phase}`);
-  }, [getGamePhase]);
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     // Game phase and state

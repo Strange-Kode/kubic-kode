@@ -255,11 +255,6 @@ export function useSession() {
 
   // Direct state sync function for session browser integration
   const syncSessionState = useCallback(async (newSessionId, newParticipantId) => {
-    console.log("[useSession] Syncing state from external join:", {
-      newSessionId,
-      newParticipantId
-    });
-    
     if (newSessionId) setSessionId(newSessionId);
     if (newParticipantId) setParticipantId(newParticipantId);
     
