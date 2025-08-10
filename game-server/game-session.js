@@ -1,5 +1,6 @@
 import { InactivityManager } from "../game-utility/inactivity-manager.js";
 import { gameHistoryManager } from "./game-history-manager.js";
+import { GameEventService } from "./game-event-service.js";
 
 export class GameSession {
   constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
@@ -25,6 +26,10 @@ export class GameSession {
 
     this.restartVote = null; // { votes: {}, totalParticipants: N }
     this.inactivityManager = null;
+
+    // Connection management
+    this._connectionStatus = new Map(); // participantId -> { connected: boolean, lastSeen: Date, reconnectionAttempts: number }
+    this._heartbeatStarted = false;
 
     // Get game history from the manager (returns a proxy)
     this.gameHistory = gameHistoryManager.getGameHistory(sessionId);
@@ -97,10 +102,19 @@ export class GameSession {
       id: participantId,
       name: name,
       type: participant_type,
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      disconnected: false,
+      disconnectedAt: null
     };
 
     this.participants.push(participant);
+
+    // Initialize connection status
+    this._connectionStatus.set(participantId, {
+      connected: false,
+      lastSeen: new Date(),
+      reconnectionAttempts: 0
+    });
 
     // Set host if this is the first participant
     if (this._hostId === null && participant_type !== 'spectator') {
@@ -113,7 +127,7 @@ export class GameSession {
     }
 
     // Add to game history
-    this.gameHistory.addParticipantJoinedEvent(participantId, name);
+    this.gameHistory.addParticipantJoinedEvent(participantId, name, participant_type);
 
     return participantId;
   }
@@ -130,6 +144,9 @@ export class GameSession {
 
     // Remove from ready states
     this._readyStates.delete(id);
+
+    // Remove connection status
+    this._connectionStatus.delete(id);
 
     // Handle host transfer if host is leaving
     if (this._hostId === id) {
@@ -183,6 +200,9 @@ export class GameSession {
       this.inactivityManager = null;
     }
 
+    // Start heartbeat for the session
+    this.startHeartbeat();
+
     // Add to game history
     this.gameHistory.addSessionStartedEvent(this.participants);
   }
@@ -192,6 +212,9 @@ export class GameSession {
     if (this.inactivityManager) {
       this.inactivityManager.clearTimer();
     }
+
+    // Stop heartbeat
+    this.stopHeartbeat();
 
     // Add to game history
     this.gameHistory.addSessionEndedEvent(this.participants.length);
@@ -535,6 +558,156 @@ export class GameSession {
       needsMorePlayers: playableParticipants.length < this.maxParticipants,
       participants: this.listParticipants(),
       recentChat: this.getChatMessages(10)
+    };
+  }
+
+  // Connection management methods
+  updateParticipantConnection(participantId, connected) {
+    const status = this._connectionStatus.get(participantId);
+    if (status) {
+      status.connected = connected;
+      status.lastSeen = new Date();
+      
+      if (connected) {
+        // Reset reconnection attempts on successful connection
+        status.reconnectionAttempts = 0;
+        
+        // Mark participant as reconnected if they were previously disconnected
+        const participant = this.getParticipantById(participantId);
+        if (participant && participant.disconnected) {
+          participant.disconnected = false;
+          participant.disconnectedAt = null;
+          
+          // Broadcast reconnection event
+          GameEventService.broadcastToSession(this, {
+            type: 'participantReconnected',
+            payload: {
+              participantId: participantId,
+              participantName: participant.name,
+              reconnectedAt: new Date().toISOString()
+            }
+          });
+        }
+      }
+    }
+  }
+
+  isParticipantConnected(participantId) {
+    const status = this._connectionStatus.get(participantId);
+    return status ? status.connected : false;
+  }
+
+  getConnectedParticipants() {
+    return this.participants.filter(p => this.isParticipantConnected(p.id));
+  }
+
+  getDisconnectedParticipants() {
+    return this.participants.filter(p => p.disconnected);
+  }
+
+  startHeartbeat() {
+    if (this._heartbeatStarted) {
+      return;
+    }
+    
+    GameEventService.startHeartbeatForSession(this.sessionId);
+    this._heartbeatStarted = true;
+  }
+
+  stopHeartbeat() {
+    if (!this._heartbeatStarted) {
+      return;
+    }
+    
+    GameEventService.stopHeartbeatForSession(this.sessionId);
+    this._heartbeatStarted = false;
+  }
+
+  checkSessionViability() {
+    const playableParticipants = this.getPlayableParticipants();
+    const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
+    
+    // Get required players from the game instance
+    const requiredPlayers = this.gameInstance.requiredPlayers();
+    
+    if (connectedParticipants.length < requiredPlayers) {
+      // End the session if insufficient connected players
+      this.markEnded();
+      
+      // Broadcast session ended event
+      GameEventService.broadcastToSession(this, {
+        type: 'sessionEnded',
+        payload: {
+          reason: 'insufficient_players',
+          message: 'Session ended due to insufficient connected players',
+          connectedParticipants: connectedParticipants.length,
+          requiredParticipants: requiredPlayers
+        }
+      });
+      
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Enhanced participant management for reconnection
+  handleParticipantReconnection(participantId) {
+    const participant = this.getParticipantById(participantId);
+    if (!participant) {
+      return false;
+    }
+    
+    // Update connection status
+    this.updateParticipantConnection(participantId, true);
+    
+    // Check if this reconnection makes the session viable again
+    if (this.started) {
+      this.checkSessionViability();
+    }
+    
+    return true;
+  }
+
+  handleParticipantDisconnection(participantId) {
+    const participant = this.getParticipantById(participantId);
+    if (!participant) {
+      return false;
+    }
+    
+    // Mark participant as disconnected
+    participant.disconnected = true;
+    participant.disconnectedAt = new Date().toISOString();
+    
+    // Update connection status
+    this.updateParticipantConnection(participantId, false);
+    
+    // Check session viability
+    if (this.started) {
+      this.checkSessionViability();
+    }
+    
+    return true;
+  }
+
+  // Get session status including connection information
+  getSessionStatus() {
+    const playableParticipants = this.getPlayableParticipants();
+    const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
+    const disconnectedParticipants = this.getDisconnectedParticipants();
+    
+    // Get required players from the game instance
+    const requiredPlayers = this.gameInstance.requiredPlayers();
+    
+    return {
+      sessionId: this.sessionId,
+      started: this.started,
+      totalParticipants: this.participants.length,
+      connectedParticipants: connectedParticipants.length,
+      disconnectedParticipants: disconnectedParticipants.length,
+      playableParticipants: playableParticipants.length,
+      requiredParticipants: requiredPlayers,
+      viable: connectedParticipants.length >= requiredPlayers
     };
   }
 }

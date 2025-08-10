@@ -357,6 +357,7 @@ export function useTicTacToe() {
   // Listen for session events (join/leave) and game events
   useGameWebSocket(
     session.sessionId ? session.sessionId : null,
+    session.participantId ? session.participantId : null,
     handleWebSocketEvent
   );
 

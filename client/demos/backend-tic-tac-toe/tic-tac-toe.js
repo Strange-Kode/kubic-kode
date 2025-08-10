@@ -39,6 +39,10 @@ class TicTacToeGame {
     };
   }
 
+  requiredPlayers() {
+    return 2; // TicTacToe (classic) always requires 2 players
+  }
+
   initializeGameOptions() {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:
@@ -138,7 +142,7 @@ class TicTacToeGame {
 
     if (this._engine.getTileMap().getTile(x, y)) {
       console.log("Tile already occupied.");
-      return PlayStatus.invalid(null, "Tile already occupied", {
+      return PlayStatus.invalid(playerId, "Tile already occupied", {
         type: "occupied_tile"
       });
     }
@@ -160,7 +164,7 @@ class TicTacToeGame {
       this._winner = currentPlayer;
       this._engine.stopGame();
       console.log(`${currentPlayer.getPlayerName()} wins!`);
-      return PlayStatus.win(null, {
+      return PlayStatus.win(playerId, {
         mark: mark
       });
     }
@@ -169,13 +173,13 @@ class TicTacToeGame {
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
       console.log('Game is tied!');
-      return PlayStatus.tie(null, {
+      return PlayStatus.tie(playerId, {
         mark: mark
       });
     }
 
     this._engine.nextTurn();
-    return PlayStatus.success(null, {
+    return PlayStatus.success(playerId, {
       mark: mark
     });
   }

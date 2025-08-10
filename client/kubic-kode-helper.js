@@ -47,6 +47,7 @@ class KubicKodeHelper {
     this.registeredGames = new Map();
     this.eventListeners = new Map();
     this.websocket = null;
+    this.heartbeatInterval = null;
 
     // Create game object with proper context binding
     this.game = {
@@ -219,13 +220,16 @@ class KubicKodeHelper {
       this.websocket.close();
     }
 
-    // Construct WebSocket URL using the same approach as the working implementation
+    // Construct WebSocket URL with participant ID for connection tracking
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     
     const hostIP = window.location.hostname;
     const hostPort = window.location.port || '3000';
     
-    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${this.sessionId}`;
+    let wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${this.sessionId}`;
+    if (this.participantId) {
+      wsUrl += `&participantId=${this.participantId}`;
+    }
     
     console.log('🔌 Attempting WebSocket connection to:', wsUrl);
     this.websocket = new WebSocket(wsUrl);
@@ -234,12 +238,38 @@ class KubicKodeHelper {
     this.websocket.onopen = () => {
       console.log('🔌 WebSocket connected successfully');
       this.events.emit('websocketConnected');
+      
+      // Start heartbeat if we have participant ID
+      if (this.participantId) {
+        this.startHeartbeat();
+      }
     };
 
     this.websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        this.events.emit(data.type, data.payload);
+        
+        // Handle heartbeat responses
+        if (data.type === 'heartbeat') {
+          this.handleHeartbeat(data);
+        } else if (data.type === 'heartbeatResponse') {
+          this.handleHeartbeatResponse(data);
+        } else if (data.type === 'connectionConfirmed') {
+          console.log('🔌 Connection confirmed by server');
+          this.events.emit('connectionConfirmed', data.payload);
+        } else if (data.type === 'participantDisconnected') {
+          console.log('⚠️ Participant disconnected:', data.payload);
+          this.events.emit('participantDisconnected', data.payload);
+        } else if (data.type === 'participantReconnected') {
+          console.log('✅ Participant reconnected:', data.payload);
+          this.events.emit('participantReconnected', data.payload);
+        } else if (data.type === 'sessionEnded') {
+          console.log('🔚 Session ended:', data.payload);
+          this.events.emit('sessionEnded', data.payload);
+          this.stopHeartbeat();
+        } else {
+          this.events.emit(data.type, data.payload);
+        }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
@@ -248,6 +278,9 @@ class KubicKodeHelper {
     this.websocket.onclose = (event) => {
       console.log('🔌 WebSocket disconnected:', event.code, event.reason);
       this.events.emit('websocketDisconnected', event);
+      
+      // Stop heartbeat on disconnect
+      this.stopHeartbeat();
 
       // Only reconnect if autoReconnect is enabled and it's not a manual close
       if (this.config.autoReconnect && event.code !== 1000) {
@@ -262,6 +295,86 @@ class KubicKodeHelper {
     };
 
     return this;
+  }
+
+  /**
+   * Start heartbeat to keep connection alive
+   */
+  startHeartbeat() {
+    if (this.heartbeatInterval) {
+      this.stopHeartbeat();
+    }
+    
+    this.heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat();
+    }, 25000); // Send heartbeat every 25 seconds (server sends every 30)
+    
+    console.log('💓 Started heartbeat');
+  }
+
+  /**
+   * Stop heartbeat
+   */
+  stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log('💓 Stopped heartbeat');
+    }
+  }
+
+  /**
+   * Send heartbeat to server
+   */
+  sendHeartbeat() {
+    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      this.websocket.send(JSON.stringify({
+        type: 'heartbeat',
+        payload: { timestamp: Date.now() }
+      }));
+    }
+  }
+
+  /**
+   * Handle incoming heartbeat from server
+   */
+  handleHeartbeat(data) {
+    // Respond to server heartbeat
+    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      this.websocket.send(JSON.stringify({
+        type: 'heartbeat',
+        payload: { timestamp: Date.now() }
+      }));
+    }
+  }
+
+  /**
+   * Handle heartbeat response from server
+   */
+  handleHeartbeatResponse(data) {
+    // Server confirmed our heartbeat
+    console.log('💓 Heartbeat confirmed by server');
+  }
+
+  /**
+   * Send REST heartbeat to server
+   */
+  async sendRestHeartbeat() {
+    if (!this.sessionId || !this.participantId) {
+      return;
+    }
+
+    try {
+      const response = await this._makeRequest('POST', `/session/${this.sessionId}/heartbeat`, {
+        participantId: this.participantId
+      });
+      
+      if (response.success) {
+        console.log('💓 REST heartbeat sent successfully');
+      }
+    } catch (error) {
+      console.error('💓 REST heartbeat failed:', error);
+    }
   }
 
   /**
