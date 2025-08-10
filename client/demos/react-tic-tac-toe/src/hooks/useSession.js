@@ -4,6 +4,7 @@ import { useFetch } from "./useFetch";
 /**
  * Custom hook for session management
  * Handles session initialization, participant joining, and participant fetching
+ * Now includes game token management for the new authentication system
  */
 export function useSession() {
   // Session state
@@ -20,6 +21,55 @@ export function useSession() {
   // Initialize session on mount
   useEffect(() => {
     initializeSession();
+  }, []);
+
+  // Game token management helpers
+  const storeGameToken = useCallback((sessionId, participantId, gameToken) => {
+    try {
+      const tokens = getAllGameTokens();
+      tokens[sessionId] = tokens[sessionId] || {};
+      tokens[sessionId][participantId] = gameToken;
+      localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+      console.log(`🔐 Stored game token for session: ${sessionId}, participant: ${participantId}`);
+    } catch (error) {
+      console.error('Error storing game token:', error);
+    }
+  }, []);
+
+  const getGameToken = useCallback((sessionId, participantId) => {
+    try {
+      const tokens = getAllGameTokens();
+      return tokens[sessionId]?.[participantId] || null;
+    } catch (error) {
+      console.error('Error getting game token:', error);
+      return null;
+    }
+  }, []);
+
+  const clearGameToken = useCallback((sessionId, participantId) => {
+    try {
+      const tokens = getAllGameTokens();
+      if (tokens[sessionId]) {
+        delete tokens[sessionId][participantId];
+        if (Object.keys(tokens[sessionId]).length === 0) {
+          delete tokens[sessionId];
+        }
+        localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+        console.log(`🔐 Cleared game token for session: ${sessionId}, participant: ${participantId}`);
+      }
+    } catch (error) {
+      console.error('Error clearing game token:', error);
+    }
+  }, []);
+
+  const getAllGameTokens = useCallback(() => {
+    try {
+      const stored = localStorage.getItem('kubic_game_tokens');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Error getting all game tokens:', error);
+      return {};
+    }
   }, []);
 
   // Initialize session with backend
@@ -66,6 +116,12 @@ export function useSession() {
         if (result.success) {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
+          
+          // Store the game token if it's provided
+          if (result.data.game_token) {
+            storeGameToken(sessionId, newParticipantId, result.data.game_token);
+          }
+          
           // console.log(
           //   `[useSession] Joined session: participant_id=${newParticipantId}`
           // );
@@ -82,7 +138,7 @@ export function useSession() {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, post]
+    [sessionId, post, storeGameToken]
   );
 
   // Add AI participant to session
@@ -98,6 +154,11 @@ export function useSession() {
       });
 
       if (result.success) {
+        // Store the game token if it's provided
+        if (result.data.game_token) {
+          storeGameToken(sessionId, result.data.participant_id, result.data.game_token);
+        }
+        
         // Fetch updated participants list
         await fetchParticipants();
         return { success: true };
@@ -108,7 +169,7 @@ export function useSession() {
       console.error("[useSession] Failed to add AI opponent:", error);
       return { success: false, error: error.message };
     }
-  }, [sessionId, post]);
+  }, [sessionId, post, storeGameToken]);
 
   // Join session as spectator (uses dedicated /spectate endpoint)
   const joinAsSpectator = useCallback(
@@ -125,6 +186,11 @@ export function useSession() {
         if (result.success) {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
+          
+          // Store the game token if it's provided
+          if (result.data.game_token) {
+            storeGameToken(sessionId, newParticipantId, result.data.game_token);
+          }
 
           // Fetch updated participants list
           await fetchParticipants();
@@ -138,8 +204,37 @@ export function useSession() {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, post]
+    [sessionId, post, storeGameToken]
   );
+
+  // Leave session and clear tokens
+  const leaveSession = useCallback(async () => {
+    if (!sessionId || !participantId) {
+      throw new Error("No active session or participant to leave");
+    }
+
+    try {
+      const result = await post(`/api/session/${sessionId}/leave`, {
+        participantId: participantId
+      });
+
+      if (result.success) {
+        // Clear the game token
+        clearGameToken(sessionId, participantId);
+        
+        // Reset state
+        setParticipantId(null);
+        setParticipants([]);
+        
+        return { success: true };
+      } else {
+        throw new Error(result.error || "Failed to leave session");
+      }
+    } catch (error) {
+      console.error("[useSession] Failed to leave session:", error);
+      return { success: false, error: error.message };
+    }
+  }, [sessionId, participantId, post, clearGameToken]);
 
   // Fetch session stats including participants and maxParticipants
   const fetchSessionStats = useCallback(async () => {
@@ -259,7 +354,13 @@ export function useSession() {
     joinSession,
     joinAsSpectator,
     addAIParticipant,
+    leaveSession,
     fetchParticipants,
     checkSessionAvailability,
+
+    // Token management (exposed for use by other hooks)
+    getGameToken: () => getGameToken(sessionId, participantId),
+    storeGameToken: (token) => storeGameToken(sessionId, participantId, token),
+    clearGameToken: () => clearGameToken(sessionId, participantId),
   };
 }

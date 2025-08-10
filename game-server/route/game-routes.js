@@ -1,3 +1,15 @@
+/**
+ * Game routes
+ * 
+ * This file contains the routes for the game server.
+ * 
+ * All /game/ routes have to be POST requests due to the game token being passed in the body.
+ * 
+ * The middleware is used to:
+ * - validate the game token.
+ * - identify the participant and the game session.
+ * - validate that the participant is allowed to perform the action.
+ */
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
@@ -7,6 +19,7 @@ import { kubicLog } from "../../kubic-log.js";
 const gameRouter = express.Router();
 
 import { serializeRecursively, checkPlayableAccess, validateSession } from "../../game-utility/game-utility.js";
+import { validateGameTokenWithParticipant } from "../game-token-middleware.js";
 
 // Create middleware instances with session manager
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
@@ -193,32 +206,10 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
   return result;
 };
 
-// Use the GET method if you want to start the game with default options, otherwise use POST.
-gameRouter.get("/game/start/:sessionId", validateSessionMiddleware, (req, res) => {
-  const { participantId } = req.query;
-  const gameSession = req.gameSession;
-
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required" });
-  }
-
-  // Check if participant is playable
-  const participant = gameSession.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
-
-  if (!gameSession.isParticipantPlayable(participant)) {
-    return res.status(403).json({ error: "This participant cannot start games." });
-  }
-
-  const result = handleGameStart(gameSession, {}, participantId);
-  res.json(result);
-});
 
 
 // Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
-gameRouter.post("/game/start/:sessionId", validateSessionMiddleware, checkPlayableAccessMiddleware, (req, res) => {
+gameRouter.post("/game/start/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const { participantId, ...options } = req.body || {}; // Extract participantId and options from request body
   const gameSession = req.gameSession;
   
@@ -227,7 +218,7 @@ gameRouter.post("/game/start/:sessionId", validateSessionMiddleware, checkPlayab
   res.json(result);
 });
 
-gameRouter.get("/game/stop/:sessionId", validateSessionMiddleware, (req, res) => {
+gameRouter.post("/game/stop/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const { participantId } = req.query;
   const gameSession = req.gameSession;
 
@@ -272,7 +263,7 @@ gameRouter.get("/game/stop/:sessionId", validateSessionMiddleware, (req, res) =>
 });
 
 // Used to get current turn (=> current player id)
-gameRouter.get("/game/get-current-player/:sessionId", validateSessionMiddleware, (req, res) => {
+gameRouter.post("/game/get-current-player/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -284,7 +275,7 @@ gameRouter.get("/game/get-current-player/:sessionId", validateSessionMiddleware,
   });
 });
 
-gameRouter.get("/game/is-active/:sessionId", validateSessionMiddleware, (req, res) => {
+gameRouter.post("/game/is-active/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -293,7 +284,7 @@ gameRouter.get("/game/is-active/:sessionId", validateSessionMiddleware, (req, re
   });
 });
 
-gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, res) => {
+gameRouter.post("/game/get-tilemap/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -308,11 +299,11 @@ gameRouter.get("/game/get-tilemap/:sessionId", validateSessionMiddleware, (req, 
 });
 
 // Generic play turn endpoint for all games
-gameRouter.post("/game/play-turn/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
+gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(sessionManager), checkPlayableAccessMiddleware, (req, res) => {
   const { sessionId } = req.params;
   const { participantId, ...moveData } = req.body;
 
-  const gameSession = sessionManager.getSession(sessionId);
+  const gameSession = req.gameSession; // Now available from middleware
   const gameInstance = gameSession.getGameInstance();
   
   // Get the current player from the game engine
@@ -508,7 +499,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
 };
 
 // Get game options information
-gameRouter.get("/game/options/:sessionId", validateSessionMiddleware, (req, res) => {
+gameRouter.post("/game/options/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 

@@ -26,7 +26,7 @@ export function useTicTacToe() {
 
   // Hook dependencies
   const session = useSession();
-  const game = useGame(session.sessionId, session.participantId);
+  const game = useGame(session.sessionId, session.participantId, session.getGameToken);
   const playerWins = usePlayerWins(session.sessionId);
 
   // Refresh all data function (needs to be defined before restart voting hook)

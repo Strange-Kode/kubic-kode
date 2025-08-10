@@ -3,6 +3,7 @@
  * 
  * This test plays a complete game of Tic-Tac-Toe from start to finish,
  * including all possible game outcomes (win, draw, restart).
+ * Updated to use game token authentication system.
  */
 
 import E2ETestRunner from './e2e-test-runner.js';
@@ -12,6 +13,7 @@ class TicTacToeGameTest extends E2ETestRunner {
     super(config);
     this.gameMoves = [];
     this.gameHistory = [];
+    this.gameTokens = {}; // Store game tokens for each participant
   }
 
   /**
@@ -52,17 +54,27 @@ class TicTacToeGameTest extends E2ETestRunner {
       
       const participant1Id = player1Response.data.participant_id;
       const participant2Id = player2Response.data.participant_id;
+      
+      // Store game tokens
+      this.gameTokens[participant1Id] = player1Response.data.game_token;
+      this.gameTokens[participant2Id] = player2Response.data.game_token;
+      
       console.log(`  ✅ Players joined: ${participant1Id}, ${participant2Id}`);
+      console.log(`  🔐 Game tokens stored for both players`);
 
       // Step 3: Connect WebSockets
       console.log('  🔌 Step 3: Connecting WebSockets...');
       await this.connectWebSocket(sessionId, participant1Id);
       await this.connectWebSocket(sessionId, participant2Id);
 
-      // Step 4: Start the game
+      // Step 4: Start the game (now uses POST with game token)
       console.log('  🎮 Step 4: Starting the game...');
-      const startResponse = await this.makeRequest(`/api/game/start/${sessionId}?participantId=${participant1Id}`, {
-        method: 'GET'
+      const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          participantId: participant1Id,
+          gameToken: this.gameTokens[participant1Id]
+        })
       });
       
       console.log(`  ✅ Game started: ${startResponse.data.current_player_id}`);
@@ -77,20 +89,32 @@ class TicTacToeGameTest extends E2ETestRunner {
         console.log(`  🤝 Game ended in a draw`);
       }
 
-      // Step 6: Verify game state
+      // Step 6: Verify game state (now uses POST with game token)
       console.log('  🔍 Step 6: Verifying final game state...');
-      const isActiveResponse = await this.makeRequest(`/api/game/is-active/${sessionId}`);
-      const finalTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+      const isActiveResponse = await this.makeRequest(`/api/game/is-active/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          gameToken: this.gameTokens[participant1Id]
+        })
+      });
+      
+      const finalTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          gameToken: this.gameTokens[participant1Id]
+        })
+      });
       
       console.log(`  ✅ Game active: ${isActiveResponse.data.is_active}`);
       console.log(`  ✅ Final board state: ${finalTileMap.data.tiles.length} tiles`);
 
-      // Step 7: Test game restart
+      // Step 7: Test game restart (now uses POST with game token)
       console.log('  🔄 Step 7: Testing game restart...');
       const restartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
         method: 'POST',
         body: JSON.stringify({
-          participantId: participant1Id
+          participantId: participant1Id,
+          gameToken: this.gameTokens[participant1Id]
         })
       });
       
@@ -101,7 +125,8 @@ class TicTacToeGameTest extends E2ETestRunner {
       const secondRestartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
         method: 'POST', 
         body: JSON.stringify({
-          participantId: participant1Id
+          participantId: participant1Id,
+          gameToken: this.gameTokens[participant1Id]
         })
       });
       
@@ -113,8 +138,18 @@ class TicTacToeGameTest extends E2ETestRunner {
       }
 
       // Step 8: Verify restart state
-      const restartTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
-      const isActiveAfterRestart = await this.makeRequest(`/api/game/is-active/${sessionId}`);
+      const restartTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          gameToken: this.gameTokens[participant1Id]
+        })
+      });
+      const isActiveAfterRestart = await this.makeRequest(`/api/game/is-active/${sessionId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          gameToken: this.gameTokens[participant1Id]
+        })
+      });
       
       console.log(`  ✅ Restart board state: ${restartTileMap.data.tiles.length} tiles`);
       console.log(`  ✅ Game active after restart: ${isActiveAfterRestart.data.is_active}`);
@@ -168,6 +203,7 @@ class TicTacToeGameTest extends E2ETestRunner {
           method: 'POST',
           body: JSON.stringify({
             participantId: currentParticipantId,
+            gameToken: this.gameTokens[currentParticipantId],
             xPos: move.x,
             yPos: move.y
           })
@@ -238,7 +274,7 @@ class TicTacToeGameTest extends E2ETestRunner {
         const sessionId = initResponse.data.session_id;
 
         // Join players
-        await this.makeRequest(`/api/session/${sessionId}/join`, {
+        const player1Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
           method: 'POST',
           body: JSON.stringify({
             participantName: 'Alice',
@@ -246,7 +282,7 @@ class TicTacToeGameTest extends E2ETestRunner {
           })
         });
         
-        await this.makeRequest(`/api/session/${sessionId}/join`, {
+        const player2Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
           method: 'POST',
           body: JSON.stringify({
             participantName: 'Bob',
@@ -254,15 +290,35 @@ class TicTacToeGameTest extends E2ETestRunner {
           })
         });
 
+        // Store game tokens
+        const participant1Id = player1Response.data.participant_id;
+        const participant2Id = player2Response.data.participant_id;
+        this.gameTokens[participant1Id] = player1Response.data.game_token;
+        this.gameTokens[participant2Id] = player2Response.data.game_token;
+
         // Start game with options if provided
-        const startBody = config.options ? JSON.stringify(config.options) : undefined;
+        const startBody = config.options ? 
+          JSON.stringify({
+            ...config.options,
+            participantId: participant1Id,
+            gameToken: this.gameTokens[participant1Id]
+          }) : 
+          JSON.stringify({
+            participantId: participant1Id,
+            gameToken: this.gameTokens[participant1Id]
+          });
         const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
           method: 'POST',
           body: startBody
         });
 
         // Get tile map to verify configuration
-        const tileMapResponse = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+        const tileMapResponse = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            gameToken: this.gameTokens[participant1Id]
+          })
+        });
         const gridSize = Math.sqrt(tileMapResponse.data.tiles.length);
         
         console.log(`    ✅ Grid size: ${gridSize}x${gridSize}`);
@@ -353,6 +409,10 @@ class TicTacToeGameTest extends E2ETestRunner {
       const participant1Id = player1Response.data.participant_id;
       const participant2Id = player2Response.data.participant_id;
 
+      // Store game tokens
+      this.gameTokens[participant1Id] = player1Response.data.game_token;
+      this.gameTokens[participant2Id] = player2Response.data.game_token;
+
       // Connect WebSockets with participant IDs to monitor events
       await this.connectWebSocket(sessionId, participant1Id);
       await this.connectWebSocket(sessionId, participant2Id);
@@ -364,7 +424,8 @@ class TicTacToeGameTest extends E2ETestRunner {
       await this.makeRequest(`/api/game/start/${sessionId}`, {
         method: 'POST',
         body: JSON.stringify({
-          participantId: participant1Id
+          participantId: participant1Id,
+          gameToken: this.gameTokens[participant1Id]
         })
       });
 
@@ -375,6 +436,7 @@ class TicTacToeGameTest extends E2ETestRunner {
         method: 'POST',
         body: JSON.stringify({
           participantId: participant1Id,
+          gameToken: this.gameTokens[participant1Id],
           xPos: 0,
           yPos: 0
         })

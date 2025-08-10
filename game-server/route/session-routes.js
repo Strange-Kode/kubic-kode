@@ -53,7 +53,7 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
 });
 
 // Join session
-sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, async (req, res) => {
   const { participantName, participantType = "user" } = req.body;
   const gameSession = req.gameSession;
 
@@ -64,7 +64,14 @@ sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, 
     );
     let participant = gameSession.getParticipantById(participantId);
 
-    res.json({ success: true, participant_id: participantId });
+    // Get the participant's game token
+    const gameToken = await gameSession.generateParticipantToken(participantId);
+    
+    res.json({ 
+      success: true, 
+      participant_id: participantId,
+      game_token: gameToken
+    });
 
     // Broadcast the event after sending the response to avoid blocking the request
     try {
@@ -83,7 +90,7 @@ sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, (req, 
 });
 
 // Join session as spectator
-sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, async (req, res) => {
   const { participantName } = req.body;
   const gameSession = req.gameSession;
 
@@ -94,7 +101,14 @@ sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, (r
     );
     let participant = gameSession.getParticipantById(participantId);
 
-    res.json({ success: true, participant_id: participantId });
+    // Get the participant's game token
+    const gameToken = await gameSession.generateParticipantToken(participantId);
+    
+    res.json({ 
+      success: true, 
+      participant_id: participantId,
+      game_token: gameToken
+    });
 
     // Broadcast the event after sending the response to avoid blocking the request
     try {

@@ -10,6 +10,7 @@ The project features a Node.js/Express backend for multiplayer session handling 
 - **Scrollable TileMap**: Support for large worlds with player-specific viewports and fog-of-war
 - **Multiplayer Support**: Real-time communication via WebSockets with spectator functionality
 - **Turn-Based Gameplay**: Flexible turn systems (single-set, multi-set, multi-subset)
+- **Game Token Authentication**: Secure authentication system for all game operations
 - **Extensible Architecture**: Component-based entity system for easy game customization
 
 ## Requirements
@@ -402,6 +403,47 @@ The `establishFirstPlayers` method is automatically called during game start and
 }
 ```
 
+## Game Token Authentication
+
+kubic-kode uses a secure game token authentication system for all game operations. Game tokens are automatically generated when participants join sessions and are required for all game-related API calls.
+
+### How It Works
+
+1. **Token Generation**: Tokens are created when participants join sessions
+2. **Token Storage**: Tokens are stored in localStorage mapped to session and participant IDs
+3. **Token Validation**: All game operations require valid tokens
+4. **Token Cleanup**: Tokens are automatically cleared when participants leave sessions
+
+### API Changes
+
+All game routes use POST requests with game tokens:
+
+```javascript
+// Before (deprecated)
+GET /api/game/get-tilemap/{sessionId}
+
+// After (current)
+POST /api/game/get-tilemap/{sessionId}
+{
+  "gameToken": "participant_game_token"
+}
+```
+
+### Client Integration
+
+The KubicKode helper automatically manages tokens:
+
+```javascript
+// Join session (token automatically stored)
+await KubicKode.joinSession('Alice');
+
+// Game operations (token automatically included)
+await KubicKode.getTileMap();
+await KubicKode.playTurn(0, 0);
+```
+
+For native fetch implementations, tokens are stored in localStorage under `kubic_game_tokens`.
+
 ## Architecture
 
 ### Core Components
@@ -410,6 +452,7 @@ The `establishFirstPlayers` method is automatically called during game start and
 - **Game Interface**: Contract that all games must implement
 - **Game Options**: Lifecycle-based system for managing when options can be modified
 - **Session Management**: Handles multiplayer sessions and participant management
+- **Game Token Service**: Manages authentication tokens for secure game operations
 - **WebSocket Communication**: Real-time game state updates
 
 ## Game Development
