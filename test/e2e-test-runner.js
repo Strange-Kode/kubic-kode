@@ -211,7 +211,7 @@ class E2ETestRunner {
         throw new Error(`Game start failed: ${startResponse.data.error}`);
       }
       
-      console.log(`  ✅ Game started: ${startResponse.data.current_player_id}`);
+      console.log(`  ✅ Game started: ${startResponse.data.current_player_ids?.[0] || 'none'}`);
 
       // Step 8: Wait for game started event
       console.log('  ⏳ Step 8: Waiting for game started event...');
@@ -222,7 +222,7 @@ class E2ETestRunner {
       const currentPlayerResponse = await this.makeRequest(`/api/game/get-current-player/${sessionId}`);
       const tileMapResponse = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
       
-      console.log(`  ✅ Current player: ${currentPlayerResponse.data.current_player_id}`);
+      console.log(`  ✅ Current player: ${currentPlayerResponse.data.current_player_ids?.[0] || 'none'}`);
       console.log(`  ✅ Tile map retrieved: ${tileMapResponse.data.tiles.length} tiles`);
 
       // Step 10: Play a turn (assuming it's Player 1's turn)
@@ -274,7 +274,7 @@ class E2ETestRunner {
         throw new Error(`Game restart failed: ${restartResponse.data.error}`);
       }
       
-      console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_id}`);
+      console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_ids?.[0] || 'none'}`);
 
       // Step 16: Clean up
       console.log('  🧹 Step 16: Cleaning up...');

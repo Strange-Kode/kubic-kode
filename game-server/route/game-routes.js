@@ -338,17 +338,28 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   }
   
   // Validate that it's this player's turn
-  if (playerId !== currentPlayer.getPlayerId()) {
+  const currentPlayerIds = Array.isArray(currentPlayers) 
+    ? currentPlayers.map(p => p.getPlayerId()) 
+    : [currentPlayers?.getPlayerId()];
+  if (!currentPlayerIds.includes(playerId)) {
     return res.status(400).json({ error: "It's not your turn." });
   }
 
   // Play the turn - pass turnData consistently for all games
   let playStatus;
   try {
+    // Debug: Log the game instance type and method call
+    console.log(`[game-routes] Game instance type:`, gameInstance.constructor.name);
+    console.log(`[game-routes] Calling playTurn on game instance with playerId: ${playerId}, moveData:`, moveData);
+    
     // All games receive: playTurn(playerId, turnData)
     // turnData contains all move information (xPos, yPos, action, etc.)
     playStatus = gameInstance.playTurn(playerId, moveData);
+    
+    console.log(`[game-routes] playTurn returned:`, playStatus);
+    console.log(`[game-routes] playStatus.playerHasWon:`, playStatus.access('playerHasWon'));
   } catch (error) {
+    console.error(`[game-routes] Error in playTurn:`, error);
     return res.status(400).json({ 
       error: "Invalid move.", 
       details: error.message 
@@ -357,8 +368,11 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   
   // Handle win condition
   if (playStatus.access('playerHasWon')) {
+    console.log(`[game-routes] Win condition detected! Player ${playStatus.access('playerId')} won`);
+    
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
+    console.log(`[game-routes] Win counter increased to: ${winCount}`);
     GameEventService.broadcastToSession(gameSession, {
       type: "winCount",
       payload: { winCount },

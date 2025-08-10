@@ -77,7 +77,7 @@ class TicTacToeGameTest extends E2ETestRunner {
         })
       });
       
-      console.log(`  ✅ Game started: ${startResponse.data.current_player_id}`);
+      console.log(`  ✅ Game started: ${startResponse.data.current_player_ids?.[0] || 'none'}`);
 
       // Step 5: Play a complete game
       console.log('  🎯 Step 5: Playing the game...');
@@ -118,10 +118,10 @@ class TicTacToeGameTest extends E2ETestRunner {
         })
       });
       
-      console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_id}`);
+      console.log(`  ✅ Game restarted: ${restartResponse.data.current_player_ids?.[0] || 'none'}`);
       
-      // Step 7.1: Verify alternating first player behavior
-      console.log('  🔄 Step 7.1: Testing alternating first player on second restart...');
+      // Step 8.1: Verify alternating first player behavior
+      console.log('  🔄 Step 8.1: Testing alternating first player on second restart...');
       const secondRestartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
         method: 'POST', 
         body: JSON.stringify({
@@ -131,13 +131,15 @@ class TicTacToeGameTest extends E2ETestRunner {
       });
       
       // Check if first player changed from first restart to second restart
-      if (restartResponse.data.current_player_id !== secondRestartResponse.data.current_player_id) {
-        console.log(`  ✅ First player alternated: ${restartResponse.data.current_player_id} → ${secondRestartResponse.data.current_player_id}`);
+      const firstPlayer1 = restartResponse.data.current_player_ids?.[0];
+      const firstPlayer2 = secondRestartResponse.data.current_player_ids?.[0];
+      if (firstPlayer1 !== firstPlayer2) {
+        console.log(`  ✅ First player alternated: ${firstPlayer1} → ${firstPlayer2}`);
       } else {
-        console.log(`  ⚠️  First player did not alternate (same player: ${restartResponse.data.current_player_id})`);
+        console.log(`  ⚠️  First player did not alternate (same player: ${firstPlayer1})`);
       }
 
-      // Step 8: Verify restart state
+      // Step 9: Verify restart state
       const restartTileMap = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`, {
         method: 'POST',
         body: JSON.stringify({

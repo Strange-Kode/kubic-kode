@@ -189,7 +189,8 @@ export class GameSession {
   }
 
   markStarted() {
-    this.resetWinCounter();
+    // Don't reset win counter here - it should persist across games in the same session
+    // this.resetWinCounter(); // Removed - win counter should only reset on session restart
     
     // Count only playable participants for game start requirement
     const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
