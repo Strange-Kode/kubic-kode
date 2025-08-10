@@ -239,7 +239,7 @@ export function useTicTacToe() {
   // Handle WebSocket events including win conditions
   const handleWebSocketEvent = useCallback(
     (data) => {
-      console.log("[useTicTacToe] WebSocket event received:", data);
+      // console.log("[useTicTacToe] WebSocket event received:", data);
 
       // Handle player won event
       if (data.type === "playerWon") {

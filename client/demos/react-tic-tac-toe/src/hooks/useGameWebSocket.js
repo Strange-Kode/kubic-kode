@@ -35,8 +35,8 @@ export function useGameWebSocket(sessionId, participantId, onEvent) {
     };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log(`[useGameWebSocket] Received WebSocket message:`, data);
-      console.log(`[useGameWebSocket] Message type: ${data.type}`);
+      // console.log(`[useGameWebSocket] Received WebSocket message:`, data);
+      // console.log(`[useGameWebSocket] Message type: ${data.type}`);
       onEventRef.current?.(data);
     };
 
