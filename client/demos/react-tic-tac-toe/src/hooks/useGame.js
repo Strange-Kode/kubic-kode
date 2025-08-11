@@ -19,6 +19,17 @@ export function useGame(sessionId, participantId, getGameToken) {
   // Fetch helper
   const { get, post } = useFetch();
 
+  // Helper function to extract current player ID from response data
+  const extractCurrentPlayerId = useCallback((data) => {
+    // Handle both array format (current_player_ids) and single value format (current_player_id)
+    if (data.current_player_id !== undefined) {
+      return data.current_player_id;
+    } else if (data.current_player_ids) {
+      return data.current_player_ids.length > 0 ? data.current_player_ids[0] : null;
+    }
+    return null;
+  }, []);
+
   // Fetch current game state (tilemap) - now uses POST with game token
   const fetchGameState = useCallback(async () => {
     if (!sessionId || !getGameToken) {
@@ -68,9 +79,8 @@ export function useGame(sessionId, participantId, getGameToken) {
 
       if (result.success) {
         // console.log("[useGame] Current players:", result.data.current_player_ids);
-        // For backward compatibility with existing UI, take the first player ID
-        const currentPlayerIds = result.data.current_player_ids || [];
-        setCurrentPlayerId(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
+        const currentPlayerId = extractCurrentPlayerId(result.data);
+        setCurrentPlayerId(currentPlayerId);
       } else {
         console.error(
           "[useGame] Failed to fetch current player:",
@@ -80,7 +90,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error fetching current player:", error);
     }
-  }, [sessionId, post, gameStarted, getGameToken]);
+  }, [sessionId, post, gameStarted, getGameToken, extractCurrentPlayerId]);
 
   // Start the game (called when session has 2 participants) - now uses POST with game token
   const startGame = useCallback(async () => {
@@ -115,9 +125,8 @@ export function useGame(sessionId, participantId, getGameToken) {
         // console.log("[useGame] Game started successfully:", result.data);
         setGameStarted(true);
         setGameActive(true);
-        // For backward compatibility with existing UI, take the first player ID
-        const currentPlayerIds = result.data.current_player_ids || [];
-        setCurrentPlayerId(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
+        const currentPlayerId = extractCurrentPlayerId(result.data);
+        setCurrentPlayerId(currentPlayerId);
 
         // Fetch initial game state after starting
         await fetchGameState();
@@ -135,7 +144,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } finally {
       setIsGameLoading(false);
     }
-  }, [sessionId, participantId, post, fetchGameState, getGameToken]);
+  }, [sessionId, participantId, post, fetchGameState, getGameToken, extractCurrentPlayerId]);
 
   // Check if game is active - now uses POST with game token
   const checkGameStatus = useCallback(async () => {

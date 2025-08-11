@@ -47,6 +47,38 @@ export class GameOptions {
     this._addOptionToNamespace('systemspace', key, defaultValue, lifecycle, validator, description);
   }
 
+  // Set the value of an existing option in userspace namespace (default)
+  setOption(key, value, namespace = 'userspace') {
+    const namespaceOptions = this.namespaces.get(namespace);
+    if (!namespaceOptions || !namespaceOptions.has(key)) {
+      throw new Error(`Option '${key}' does not exist in namespace '${namespace}'. Use addOption() to create it first.`);
+    }
+
+    const option = namespaceOptions.get(key);
+    
+    // Check if option is locked based on lifecycle and game state
+    if (option.locked) {
+      const lockReason = this._getLockReason(option.lifecycle, this.gameState);
+      throw new Error(`Cannot modify option '${key}': ${lockReason}`);
+    }
+
+    // Validate the new value if a validator exists
+    if (option.validator) {
+      const validationResult = option.validator(value);
+      if (validationResult !== true) {
+        throw new Error(`Invalid value for option '${key}': ${validationResult}`);
+      }
+    }
+
+    option.currentValue = value;
+    kubicLog.debug(`[GameOptions] Set option '${key}' in namespace '${namespace}' to:`, value);
+  }
+
+  // Set the value of an existing system option
+  setSystemOption(key, value) {
+    this.setOption(key, value, 'systemspace');
+  }
+
   // Internal method to add option to specific namespace
   _addOptionToNamespace(namespace, key, defaultValue, lifecycle, validator, description = '') {
     // Validate lifecycle value

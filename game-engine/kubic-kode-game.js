@@ -785,6 +785,20 @@ class KubicKodeGame extends GameInterface {
       },
       'Player inactivity timeout in milliseconds (how long a player has to make a move), or null for no timeout'
     );
+
+    // returnSinglePlayerId: Allows game routes to send player IDs as a single int value
+    this.gameOptions.addSystemOption(
+      'returnSinglePlayerId',
+      false,
+      'frozen',
+      (value) => {
+        if (typeof value !== 'boolean') {
+          return 'returnSinglePlayerId must be a boolean';
+        }
+        return true;
+      },
+      'When true, game routes return player IDs as a single int value instead of arrays of ints (requires single-set play style)'
+    );
   }
 
   // Method to record custom events

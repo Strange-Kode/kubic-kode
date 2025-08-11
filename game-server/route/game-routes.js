@@ -83,6 +83,43 @@ const processTileMapData = (tileMap) => {
   return responseTileMap;
 };
 
+// Helper function to format player IDs based on returnSinglePlayerId option
+const formatPlayerIds = (gameInstance, currentPlayerIds) => {
+  const returnSinglePlayerId = gameInstance.getGameOptions()?.getCurrentSystemValue('returnSinglePlayerId') || false;
+  
+  if (returnSinglePlayerId) {
+    // Validate requirements for returnSinglePlayerId
+    const playStyle = gameInstance.getGameEngine().getPlayStyle();
+    if (playStyle !== 'single-set') {
+      return {
+        error: true,
+        message: "returnSinglePlayerId option requires single-set play style",
+        details: `Current play style: ${playStyle}, required: single-set`
+      };
+    }
+    
+    if (currentPlayerIds.length !== 1) {
+      return {
+        error: true,
+        message: "returnSinglePlayerId option requires exactly one current player",
+        details: `Current players: ${currentPlayerIds.length}, required: 1`
+      };
+    }
+    
+    return {
+      success: true,
+      returnSinglePlayerId: true,
+      playerId: currentPlayerIds[0]
+    };
+  }
+  
+  return {
+    success: true,
+    returnSinglePlayerId: false,
+    playerIds: currentPlayerIds
+  };
+};
+
 // Shared function to handle game start logic
 const handleGameStart = (gameSession, options = {}, requestingParticipantId = null) => {
   const gameInstance = gameSession.getGameInstance();
@@ -97,11 +134,25 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     const currentPlayerIds = Array.isArray(currentPlayers) 
       ? currentPlayers.map(p => p.getPlayerId()) 
       : [currentPlayers?.getPlayerId()].filter(Boolean);
-    return {
-      current_player_ids: currentPlayerIds,
+    
+    // Format player IDs based on returnSinglePlayerId option
+    const formatResult = formatPlayerIds(gameInstance, currentPlayerIds);
+    if (formatResult.error) {
+      return formatResult;
+    }
+            
+    const result = {
       game_started: true,
       status: "Game already previously started",
     };
+            
+    if (formatResult.returnSinglePlayerId) {
+      result.current_player_id = formatResult.playerId;
+    } else {
+      result.current_player_ids = formatResult.playerIds;
+    }
+    
+    return result;
   }
 
   // Increment restart counter when starting a game with participants
@@ -183,9 +234,21 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
   const currentPlayerIds = Array.isArray(currentPlayers) 
     ? currentPlayers.map(p => p.getPlayerId()) 
     : [currentPlayers?.getPlayerId()].filter(Boolean);
-  result.current_player_ids = currentPlayerIds;
-  // Always return an array of first player IDs to support all play styles
-  result.first_player_ids = firstPlayerIds ? [firstPlayerIds] : [];
+  
+  // Format player IDs based on returnSinglePlayerId option
+  const formatResult = formatPlayerIds(gameInstance, currentPlayerIds);
+  if (formatResult.error) {
+    return formatResult;
+  }
+  
+  if (formatResult.returnSinglePlayerId) {
+    result.current_player_id = formatResult.playerId;
+    result.first_player_id = firstPlayerIds;
+  } else {
+    result.current_player_ids = formatResult.playerIds;
+    // Always return an array of first player IDs to support all play styles
+    result.first_player_ids = firstPlayerIds ? [firstPlayerIds] : [];
+  }
   result.game_started = true;
   result.status = "New game created";
 
@@ -284,9 +347,22 @@ gameRouter.post("/game/get-current-player/:sessionId", validateGameTokenWithPart
   const currentPlayerIds = Array.isArray(currentPlayers) 
     ? currentPlayers.map(p => p.getPlayerId()) 
     : [currentPlayers?.getPlayerId()].filter(Boolean);
-  res.json({
-    current_player_ids: currentPlayerIds,
-  });
+  
+  // Format player IDs based on returnSinglePlayerId option
+  const formatResult = formatPlayerIds(gameInstance, currentPlayerIds);
+  if (formatResult.error) {
+    return res.status(400).json(formatResult);
+  }
+  
+  if (formatResult.returnSinglePlayerId) {
+    res.json({
+      current_player_id: formatResult.playerId,
+    });
+  } else {
+    res.json({
+      current_player_ids: formatResult.playerIds,
+    });
+  }
 });
 
 gameRouter.post("/game/is-active/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {

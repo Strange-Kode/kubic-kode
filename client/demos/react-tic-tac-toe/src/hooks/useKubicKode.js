@@ -24,6 +24,18 @@ export function useKubicKode(gameId = null) {
   // Fetch helper
   const { get, post } = useFetch();
 
+  // Helper function to extract current player ID from response data
+  const extractCurrentPlayerId = useCallback((data) => {
+    // Handle both array format (current_player_ids) and single value format (current_player_id)
+    if (data.current_player_id !== undefined) {
+      // returnSinglePlayerId format: single player ID
+      return data.current_player_id;
+    } else if (data.current_player_ids) {
+      return data.current_player_ids.length > 0 ? data.current_player_ids[0] : null;
+    }
+    return null;
+  }, []);
+
   // Game token management helpers
   const storeGameToken = useCallback((sessionId, participantId, gameToken) => {
     try {
@@ -271,12 +283,14 @@ export function useKubicKode(gameId = null) {
     return result;
   }, [sessionId, participantId, apiCall, post, getGameToken]);
 
-  const fetchCurrentPlayer = useCallback(async () => {
-    if (!sessionId) return;
-    
+  const getCurrentPlayer = useCallback(async () => {
+    if (!sessionId) {
+      return;
+    }
+
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn('[useKubicKode] No game token available for fetchCurrentPlayer');
+      console.warn('[useKubicKode] No game token available for getCurrentPlayer');
       return;
     }
 
@@ -285,12 +299,11 @@ export function useKubicKode(gameId = null) {
     });
 
     if (result.success) {
-      // For backward compatibility with existing UI, take the first player ID
-      const currentPlayerIds = result.data.current_player_ids || [];
-      setCurrentPlayer(currentPlayerIds.length > 0 ? currentPlayerIds[0] : null);
+      const currentPlayerId = extractCurrentPlayerId(result.data);
+      setCurrentPlayer(currentPlayerId);
     }
     return result;
-  }, [sessionId, participantId, apiCall, post, getGameToken]);
+  }, [sessionId, participantId, apiCall, post, getGameToken, extractCurrentPlayerId]);
 
   const checkGameActive = useCallback(async () => {
     if (!sessionId) return false;
@@ -412,10 +425,10 @@ export function useKubicKode(gameId = null) {
     if (sessionId) {
       fetchParticipants();
       fetchTileMap();
-      fetchCurrentPlayer();
+      getCurrentPlayer();
       checkGameActive();
     }
-  }, [sessionId, fetchParticipants, fetchTileMap, fetchCurrentPlayer, checkGameActive]);
+  }, [sessionId, fetchParticipants, fetchTileMap, getCurrentPlayer, checkGameActive]);
 
   // Determine if current user is host (first participant)
   const isHost = participants.length > 0 && participants[0]?.id === participantId;
@@ -448,7 +461,7 @@ export function useKubicKode(gameId = null) {
     stopGame,
     playTurn,
     fetchTileMap,
-    fetchCurrentPlayer,
+    getCurrentPlayer,
     checkGameActive,
 
     // Voting

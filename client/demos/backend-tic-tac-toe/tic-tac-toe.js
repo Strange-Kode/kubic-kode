@@ -48,6 +48,9 @@ class TicTacToeGame {
     // - turnOrderType: How turn order is determined (pre-start) 
     // - allowSpectatorVoting: Whether spectators can vote (runtime)
     // - inactivityTimeout: Player inactivity timeout in ms (runtime)
+    // - returnSinglePlayerId: Return player ID as a single value instead of array (frozen)
+    //   (e.g. if true then [1] => 1, if false then [1] => [1])
+    //   (true only allowed if game play style is set to single-set)
 
     // Example: Read a system option
     // const firstParticipant = this.getGameOptions().readSystemOption('participantPlaysFirst');
@@ -64,6 +67,11 @@ class TicTacToeGame {
       }
       return true;
     });
+
+    // Set returnSinglePlayerId option to true for TicTacToe
+    // This allows the game routes to return player ID as a single int value instead of array of ints
+    // TicTacToe uses single-set play style and always has exactly one current player
+    this.getGameOptions().setSystemOption("returnSinglePlayerId", true);
   }
 
   addPlayer(name, isComputer = false) {

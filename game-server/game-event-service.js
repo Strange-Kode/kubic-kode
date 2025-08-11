@@ -54,13 +54,6 @@ function initWebSocketServer(server) {
                 if (message.type === 'heartbeat') {
                     handleHeartbeat(sessionId, participantId, ws);
                 }
-                // TODO: this should be handled elsewhere in the code (#99)
-                /* else if (message.type === 'gameAction') {
-                    // Reset timeout on any game action
-                    if (participantId) {
-                        resetParticipantTimeout(sessionId, participantId);
-                    }
-                } */
             } catch (error) {
                 kubicLog.error(`[GameEventService]::initWebSocketServer: Error parsing message:`, error);
             }
