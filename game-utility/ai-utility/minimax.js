@@ -105,6 +105,17 @@ export function minimaxTicTacToe(tileMap, computerMark, humanMark, maxDepth = 9)
   /**
    * Check if someone has won the game
    */
+
+  function getMarkType(tile) {
+    if (!tile) {
+      return null;
+    }
+    if (tile.getMarkType) {
+      return tile.getMarkType();
+    }
+    return tile.type;
+  }
+
   function checkWinner(board) {
     const size = 3; // Standard tic-tac-toe is 3x3
     
@@ -113,7 +124,7 @@ export function minimaxTicTacToe(tileMap, computerMark, humanMark, maxDepth = 9)
       const row = [];
       for (let x = 0; x < size; x++) {
         const tile = board[y] && board[y][x];
-        row.push(tile ? tile.type : null);
+        row.push(getMarkType(tile));
       }
       if (row[0] && row[0] === row[1] && row[1] === row[2]) {
         return row[0];
@@ -125,7 +136,7 @@ export function minimaxTicTacToe(tileMap, computerMark, humanMark, maxDepth = 9)
       const col = [];
       for (let y = 0; y < size; y++) {
         const tile = board[y] && board[y][x];
-        col.push(tile ? tile.type : null);
+        col.push(getMarkType(tile));
       }
       if (col[0] && col[0] === col[1] && col[1] === col[2]) {
         return col[0];
@@ -134,18 +145,18 @@ export function minimaxTicTacToe(tileMap, computerMark, humanMark, maxDepth = 9)
     
     // Check diagonals
     const diag1 = [
-      board[0] && board[0][0] ? board[0][0].type : null,
-      board[1] && board[1][1] ? board[1][1].type : null,
-      board[2] && board[2][2] ? board[2][2].type : null
+      board[0] && board[0][0] ? getMarkType(board[0][0]) : null,
+      board[1] && board[1][1] ? getMarkType(board[1][1]) : null,
+      board[2] && board[2][2] ? getMarkType(board[2][2]) : null
     ];
     if (diag1[0] && diag1[0] === diag1[1] && diag1[1] === diag1[2]) {
       return diag1[0];
     }
     
     const diag2 = [
-      board[0] && board[0][2] ? board[0][2].type : null,
-      board[1] && board[1][1] ? board[1][1].type : null,
-      board[2] && board[2][0] ? board[2][0].type : null
+      board[0] && board[0][2] ? getMarkType(board[0][2]) : null,
+      board[1] && board[1][1] ? getMarkType(board[1][1]) : null,
+      board[2] && board[2][0] ? getMarkType(board[2][0]) : null
     ];
     if (diag2[0] && diag2[0] === diag2[1] && diag2[1] === diag2[2]) {
       return diag2[0];

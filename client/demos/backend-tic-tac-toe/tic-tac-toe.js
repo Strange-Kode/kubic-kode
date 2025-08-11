@@ -195,8 +195,8 @@ class TicTacToeGame {
       { dx: 1, dy: -1 }, // diagonal /
     ];
 
-    const { x, y } = lastMark.position;
-    const targetType = lastMark.type;
+    const { x, y } = lastMark.getEntityPosition();
+    const targetType = lastMark.getMarkType();
 
     for (const { dx, dy } of directions) {
       let count = 1;
@@ -225,7 +225,7 @@ class TicTacToeGame {
 
     while (this._engine.getTileMap().inBounds(x, y)) {
       const tile = this._engine.getTileMap().getTile(x, y);
-      if (!tile || tile.type !== type) {
+      if (!tile || tile.getMarkType() !== type) {
         break;
       }
       count++;
@@ -391,7 +391,7 @@ class TicTacToeGame {
 
     for (const line of lines) {
       const ownMarks = line.filter(
-        (tile) => tile.tile && tile.tile.type === mark
+        (tile) => tile.tile && tile.tile.getMarkType() === mark
       );
       const emptyTiles = line.filter((tile) => tile.tile === null);
 
@@ -411,7 +411,7 @@ class TicTacToeGame {
 
     for (const line of lines) {
       const opponentMarks = line.filter(
-        (tile) => tile.tile && tile.tile.type === opponentMark
+        (tile) => tile.tile && tile.tile.getMarkType() === opponentMark
       );
       const emptyTiles = line.filter((tile) => tile.tile === null);
 

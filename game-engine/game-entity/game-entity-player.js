@@ -8,12 +8,12 @@ export class GameEntityPlayer extends GameEntity {
     }
 
     moveTo(x, y) {
-        this.position = { x, y };
-        kubicLog.debug(`[GameEntityPlayer]::moveTo: ${this.name} moved to (${x}, ${y})`);
+        this._position = { x, y };
+        kubicLog.debug(`[GameEntityPlayer]::moveTo: ${this.getEntityName()} moved to (${x}, ${y})`);
     }
 
     update() {
         // Example AI or player logic per turn/frame
-        kubicLog.debug(`[GameEntityPlayer]::update: ${this.name} is waiting for action...`);
+        kubicLog.debug(`[GameEntityPlayer]::update: ${this.getEntityName()} is waiting for action...`);
     }
 }

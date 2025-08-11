@@ -417,8 +417,9 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   const currentPlayerIds = Array.isArray(currentPlayers) 
     ? currentPlayers.map(p => p.getPlayerId()) 
     : [currentPlayers?.getPlayerId()];
+  
   if (!currentPlayerIds.includes(playerId)) {
-    return res.status(400).json({ error: "It's not your turn." });
+    return res.status(400).json({ error: `It's not your turn (playerId: ${playerId}). Current player ids: ` + currentPlayerIds.join(", ") });
   }
 
   // Play the turn - pass turnData consistently for all games

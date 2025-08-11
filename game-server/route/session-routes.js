@@ -131,7 +131,7 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
   const { participantId } = req.body;
   const gameSession = req.gameSession;
 
-  // TODO: Validate that current user that's calling leave is authorized to do so.
+  // TODO: Require participant token to be provided in the request body
 
   try {
     let participant = gameSession.getParticipantById(participantId);

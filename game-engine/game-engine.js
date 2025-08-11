@@ -53,9 +53,9 @@ export class GameEngine {
 
   registerPlayerEntity(entity) {
     // Check if player is already registered to prevent duplicates
-    const existingPlayer = this._player_entities.find(e => e.id === entity.id);
+    const existingPlayer = this._player_entities.find(e => e.getPlayerId() === entity.getPlayerId());
     if (existingPlayer) {
-      kubicLog.warn(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
+      kubicLog.warn(`[GameEngine] Player ${entity.getPlayerId()} already registered, skipping duplicate registration`);
       return; // Don't add duplicate players
     }
     
@@ -63,16 +63,16 @@ export class GameEngine {
     
     // Register viewport for scrollable tile map if available
     if (this._useScrollableTileMap && this._scrollableManager && entity.viewport) {
-      this._scrollableManager.registerPlayerViewport(entity.id, entity.viewport);
+      this._scrollableManager.registerPlayerViewport(entity.getPlayerId(), entity.viewport);
     }
     
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
-      this._turnOrder = this._player_entities.map(e => e.id);
+      this._turnOrder = this._player_entities.map(e => e.getPlayerId());
     }
     // For multi-subset, only set turnOrder if not already set
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 0) {
-      this._turnOrder = [this._player_entities.map(e => e.id)];
+      this._turnOrder = [this._player_entities.map(e => e.getPlayerId())];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
@@ -87,7 +87,7 @@ export class GameEngine {
   }
 
   deregisterPlayerEntity(entityId) {
-    this._player_entities = this._player_entities.filter(e => e.id !== entityId);
+    this._player_entities = this._player_entities.filter(e => e.getPlayerId() !== entityId);
     
     // Unregister viewport for scrollable tile map if available
     if (this._useScrollableTileMap && this._scrollableManager) {
@@ -96,11 +96,11 @@ export class GameEngine {
     
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
-      this._turnOrder = this._player_entities.map(e => e.id);
+      this._turnOrder = this._player_entities.map(e => e.getPlayerId());
     }
     // For multi-subset, only update if turnOrder was default
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 1) {
-      this._turnOrder = [this._player_entities.map(e => e.id)];
+      this._turnOrder = [this._player_entities.map(e => e.getPlayerId())];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
@@ -110,9 +110,9 @@ export class GameEngine {
   }
   
   getPlayerEntity(playerId) {
-    const playerEntity = this._player_entities.find(e => e.id === playerId);
+    const playerEntity = this._player_entities.find(e => e.getPlayerId() === playerId);
     if (!playerEntity) {
-      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.id).join(', ')}.`);
+      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(', ')}.`);
     }
     return playerEntity;
   }
@@ -144,17 +144,23 @@ export class GameEngine {
 
   getCurrentTurnPlayers() {
     if (this._playStyle === "single-set") {
+      // Safety check for empty turn order
+      if (this._turnOrder.length === 0) {
+        kubicLog.warn(`[GameEngine] Turn order is empty, returning first player entity`);
+        return this._player_entities.length > 0 ? this._player_entities[0] : null;
+      }
+      
       const playerId = this._turnOrder[this._currentTurnIndex];
-      return this._player_entities.find(e => e.id === playerId);
+      return this._player_entities.find(e => e.getPlayerId() === playerId);
     }
     else if (this._playStyle === "multi-set") {
       // All players act simultaneously
-      return this._player_entities.filter(e => this._turnOrder.includes(e.id));
+      return this._player_entities.filter(e => this._turnOrder.includes(e.getPlayerId()));
     }
     else if (this._playStyle === "multi-subset") {
       // Return the current subset (array of player entities)
       const currentSubset = this._turnOrder[this._currentTurnIndex];
-      return this._player_entities.filter(e => currentSubset.includes(e.id));
+      return this._player_entities.filter(e => currentSubset.includes(e.getPlayerId()));
     }
     else if (this._playStyle === "non-blocking") {
       // All players can act at any time - no turn restrictions
@@ -165,7 +171,7 @@ export class GameEngine {
   }
 
   getPlayerById(playerId) {
-    return this._player_entities.find(e => e.id === playerId);
+    return this._player_entities.find(e => e.getPlayerId() === playerId);
   }
 
   nextTurn(playerId = null) {
@@ -257,9 +263,9 @@ export class GameEngine {
     // For other play styles, check if player is in current turn players
     const currentPlayers = this.getCurrentTurnPlayers();
     if (Array.isArray(currentPlayers)) {
-      return currentPlayers.some(player => player.id === playerId);
+      return currentPlayers.some(player => player.getPlayerId() === playerId);
     }
-    return currentPlayers && currentPlayers.id === playerId;
+    return currentPlayers && currentPlayers.getPlayerId() === playerId;
   }
   
   /**
