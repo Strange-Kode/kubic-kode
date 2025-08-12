@@ -1,17 +1,21 @@
 class GameRegistry {
   constructor() {
-    this.registry = new Map();
+    this.__registry = new Map();
+  }
+
+  get registry() {
+    throw new Error("Attempting to access registry property on GameRegistry. Not allowed, registry is a private property.");
   }
 
   register(gameVariantId, gameFactory) {
-    if (this.registry.has(gameVariantId)) {
+    if (this.__registry.has(gameVariantId)) {
       throw new Error(`Variant "${gameVariantId}" already registered.`);
     }
-    this.registry.set(gameVariantId, gameFactory);
+    this.__registry.set(gameVariantId, gameFactory);
   }
 
   createGameInstance(gameVariantId, sessionId, options = {}) {
-    const factory = this.registry.get(gameVariantId);
+    const factory = this.__registry.get(gameVariantId);
     if (!factory) {
       throw new Error(`Unknown variant: ${gameVariantId}`);
     }

@@ -18,6 +18,15 @@ export class GameHistory {
     INVALID_TURN_ATTEMPTED: 'invalidTurnAttempted'
   };
 
+  constructor(sessionId) {
+    this._sessionId = sessionId;
+    this._gameHistory = [];
+  }
+
+  get sessionId() {
+    throw new Error("Attempting to access sessionId property on GameHistory. Not allowed, sessionId is a protected property.");
+  }
+
   // Get all valid game history event type strings
   static getValidEventTypes() {
     return Object.values(GameHistory.GAME_HISTORY_EVENT_TYPES);
@@ -26,11 +35,6 @@ export class GameHistory {
   // Check if an event type is a valid game history event
   static isValidEventType(eventType) {
     return GameHistory.getValidEventTypes().includes(eventType);
-  }
-
-  constructor(sessionId) {
-    this.sessionId = sessionId;
-    this._gameHistory = [];
   }
 
   // Read-only access to game history
@@ -60,7 +64,7 @@ export class GameHistory {
       participantId: event.participantId || null,
       payload: event.payload || {},
       timestamp: event.timestamp || new Date(),
-      sessionId: this.sessionId
+      sessionId: this._sessionId
     };
     
     this._gameHistory.push(historyEvent);
