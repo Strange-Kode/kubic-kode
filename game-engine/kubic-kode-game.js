@@ -138,7 +138,7 @@ class KubicKodeGame extends GameInterface {
       // Get the player entity to save player information
       const player = this.__gameInstance.getGameEngine().getPlayerById(playerId);
       
-      this.__gameSession.gameHistory.addTurnPlayedEvent(
+      this.__gameSession.getGameHistory().addTurnPlayedEvent(
         playStatus.playerId,
         this.getParticipantIdForPlayer(playerId),
         {
@@ -162,7 +162,7 @@ class KubicKodeGame extends GameInterface {
         console.log(`[KubicKodeGame] Participant ID for player ${playerId}: ${participantId}`);
         
         try {
-          this.__gameSession.gameHistory.addPlayerWonEvent(
+          this.__gameSession.getGameHistory().addPlayerWonEvent(
             playStatus.access('playerId'),
             participantId,
             {
@@ -184,7 +184,7 @@ class KubicKodeGame extends GameInterface {
 
       // Record tie if it occurred and stop the game
       if (playStatus.access('gameIsTied')) {
-        this.__gameSession.gameHistory.addGameTiedEvent({
+        this.__gameSession.getGameHistory().addGameTiedEvent({
           finalPosition: { x, y },
           gameState: "tied",
         });
@@ -196,7 +196,7 @@ class KubicKodeGame extends GameInterface {
     } else {
       // Record invalid turn attempt - extract position data for history
       const { xPos: x, yPos: y } = turnData;
-      this.__gameSession.gameHistory.addInvalidTurnAttemptedEvent(
+      this.__gameSession.getGameHistory().addInvalidTurnAttemptedEvent(
         playerId,
         this.getParticipantIdForPlayer(playerId),
         {
@@ -217,7 +217,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record player addition event
     if (this.__gameSession) {
-      this.__gameSession.gameHistory.addPlayerAddedEvent(
+      this.__gameSession.getGameHistory().addPlayerAddedEvent(
         player.getPlayerId(),
         this.getParticipantIdForPlayer(player.getPlayerId()),
         {
@@ -245,7 +245,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record game start event
     if (this.__gameSession) {
-      this.__gameSession.gameHistory.addGameInstanceStartedEvent({
+      this.__gameSession.getGameHistory().addGameInstanceStartedEvent({
         playerCount: this.__gameInstance.getGameEngine().getPlayerEntities()
           .length,
         gameType: this.__gameInstance.constructor.name,
@@ -273,7 +273,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record inactivity win event
     if (this.__gameSession && inactivityResult.winnerPlayerId) {
-      this.__gameSession.gameHistory.addPlayerWonEvent(
+      this.__gameSession.getGameHistory().addPlayerWonEvent(
         inactivityResult.winnerPlayerId,
         this.getParticipantIdForPlayer(inactivityResult.winnerPlayerId),
         {
@@ -299,7 +299,7 @@ class KubicKodeGame extends GameInterface {
 
     // Record game reset event
     if (this.__gameSession) {
-      this.__gameSession.gameHistory.addGameInstanceResetEvent({
+      this.__gameSession.getGameHistory().addGameInstanceResetEvent({
         gameType: this.__gameInstance.constructor.name,
         resetReason: "restart",
       });
@@ -372,7 +372,7 @@ class KubicKodeGame extends GameInterface {
       ? this.__gameInstance.stopGame()
       : this.__gameInstance.getGameEngine().stopGame();
 
-    this.__gameSession.gameHistory.addGameStoppedEvent({
+    this.__gameSession.getGameHistory().addGameStoppedEvent({
       reason: "manual",
       timestamp: new Date().toISOString(),
     });
@@ -820,7 +820,7 @@ class KubicKodeGame extends GameInterface {
   // Method to record custom events
   recordCustomEvent(eventType, playerId, payload = {}) {
     if (this.__gameSession) {
-      this.__gameSession.gameHistory.addEvent({
+      this.__gameSession.getGameHistory().addEvent({
         type: eventType,
         playerId: playerId,
         participantId: this.getParticipantIdForPlayer(playerId),

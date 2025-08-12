@@ -23,9 +23,9 @@ sessionRouter.get("/session/init/:gameId", (req, res) => {
     session_created = true;
   }
   kubicLog.info(`session-routes.js::session created: ${session_created}`);
-  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.getSessionId()}`);
   res.json({
-    session_id: sessionState.sessionId,
+    session_id: sessionState.getSessionId(),
     session_created: session_created,
   });
 });
@@ -45,9 +45,9 @@ sessionRouter.post("/session/init/:gameId", (req, res) => {
     session_created = true;
   }
   kubicLog.info(`session-routes.js::session created: ${session_created}`);
-  kubicLog.info(`session-routes.js::session id: ${sessionState.sessionId}`);
+  kubicLog.info(`session-routes.js::session id: ${sessionState.getSessionId()}`);
   res.json({
-    session_id: sessionState.sessionId,
+    session_id: sessionState.getSessionId(),
     session_created: session_created,
   });
 });
@@ -171,13 +171,13 @@ sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddl
   const spectatorParticipants = gameSession.getSpectatorParticipants();
 
   res.json({
-    sessionId: gameSession.sessionId,
-    maxParticipants: gameSession.maxParticipants,
+    sessionId: gameSession.getSessionId(),
+    maxParticipants: gameSession.getMaxParticipants(),
     total: allParticipants.length,
     players: playableParticipants.length,
     spectators: spectatorParticipants.length,
-    canStart: playableParticipants.length >= gameSession.maxParticipants,
-    started: gameSession.started,
+    canStart: playableParticipants.length >= gameSession.getMaxParticipants(),
+    started: gameSession.isStarted(),
   });
 });
 
@@ -243,7 +243,7 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
           type: "restartVoteResult",
           payload: {
             allAgreed,
-            votes: gameSession.restartVote.votes,
+            votes: gameSession.getRestartVote().votes,
           },
         });
 

@@ -5,15 +5,15 @@ import { kubicLog } from "../kubic-log.js";
 
 export class GameSession {
   constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
-    this.sessionId = sessionId;
-    this.maxParticipants = maxParticipants;
-    this.gameVariantId = gameVariantId;
-    this.participants = []; // { id, name, type }
-    this.started = false;
-    this.participant_alloc_idx = 0;
-    this.winCounter = 0;
-    this.restartCounter = 0; // Track number of game restarts for alternating first player
-    this.gameInstance = null;
+    this._sessionId = sessionId;
+    this._maxParticipants = maxParticipants;
+    this._gameVariantId = gameVariantId;
+    this._participants = []; // { id, name, type }
+    this._started = false;
+    this.__participant_alloc_idx = 0;
+    this._winCounter = 0;
+    this._restartCounter = 0; // Track number of game restarts for alternating first player
+    this._gameInstance = null;
     
     // Host information
     this._hostId = null;
@@ -25,66 +25,78 @@ export class GameSession {
     this._syncPhase = false; // Whether in sync/ready check phase
     this._chatMessages = []; // { id, participantId, participantName, message, timestamp, type }
 
-    this.restartVote = null; // { votes: {}, totalParticipants: N }
-    this.inactivityManager = null;
-    this.participantTokens = new Map(); // participantId -> encrypted game token
+    this._restartVote = null; // { votes: {}, totalParticipants: N }
+    this._inactivityManager = null;
+    this.__participantTokens = new Map(); // participantId -> encrypted game token
 
     // Connection management
     this._connectionStatus = new Map(); // participantId -> { connected: boolean, lastSeen: Date, reconnectionAttempts: number }
     this._heartbeatStarted = false;
 
     // Get game history from the manager (returns a proxy)
-    this.gameHistory = gameHistoryManager.getGameHistory(sessionId);
+    this._gameHistory = gameHistoryManager.getGameHistory(sessionId);
+  }
+
+  getGameInstance() {
+    return this._gameInstance;
   }
 
   setGameInstance(gameInstance) {
-    this.gameInstance = gameInstance;
+    this._gameInstance = gameInstance;
+  }
+
+  get winCounter() {
+    throw new Error("Attempting to access winCounter property on GameSession. Not allowed, winCounter is a protected property. Use getWinCounter() instead.");
   }
 
   getWinCounter() {
-    return this.winCounter;
+    return this._winCounter;
   }
 
   increaseWinCounter() {
-    this.winCounter++;
+    this._winCounter++;
   }
 
   resetWinCounter() {
-    this.winCounter = 0;
+    this._winCounter = 0;
+  }
+
+  get restartCounter() {
+    throw new Error("Attempting to access restartCounter property on GameSession. Not allowed, restartCounter is a protected property. Use getRestartCounter() instead.");
   }
 
   getRestartCounter() {
-    return this.restartCounter;
+    return this._restartCounter;
   }
 
   increaseRestartCounter() {
-    this.restartCounter++;
+    this._restartCounter++;
   }
 
   resetRestartCounter() {
-    this.restartCounter = 0;
+    this._restartCounter = 0;
   }
 
   allocateParticipantId() {
-    this.participant_alloc_idx++;
-    return this.participant_alloc_idx;
+    this.__participant_alloc_idx++;
+    return this.__participant_alloc_idx;
   }
 
   addParticipant(name, participant_type = 'user') {
     // Validate unique names within session
-    const existingName = this.participants.find(p => p.name === name);
+    const existingName = this._participants.find(p => p.name === name);
     if (existingName) {
       throw new Error(`Participant name '${name}' is already in use. Names must be unique within the session.`);
     }
 
     // Only count playable participants (user, computer) against maxParticipants limit
     // Spectators can join even when the game is "full"
-    const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
-    if (participant_type !== 'spectator' && playableParticipants.length >= this.maxParticipants) {
+    const playableParticipants = this._participants.filter(p => this.isParticipantPlayable(p));
+    if (participant_type !== 'spectator' && playableParticipants.length >= this._maxParticipants) {
       throw new Error("Game session is full.");
     }
 
-    if (this.started && participant_type !== 'spectator') {
+    if (this._started && participant_type !== 'spectator') {
       throw new Error("Cannot join. Game session has already started.");
     }
 
@@ -95,7 +107,7 @@ export class GameSession {
 
     const participantId = this.allocateParticipantId();
 
-    const existing = this.participants.find((p) => p.id === participantId);
+    const existing = this._participants.find((p) => p.id === participantId);
     if (existing) {
       throw new Error("Participant with this ID already exists.");
     }
@@ -109,7 +121,7 @@ export class GameSession {
       disconnectedAt: null
     };
 
-    this.participants.push(participant);
+    this._participants.push(participant);
 
     // Initialize connection status
     this._connectionStatus.set(participantId, {
@@ -130,31 +142,31 @@ export class GameSession {
 
     // Generate a game token for this participant
     this.generateParticipantToken(participantId).then(token => {
-      this.participantTokens.set(participantId, token);
-      kubicLog.info(`[GameSession]::generateParticipantToken -  Generated game token for participant ${participantId} (${name}) in session ${this.sessionId}`);
+      this.__participantTokens.set(participantId, token);
+      kubicLog.info(`[GameSession]::generateParticipantToken -  Generated game token for participant ${participantId} (${name}) in session ${this._sessionId}`);
     }).catch(error => {
       kubicLog.error(`[GameSession]::generateParticipantToken - Failed to generate game token for participant ${participantId}:`, error);
     });
 
     // Add to game history
-    this.gameHistory.addParticipantJoinedEvent(participantId, name, participant_type);
+    this._gameHistory.addParticipantJoinedEvent(participantId, name, participant_type);
 
     return participantId;
   }
 
   removeParticipant(id) {
-    const index = this.participants.findIndex((p) => p.id === id);
+    const index = this._participants.findIndex((p) => p.id === id);
 
     if (index === -1) {
       throw new Error("Participant not found.");
     }
 
-    const participant = this.participants[index];
-    this.participants.splice(index, 1);
+    const participant = this._participants[index];
+    this._participants.splice(index, 1);
 
     // Remove from ready states and tokens
     this._readyStates.delete(id);
-    this.participantTokens.delete(id);
+    this.__participantTokens.delete(id);
 
     // Remove connection status
     this._connectionStatus.delete(id);
@@ -165,18 +177,18 @@ export class GameSession {
       this._hostInfo = null;
       
       // Find next eligible host (first playable participant)
-      const nextHost = this.participants.find(p => this.isParticipantPlayable(p));
+      const nextHost = this._participants.find(p => this.isParticipantPlayable(p));
       if (nextHost) {
         this.setHost(nextHost.id, nextHost.name);
       }
     }
 
     // Add to game history
-    this.gameHistory.addParticipantLeftEvent(id, participant.name);
+    this._gameHistory.addParticipantLeftEvent(id, participant.name);
   }
 
   listParticipants() {
-    return this.participants.map((p) => ({ 
+    return this._participants.map((p) => ({ 
       id: p.id, 
       name: p.name, 
       type: p.type || 'user',
@@ -184,8 +196,28 @@ export class GameSession {
     }));
   }
 
+  get participants() {
+    throw new Error("Attempting to access participants property on GameSession. Not allowed, participants is a protected property. Use getParticipants() instead.");
+  }
+
   getParticipants() {
-    return this.participants;
+    return this._participants;
+  }
+
+  get maxParticipants() {
+    throw new Error("Attempting to access maxParticipants property on GameSession. Not allowed, maxParticipants is a protected property. Use getMaxParticipants() instead.");
+  }
+
+  getMaxParticipants() {
+    return this._maxParticipants;
+  }
+
+  get started() {
+    throw new Error("Attempting to access started property on GameSession. Not allowed, started is a protected property. Use isStarted() instead.");
+  }
+
+  isStarted() {
+    return this._started;
   }
 
   markStarted() {
@@ -193,107 +225,115 @@ export class GameSession {
     // this.resetWinCounter(); // Removed - win counter should only reset on session restart
     
     // Count only playable participants for game start requirement
-    const playableParticipants = this.participants.filter(p => this.isParticipantPlayable(p));
+    const playableParticipants = this._participants.filter(p => this.isParticipantPlayable(p));
     if (playableParticipants.length < 2) {
       throw new Error("Cannot start game. Not enough players (need at least 2 playable participants).");
     }
 
-    if (this.inactivityManager) {
-      this.inactivityManager.clearTimer();
-      this.inactivityManager = null;
+    if (this._inactivityManager) {
+      this._inactivityManager.clearTimer();
+      this._inactivityManager = null;
     }
 
-    this.started = true;
-    if (this.gameInstance.handleInactivity) {
-      const inactivityManager = new InactivityManager(this, this.gameInstance);
-      this.inactivityManager = inactivityManager;
+    this._started = true;
+    if (this._gameInstance.handleInactivity) {
+      const inactivityManager = new InactivityManager(this, this._gameInstance);
+      this._inactivityManager = inactivityManager;
       inactivityManager.startTimer();
     } else {
-      this.inactivityManager = null;
+      this._inactivityManager = null;
     }
 
     // Start heartbeat for the session
     this.startHeartbeat();
 
     // Add to game history
-    this.gameHistory.addSessionStartedEvent(this.participants);
+    this._gameHistory.addSessionStartedEvent(this._participants);
   }
 
   markEnded() {
-    this.started = false;
-    if (this.inactivityManager) {
-      this.inactivityManager.clearTimer();
+    this._started = false;
+    if (this._inactivityManager) {
+      this._inactivityManager.clearTimer();
     }
 
     // Stop heartbeat
     this.stopHeartbeat();
 
     // Add to game history
-    this.gameHistory.addSessionEndedEvent(this.participants.length);
-  }
-
-  getGameInstance() {
-    return this.gameInstance;
+    this._gameHistory.addSessionEndedEvent(this._participants.length);
   }
 
   getParticipantById(id) {
     // Convert id to number if it's a string, since participant IDs are numbers
     const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
-    return this.participants.find((p) => p.id === numericId) || null;
+    return this._participants.find((p) => p.id === numericId) || null;
   }
 
   getPlayableParticipants() {
-    return this.participants.filter(p => this.isParticipantPlayable(p));
+    return this._participants.filter(p => this.isParticipantPlayable(p));
   }
 
   getSpectatorParticipants() {
-    return this.participants.filter(p => p.type === 'spectator');
+    return this._participants.filter(p => p.type === 'spectator');
   }
 
   isParticipantPlayable(participant) {
     return ['user', 'computer'].includes(participant.type);
   }
 
+  get sessionId() {
+    throw new Error("Attempting to access sessionId property on GameSession. Not allowed, sessionId is a protected property. Use getSessionId() instead.");
+  }
+
   getSessionId() {
-    return this.sessionId;
+    return this._sessionId;
+  }
+
+  get gameVariantId() {
+    throw new Error("Attempting to access gameVariantId property on GameSession. Not allowed, gameVariantId is a protected property. Use getGameVariantId() instead.");
+  }
+
+  getGameVariantId() {
+    return this._gameVariantId;
   }
 
   startRestartVote() {
     // Only count playable participants (users and computers) for voting
     const playableParticipants = this.getPlayableParticipants();
-    this.restartVote = {
+    this._restartVote = {
       votes: {}, // participantId => true/false
       totalParticipants: playableParticipants.length,
     };
 
     // Add to game history with playable participants count
-    this.gameHistory.addRestartVoteStartedEvent(playableParticipants.length);
+    this._gameHistory.addRestartVoteStartedEvent(playableParticipants.length);
   }
 
   registerRestartVote(participantId, voteYes) {
-    if (!this.restartVote) {
+    if (!this._restartVote) {
       throw new Error("No active restart vote.");
     }
 
-    this.restartVote.votes[participantId] = voteYes;
+    this._restartVote.votes[participantId] = voteYes;
 
     // Add to game history
-    this.gameHistory.addRestartVoteRegisteredEvent(
+    this._gameHistory.addRestartVoteRegisteredEvent(
       participantId,
       voteYes,
-      Object.keys(this.restartVote.votes).length
+      Object.keys(this._restartVote.votes).length
     );
   }
 
   isRestartVoteInProgress() {
-    return this.restartVote !== null;
+    return this._restartVote !== null;
   }
 
   isRestartVoteComplete() {
-    if (!this.restartVote) return false;
+    if (!this._restartVote) return false;
     return (
-      Object.keys(this.restartVote.votes).length ===
-      this.restartVote.totalParticipants
+      Object.keys(this._restartVote.votes).length ===
+      this._restartVote.totalParticipants
     );
   }
 
@@ -301,23 +341,39 @@ export class GameSession {
     if (!this.isRestartVoteComplete()) {
       throw new Error("Vote not complete.");
     }
-    return Object.values(this.restartVote.votes).every((v) => v === true);
+    return Object.values(this._restartVote.votes).every((v) => v === true);
   }
 
   clearRestartVote() {
-    const voteResult = this.restartVote ? this.getRestartVoteResult() : null;
-    this.restartVote = null;
+    const voteResult = this._restartVote ? this.getRestartVoteResult() : null;
+    this._restartVote = null;
 
     // Add to game history
-    this.gameHistory.addRestartVoteClearedEvent(voteResult);
+    this._gameHistory.addRestartVoteClearedEvent(voteResult);
+  }
+
+  get restartVote() {
+    throw new Error("Attempting to access restartVote property on GameSession. Not allowed, restartVote is a protected property. Use getRestartVote() instead.");
+  }
+
+  getRestartVote() {
+    return this._restartVote;
+  }
+
+  get inactivityManager() {
+    throw new Error("Attempting to access inactivityManager property on GameSession. Not allowed, inactivityManager is a protected property. Use getInactivityManager() instead.");
   }
 
   getInactivityManager() {
-    return this.inactivityManager;
+    return this._inactivityManager;
+  }
+
+  get gameHistory() {
+    throw new Error("Attempting to access gameHistory property on GameSession. Not allowed, gameHistory is a protected property. Use getGameHistory() instead.");
   }
 
   getGameHistory() {
-    return this.gameHistory;
+    return this._gameHistory;
   }
 
   // Subscription management methods
@@ -328,7 +384,7 @@ export class GameSession {
    * @param {Array<string>} eventTypes - Array of game history event types to subscribe to
    */
   subscribeToGameHistoryEvents(eventTypes) {
-    gameHistoryManager.subscribe(this.sessionId, eventTypes);
+    gameHistoryManager.subscribe(this._sessionId, eventTypes);
   }
 
   /**
@@ -336,7 +392,7 @@ export class GameSession {
    * @param {Array<string>} eventTypes - Array of game history event types to unsubscribe from
    */
   unsubscribeFromGameHistoryEvents(eventTypes) {
-    gameHistoryManager.unsubscribe(this.sessionId, eventTypes);
+    gameHistoryManager.unsubscribe(this._sessionId, eventTypes);
   }
 
   /**
@@ -344,7 +400,7 @@ export class GameSession {
    * @returns {Array<string>} Array of subscribed event types
    */
   getGameHistorySubscriptions() {
-    return gameHistoryManager.getSubscriptions(this.sessionId);
+    return gameHistoryManager.getSubscriptions(this._sessionId);
   }
 
   /**
@@ -353,7 +409,7 @@ export class GameSession {
    * @returns {boolean} True if subscribed, false otherwise
    */
   isSubscribedToGameHistoryEvent(eventType) {
-    return gameHistoryManager.isSubscribed(this.sessionId, eventType);
+    return gameHistoryManager.isSubscribed(this._sessionId, eventType);
   }
 
   // Host Management
@@ -553,21 +609,21 @@ export class GameSession {
     const spectators = this.getSpectatorParticipants();
     
     return {
-      sessionId: this.sessionId,
-      gameVariantId: this.gameVariantId,
-      started: this.started,
+      sessionId: this._sessionId,
+      gameVariantId: this._gameVariantId,
+      started: this._started,
       inSyncPhase: this._syncPhase,
       participantCount: {
         players: playableParticipants.length,
         spectators: spectators.length,
-        total: this.participants.length,
-        maxPlayers: this.maxParticipants
+        total: this._participants.length,
+        maxPlayers: this._maxParticipants
       },
       host: this._hostInfo,
       lobbyConfig: this.getAllLobbyConfig(),
       readyStates: this.getAllReadyStates(),
       canStart: playableParticipants.length >= 2 && this.areAllParticipantsReady(),
-      needsMorePlayers: playableParticipants.length < this.maxParticipants,
+      needsMorePlayers: playableParticipants.length < this._maxParticipants,
       participants: this.listParticipants(),
       recentChat: this.getChatMessages(10)
     };
@@ -611,11 +667,11 @@ export class GameSession {
   }
 
   getConnectedParticipants() {
-    return this.participants.filter(p => this.isParticipantConnected(p.id));
+    return this._participants.filter(p => this.isParticipantConnected(p.id));
   }
 
   getDisconnectedParticipants() {
-    return this.participants.filter(p => p.disconnected);
+    return this._participants.filter(p => p.disconnected);
   }
 
   startHeartbeat() {
@@ -623,7 +679,7 @@ export class GameSession {
       return;
     }
     
-    GameEventService.startHeartbeatForSession(this.sessionId);
+    GameEventService.startHeartbeatForSession(this._sessionId);
     this._heartbeatStarted = true;
   }
 
@@ -632,7 +688,7 @@ export class GameSession {
       return;
     }
     
-    GameEventService.stopHeartbeatForSession(this.sessionId);
+    GameEventService.stopHeartbeatForSession(this._sessionId);
     this._heartbeatStarted = false;
   }
 
@@ -641,7 +697,7 @@ export class GameSession {
     const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
     
     // Get required players from the game instance
-    const requiredPlayers = this.gameInstance.requiredPlayers();
+    const requiredPlayers = this._gameInstance.requiredPlayers();
     
     if (connectedParticipants.length < requiredPlayers) {
       // End the session if insufficient connected players
@@ -675,7 +731,7 @@ export class GameSession {
     this.updateParticipantConnection(participantId, true);
     
     // Check if this reconnection makes the session viable again
-    if (this.started) {
+    if (this._started) {
       this.checkSessionViability();
     }
     
@@ -696,7 +752,7 @@ export class GameSession {
     this.updateParticipantConnection(participantId, false);
     
     // Check session viability
-    if (this.started) {
+    if (this._started) {
       this.checkSessionViability();
     }
     
@@ -710,12 +766,12 @@ export class GameSession {
     const disconnectedParticipants = this.getDisconnectedParticipants();
     
     // Get required players from the game instance
-    const requiredPlayers = this.gameInstance.requiredPlayers();
+    const requiredPlayers = this._gameInstance.requiredPlayers();
     
     return {
-      sessionId: this.sessionId,
-      started: this.started,
-      totalParticipants: this.participants.length,
+      sessionId: this._sessionId,
+      started: this._started,
+      totalParticipants: this._participants.length,
       connectedParticipants: connectedParticipants.length,
       disconnectedParticipants: disconnectedParticipants.length,
       playableParticipants: playableParticipants.length,
@@ -733,7 +789,7 @@ export class GameSession {
    * @returns {string|null} - The encrypted game token for the participant, or null if not found
    */
   getParticipantToken(participantId) {
-    return this.participantTokens.get(participantId) || null;
+    return this.__participantTokens.get(participantId) || null;
   }
 
   /**
@@ -742,7 +798,7 @@ export class GameSession {
    * @param {string} token - The encrypted game token
    */
   setParticipantToken(participantId, token) {
-    this.participantTokens.set(participantId, token);
+    this.__participantTokens.set(participantId, token);
   }
 
   /**
@@ -750,7 +806,11 @@ export class GameSession {
    * @returns {Map<number, string>} - Map of participantId to encrypted game token
    */
   getAllParticipantTokens() {
-    return new Map(this.participantTokens);
+    return new Map(this.__participantTokens);
+  }
+
+  get participantTokens() {
+    throw new Error("Attempting to access participantTokens property on GameSession. Not allowed, participantTokens is a private property. Use getAllParticipantTokens() instead.");
   }
 
   /**
@@ -761,7 +821,7 @@ export class GameSession {
   async generateParticipantToken(participantId) {
     // Import the service dynamically to avoid circular dependencies
     return import('./game-token-service.js').then(({ gameTokenService }) => {
-      return gameTokenService.instance.generateToken(this.sessionId, participantId);
+      return gameTokenService.instance.generateToken(this._sessionId, participantId);
     });
   }
 
@@ -772,8 +832,8 @@ export class GameSession {
    */
   async regenerateParticipantToken(participantId) {
     return this.generateParticipantToken(participantId).then(token => {
-      this.participantTokens.set(participantId, token);
-      kubicLog.info(`[GameSession]::regenerateParticipantToken - Regenerated game token for participant ${participantId} in session ${this.sessionId}`);
+      this.__participantTokens.set(participantId, token);
+      kubicLog.info(`[GameSession]::regenerateParticipantToken - Regenerated game token for participant ${participantId} in session ${this._sessionId}`);
       return token;
     });
   }
