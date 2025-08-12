@@ -9,15 +9,19 @@ import { v4 as uuidv4 } from "uuid";
 
 class SessionManager {
   constructor() {
-    this.sessions = new Map();
+    this._sessions = new Map();
   }
 
   getSession(sessionId) {
-    return this.sessions.get(sessionId);
+    return this._sessions.get(sessionId);
+  }
+
+  get sessions() {
+    throw new Error("Attempting to access sessions property on SessionManager. Not allowed, sessions is a protected property. Use getSessions() instead.");
   }
 
   getSessions() {
-    return Array.from(this.sessions.values());
+    return Array.from(this._sessions.values());
   }
 
   createSession(gameVariantId, options = {}) {
@@ -25,7 +29,7 @@ class SessionManager {
 
     const sessionId = uuidv4(); // generate unique ID
     
-    if (this.sessions.has(sessionId)) {
+    if (this._sessions.has(sessionId)) {
       // Unlikely, but just in case
       return this.createSession(gameVariantId, options);
     }
@@ -56,16 +60,16 @@ class SessionManager {
     
     kubicLog.info(`[SessionManager]::createSession - Created session: ${sessionId}`);
     
-    this.sessions.set(sessionId, session);
+    this._sessions.set(sessionId, session);
     return session; // Return the session instance, not an object
   }
 
   hasSession(sessionId) {
-    return this.sessions.get(sessionId) !== undefined;
+    return this._sessions.get(sessionId) !== undefined;
   }
 
   hasSessions() {
-    return this.sessions.size > 0;
+    return this._sessions.size > 0;
   }
 
   /**
@@ -74,7 +78,7 @@ class SessionManager {
    * @returns {boolean} True if session was removed, false if not found
    */
   removeSession(sessionId) {
-    const session = this.sessions.get(sessionId);
+    const session = this._sessions.get(sessionId);
     if (!session) {
       kubicLog.warn(`[SessionManager]::removeSession - Session ${sessionId} not found for removal`);
       return false;
@@ -89,7 +93,7 @@ class SessionManager {
       gameHistoryManager.removeSessionHistory(sessionId);
       
       // Remove from sessions map
-      this.sessions.delete(sessionId);
+      this._sessions.delete(sessionId);
       
       kubicLog.info(`[SessionManager]::removeSession - Successfully removed session ${sessionId}`);
       return true;
@@ -104,7 +108,7 @@ class SessionManager {
    * @returns {Array} Array of session status objects
    */
   getSessionsWithStatus() {
-    return Array.from(this.sessions.values()).map(session => ({
+    return Array.from(this._sessions.values()).map(session => ({
       ...session.getSessionStatus(),
       participants: session.listParticipants()
     }));
@@ -115,7 +119,7 @@ class SessionManager {
    * @returns {Array} Array of viable sessions
    */
   getViableSessions() {
-    return Array.from(this.sessions.values()).filter(session => {
+    return Array.from(this._sessions.values()).filter(session => {
       const status = session.getSessionStatus();
       return status.viable && !status.started;
     });
@@ -129,7 +133,7 @@ class SessionManager {
     const now = Date.now();
     const sessionsToRemove = [];
 
-    for (const [sessionId, session] of this.sessions) {
+    for (const [sessionId, session] of this._sessions) {
       const status = session.getSessionStatus();
       
       // Remove sessions that have ended and have no connected participants
@@ -170,7 +174,7 @@ class SessionManager {
    * @returns {Object} Session statistics
    */
   getSessionStats() {
-    const sessions = Array.from(this.sessions.values());
+    const sessions = Array.from(this._sessions.values());
     const totalSessions = sessions.length;
     const activeSessions = sessions.filter(s => s.getSessionStatus().started).length;
     const viableSessions = sessions.filter(s => s.getSessionStatus().viable).length;

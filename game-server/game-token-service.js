@@ -3,15 +3,31 @@ import { kubicLog } from '../kubic-log.js';
 
 class GameTokenService {
   constructor() {
-    this.secretKey = process.env.KUBIC_GAME_TOKEN_SECRET_KEY; // Required to be set in the .env file
-    this.algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || 'aes-256-gcm';
-    this.ivLength = parseInt(process.env.KUBIC_GAME_TOKEN_IV_LENGTH) || 16;
-    this.saltLength = parseInt(process.env.KUBIC_GAME_TOKEN_SALT_LENGTH) || 64;
+    this.__secretKey = process.env.KUBIC_GAME_TOKEN_SECRET_KEY; // Required to be set in the .env file
+    this.__algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || 'aes-256-gcm';
+    this.__ivLength = parseInt(process.env.KUBIC_GAME_TOKEN_IV_LENGTH) || 16;
+    this.__saltLength = parseInt(process.env.KUBIC_GAME_TOKEN_SALT_LENGTH) || 64;
     
     // Validate secret key length
-    if (this.secretKey.length < 32) {
+    if (this.__secretKey.length < 32) {
         throw new Error('Secret key length is too short. It must be at least 32 characters.');
     }
+  }
+
+  get secretKey() {
+    throw new Error("Attempting to access secretKey property on GameTokenService. Not allowed, secretKey is a private property.");
+  }
+
+  get algorithm() {
+    throw new Error("Attempting to access algorithm property on GameTokenService. Not allowed, algorithm is a private property.");
+  }
+
+  get ivLength() {
+    throw new Error("Attempting to access ivLength property on GameTokenService. Not allowed, ivLength is a private property.");
+  }
+
+  get saltLength() {
+    throw new Error("Attempting to access saltLength property on GameTokenService. Not allowed, saltLength is a private property.");
   }
 
   /**
@@ -79,14 +95,14 @@ class GameTokenService {
    * @returns {string} - Encrypted data as base64 string
    */
   encrypt(data) {
-    const iv = crypto.randomBytes(this.ivLength);
-    const salt = crypto.randomBytes(this.saltLength);
+    const iv = crypto.randomBytes(this.__ivLength);
+    const salt = crypto.randomBytes(this.__saltLength);
     
     // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.secretKey, salt, 100000, 32, 'sha256');
+    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, 'sha256');
     
     // Create cipher
-    const cipher = crypto.createCipher(this.algorithm, key);
+    const cipher = crypto.createCipher(this.__algorithm, key);
     cipher.setAAD(salt);
     
     // Encrypt data
@@ -111,16 +127,16 @@ class GameTokenService {
     const combined = Buffer.from(encryptedData, 'base64');
     
     // Extract components
-    const salt = combined.subarray(0, this.saltLength);
+    const salt = combined.subarray(0, this.__saltLength);
     // const iv = combined.subarray(this.saltLength, this.saltLength + this.ivLength);
-    const authTag = combined.subarray(this.saltLength + this.ivLength, this.saltLength + this.ivLength + 16);
-    const encrypted = combined.subarray(this.saltLength + this.ivLength + 16);
+    const authTag = combined.subarray(this.__saltLength + this.__ivLength, this.__saltLength + this.__ivLength + 16);
+    const encrypted = combined.subarray(this.__saltLength + this.__ivLength + 16);
     
     // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.secretKey, salt, 100000, 32, 'sha256');
+    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, 'sha256');
     
     // Create decipher
-    const decipher = crypto.createDecipher(this.algorithm, key);
+    const decipher = crypto.createDecipher(this.__algorithm, key);
     decipher.setAuthTag(authTag);
     decipher.setAAD(salt);
     
