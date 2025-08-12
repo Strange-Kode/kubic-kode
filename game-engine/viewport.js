@@ -34,10 +34,42 @@ export class Viewport {
    * @param {number} height - Height of the viewport in tiles
    */
   constructor(x = 0, y = 0, width = 10, height = 10) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
+    this._x = x;
+    this._y = y;
+    this._width = width;
+    this._height = height;
+  }
+
+  get x() {
+    throw new Error("Attempting to access x property on Viewport. Not allowed, x is a protected property. Use getX() instead.");
+  }
+
+  getX() {
+    return this._x;
+  }
+
+  get y() {
+    throw new Error("Attempting to access y property on Viewport. Not allowed, y is a protected property. Use getY() instead.");
+  }
+
+  getY() {
+    return this._y;
+  }
+
+  get width() {
+    throw new Error("Attempting to access width property on Viewport. Not allowed, width is a protected property. Use getWidth() instead.");
+  }
+
+  getWidth() {
+    return this._width;
+  }
+
+  get height() {
+    throw new Error("Attempting to access height property on Viewport. Not allowed, height is a protected property. Use getHeight() instead.");
+  }
+
+  getHeight() {
+    return this._height;
   }
 
   /**
@@ -46,8 +78,8 @@ export class Viewport {
    * @param {number} y - New Y coordinate
    */
   moveTo(x, y) {
-    this.x = x;
-    this.y = y;
+    this._x = x;
+    this._y = y;
   }
 
   /**
@@ -56,8 +88,8 @@ export class Viewport {
    * @param {number} deltaY - Change in Y coordinate
    */
   moveBy(deltaX, deltaY) {
-    this.x += deltaX;
-    this.y += deltaY;
+    this._x += deltaX;
+    this._y += deltaY;
   }
 
   /**
@@ -66,8 +98,8 @@ export class Viewport {
    * @param {number} height - New height
    */
   resize(width, height) {
-    this.width = width;
-    this.height = height;
+    this._width = width;
+    this._height = height;
   }
 
   /**
@@ -77,8 +109,8 @@ export class Viewport {
    * @returns {boolean} True if the position is within the viewport
    */
   contains(x, y) {
-    return x >= this.x && x < this.x + this.width &&
-           y >= this.y && y < this.y + this.height;
+    return x >= this._x && x < this._x + this._width &&
+           y >= this._y && y < this._y + this._height;
   }
 
   /**
@@ -87,8 +119,8 @@ export class Viewport {
    */
   getCenter() {
     return {
-      x: Math.floor(this.x + this.width / 2),
-      y: Math.floor(this.y + this.height / 2)
+      x: Math.floor(this._x + this._width / 2),
+      y: Math.floor(this._y + this._height / 2)
     };
   }
 
@@ -98,10 +130,10 @@ export class Viewport {
    */
   getBounds() {
     return {
-      left: this.x,
-      right: this.x + this.width - 1,
-      top: this.y,
-      bottom: this.y + this.height - 1
+      left: this._x,
+      right: this._x + this._width - 1,
+      top: this._y,
+      bottom: this._y + this._height - 1
     };
   }
 
@@ -111,10 +143,10 @@ export class Viewport {
    * @returns {boolean} True if the viewports intersect
    */
   intersects(other) {
-    return !(this.x + this.width <= other.x ||
-             other.x + other.width <= this.x ||
-             this.y + this.height <= other.y ||
-             other.y + other.height <= this.y);
+    return !(this._x + this._width <= other._x ||
+             other._x + other._width <= this._x ||
+             this._y + this._height <= other._y ||
+             other._y + other._height <= this._y);
   }
 
   /**
@@ -127,10 +159,10 @@ export class Viewport {
       return null;
     }
 
-    const left = Math.max(this.x, other.x);
-    const top = Math.max(this.y, other.y);
-    const right = Math.min(this.x + this.width, other.x + other.width);
-    const bottom = Math.min(this.y + this.height, other.y + other.height);
+    const left = Math.max(this._x, other._x);
+    const top = Math.max(this._y, other._y);
+    const right = Math.min(this._x + this._width, other._x + other._width);
+    const bottom = Math.min(this._y + this._height, other._y + other._height);
 
     return new Viewport(left, top, right - left, bottom - top);
   }
@@ -140,7 +172,7 @@ export class Viewport {
    * @returns {Viewport} A new viewport with the same properties
    */
   clone() {
-    return new Viewport(this.x, this.y, this.width, this.height);
+    return new Viewport(this._x, this._y, this._width, this._height);
   }
 
   /**
@@ -151,8 +183,8 @@ export class Viewport {
    */
   worldToViewport(worldX, worldY) {
     return {
-      x: worldX - this.x,
-      y: worldY - this.y
+      x: worldX - this._x,
+      y: worldY - this._y
     };
   }
 
@@ -164,8 +196,8 @@ export class Viewport {
    */
   viewportToWorld(viewportX, viewportY) {
     return {
-      x: viewportX + this.x,
-      y: viewportY + this.y
+      x: viewportX + this._x,
+      y: viewportY + this._y
     };
   }
 
@@ -175,8 +207,8 @@ export class Viewport {
    * @param {number} mapHeight - Height of the tile map
    */
   clampToMap(mapWidth, mapHeight) {
-    this.x = Math.max(0, Math.min(mapWidth - this.width, this.x));
-    this.y = Math.max(0, Math.min(mapHeight - this.height, this.y));
+    this._x = Math.max(0, Math.min(mapWidth - this._width, this._x));
+    this._y = Math.max(0, Math.min(mapHeight - this._height, this._y));
   }
 
   /**
@@ -186,18 +218,18 @@ export class Viewport {
    * @returns {boolean} True if the viewport is valid
    */
   isValidForMap(mapWidth, mapHeight) {
-    return this.width > 0 && this.height > 0 &&
-           this.x >= 0 && this.y >= 0 &&
-           this.x + this.width <= mapWidth &&
-           this.y + this.height <= mapHeight;
+    return this._width > 0 && this._height > 0 &&
+           this._x >= 0 && this._y >= 0 &&
+           this._x + this._width <= mapWidth &&
+           this._y + this._height <= mapHeight;
   }
 
   toJSON() {
     return {
-      x: this.x,
-      y: this.y,
-      width: this.width,
-      height: this.height
+      x: this._x,
+      y: this._y,
+      width: this._width,
+      height: this._height
     };
   }
 
