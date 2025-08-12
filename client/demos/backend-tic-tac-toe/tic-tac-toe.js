@@ -41,7 +41,7 @@ class TicTacToeGame {
   initializeGameOptions() {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:
-    // console.log(this.getAvailableSystemOptions());
+    // console.log(this.getGameOptions().getSystemOptions());
     // To read a system option: this.getGameOptions().readSystemOption('participantPlaysFirst')
     // Available system options include:
     // - participantPlaysFirst: Which participant goes first (pre-start)
