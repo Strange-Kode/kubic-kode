@@ -3,12 +3,12 @@ import { kubicLog } from "../kubic-log.js";
 // GameOptions - manages game options with lifecycle-based modification rules
 export class GameOptions {
   constructor(options = {}) {
-    this.namespaces = new Map(); // namespace -> Map of options
-    this.gameState = 'pre-start'; // Current game state: 'pre-start', 'started', 'round-active', 'between-rounds', 'ended'
+    this._namespaces = new Map(); // namespace -> Map of options
+    this._gameState = 'pre-start'; // Current game state: 'pre-start', 'started', 'round-active', 'between-rounds', 'ended'
     
     // Initialize default namespaces
-    this.namespaces.set('userspace', new Map());
-    this.namespaces.set('systemspace', new Map());
+    this._namespaces.set('userspace', new Map());
+    this._namespaces.set('systemspace', new Map());
     
     // Legacy support - convert old format to new lifecycle-based format
     if (options.configurable) {
@@ -38,7 +38,7 @@ export class GameOptions {
   // Add an option to the systemspace namespace
   addSystemOption(key, defaultValue, lifecycle = 'pre-start', validator = null, description = '') {
     // Check if this option name exists in any other namespace
-    for (const [ns, options] of this.namespaces) {
+    for (const [ns, options] of this._namespaces) {
       if (ns !== 'systemspace' && options.has(key)) {
         throw new Error(`Option '${key}' already exists in namespace '${ns}'. System option names must be unique across all namespaces.`);
       }
@@ -49,7 +49,7 @@ export class GameOptions {
 
   // Set the value of an existing option in userspace namespace (default)
   setOption(key, value, namespace = 'userspace') {
-    const namespaceOptions = this.namespaces.get(namespace);
+    const namespaceOptions = this._namespaces.get(namespace);
     if (!namespaceOptions || !namespaceOptions.has(key)) {
       throw new Error(`Option '${key}' does not exist in namespace '${namespace}'. Use addOption() to create it first.`);
     }
@@ -58,7 +58,7 @@ export class GameOptions {
     
     // Check if option is locked based on lifecycle and game state
     if (option.locked) {
-      const lockReason = this._getLockReason(option.lifecycle, this.gameState);
+      const lockReason = this._getLockReason(option.lifecycle, this._gameState);
       throw new Error(`Cannot modify option '${key}': ${lockReason}`);
     }
 
@@ -88,12 +88,12 @@ export class GameOptions {
     }
 
     // Ensure namespace exists
-    if (!this.namespaces.has(namespace)) {
-      this.namespaces.set(namespace, new Map());
+    if (!this._namespaces.has(namespace)) {
+      this._namespaces.set(namespace, new Map());
     }
 
     // Check if option already exists in this namespace
-    const namespaceOptions = this.namespaces.get(namespace);
+    const namespaceOptions = this._namespaces.get(namespace);
     if (namespaceOptions.has(key)) {
       throw new Error(`Option '${key}' already exists in namespace '${namespace}'`);
     }
@@ -101,14 +101,14 @@ export class GameOptions {
     // System option names must be unique across all namespaces
     if (namespace === 'systemspace') {
       // If adding to systemspace, check no other namespace has this key
-      for (const [ns, options] of this.namespaces) {
+      for (const [ns, options] of this._namespaces) {
         if (ns !== 'systemspace' && options.has(key)) {
           throw new Error(`Option '${key}' already exists in namespace '${ns}'. System option names must be unique across all namespaces.`);
         }
       }
     } else {
       // If adding to non-system namespace, check if systemspace already has this key
-      const systemOptions = this.namespaces.get('systemspace');
+      const systemOptions = this._namespaces.get('systemspace');
       if (systemOptions && systemOptions.has(key)) {
         throw new Error(`Option '${key}' already exists in systemspace. System option names must be unique across all namespaces. Use this.getGameOptions().readSystemOption('${key}') to access it.`);
       }
@@ -127,7 +127,7 @@ export class GameOptions {
 
   // Read an option from userspace namespace (default)
   readOption(key, namespace = 'userspace') {
-    const namespaceOptions = this.namespaces.get(namespace);
+    const namespaceOptions = this._namespaces.get(namespace);
     if (!namespaceOptions || !namespaceOptions.has(key)) {
       // Check if option exists in other namespaces and suggest
       const suggestions = this._findOptionInOtherNamespaces(key, namespace);
@@ -180,7 +180,7 @@ export class GameOptions {
   // Helper method to find option in other namespaces
   _findOptionInOtherNamespaces(key, excludeNamespace) {
     const suggestions = [];
-    for (const [ns, options] of this.namespaces) {
+    for (const [ns, options] of this._namespaces) {
       if (ns !== excludeNamespace && options.has(key)) {
         suggestions.push({ namespace: ns, option: options.get(key) });
       }
@@ -191,7 +191,7 @@ export class GameOptions {
   // Helper method to find option in all namespaces
   _findOptionInAllNamespaces(key) {
     const suggestions = [];
-    for (const [ns, options] of this.namespaces) {
+    for (const [ns, options] of this._namespaces) {
       if (options.has(key)) {
         suggestions.push({ namespace: ns, option: options.get(key) });
       }
@@ -201,7 +201,7 @@ export class GameOptions {
 
   // Get all options from a specific namespace
   getNamespaceOptions(namespace = 'userspace') {
-    const namespaceOptions = this.namespaces.get(namespace);
+    const namespaceOptions = this._namespaces.get(namespace);
     if (!namespaceOptions) {
       throw new Error(`Namespace '${namespace}' does not exist`);
     }
@@ -227,20 +227,20 @@ export class GameOptions {
       throw new Error(`Invalid game state '${newState}'. Must be one of: ${validStates.join(', ')}`);
     }
 
-    const oldState = this.gameState;
-    this.gameState = newState;
+    const oldState = this._gameState;
+    this._gameState = newState;
     
     // Update option locks based on new state
     this._updateOptionLocks(oldState, newState);
   }
 
   getGameState() {
-    return this.gameState;
+    return this._gameState;
   }
 
   // Internal method to update option locks based on game state transitions
   _updateOptionLocks(oldState, newState) {
-    for (const [namespace, options] of this.namespaces) {
+    for (const [namespace, options] of this._namespaces) {
       for (const [key, option] of options) {
         const shouldBeLocked = this._shouldOptionBeLocked(option.lifecycle, newState);
         option.locked = shouldBeLocked;
@@ -267,7 +267,7 @@ export class GameOptions {
   // Get all available options from all namespaces
   getAllOptions() {
     const allOptions = {};
-    for (const [namespace, options] of this.namespaces) {
+    for (const [namespace, options] of this._namespaces) {
       for (const [key, option] of options) {
         // Use namespace::key format for system options to avoid conflicts
         const optionKey = namespace === 'systemspace' ? `system::${key}` : key;
@@ -280,7 +280,7 @@ export class GameOptions {
   // Get configurable options only (legacy support) - from userspace only
   getConfigurableOptions() {
     const configurable = {};
-    const userOptions = this.namespaces.get('userspace');
+    const userOptions = this._namespaces.get('userspace');
     if (userOptions) {
       for (const [key, option] of userOptions) {
         if (option.lifecycle !== 'frozen') {
@@ -294,7 +294,7 @@ export class GameOptions {
   // Get frozen options only (legacy support) - from userspace only
   getFrozenOptions() {
     const frozen = {};
-    const userOptions = this.namespaces.get('userspace');
+    const userOptions = this._namespaces.get('userspace');
     if (userOptions) {
       for (const [key, option] of userOptions) {
         if (option.lifecycle === 'frozen') {
@@ -308,10 +308,10 @@ export class GameOptions {
   // Get options by lifecycle from a specific namespace
   getOptionsByLifecycle(lifecycle, namespace = null) {
     const options = {};
-    const namespacesToCheck = namespace ? [namespace] : Array.from(this.namespaces.keys());
+    const namespacesToCheck = namespace ? [namespace] : Array.from(this._namespaces.keys());
     
     for (const ns of namespacesToCheck) {
-      const namespaceOptions = this.namespaces.get(ns);
+      const namespaceOptions = this._namespaces.get(ns);
       if (namespaceOptions) {
         for (const [key, option] of namespaceOptions) {
           if (option.lifecycle === lifecycle) {
@@ -327,10 +327,10 @@ export class GameOptions {
   // Get options that are currently unlocked and can be modified
   getModifiableOptions(namespace = null) {
     const modifiable = {};
-    const namespacesToCheck = namespace ? [namespace] : Array.from(this.namespaces.keys());
+    const namespacesToCheck = namespace ? [namespace] : Array.from(this._namespaces.keys());
     
     for (const ns of namespacesToCheck) {
-      const namespaceOptions = this.namespaces.get(ns);
+      const namespaceOptions = this._namespaces.get(ns);
       if (namespaceOptions) {
         for (const [key, option] of namespaceOptions) {
           if (!option.locked) {
@@ -365,7 +365,7 @@ export class GameOptions {
       }
 
       // Try to find the option in the specified namespace
-      const namespaceOptions = this.namespaces.get(namespace);
+      const namespaceOptions = this._namespaces.get(namespace);
       if (namespaceOptions && namespaceOptions.has(actualKey)) {
         option = namespaceOptions.get(actualKey);
       } else {
@@ -382,12 +382,12 @@ export class GameOptions {
 
       // Check if option is locked due to lifecycle rules
       if (option.locked) {
-        const lockReason = this._getLockReason(option.lifecycle, this.gameState);
+        const lockReason = this._getLockReason(option.lifecycle, this._gameState);
         result.errors.push(`Option '${key}' is locked: ${lockReason}`);
         result.locked.push({
           key,
           lifecycle: option.lifecycle,
-          gameState: this.gameState,
+          gameState: this._gameState,
           reason: lockReason
         });
         result.valid = false;
@@ -515,7 +515,7 @@ export class GameOptions {
   getOptionsMetadata() {
     const metadata = {};
     
-    for (const [namespace, options] of this.namespaces) {
+    for (const [namespace, options] of this._namespaces) {
       for (const [key, option] of options) {
         // Use namespace::key format for system options to avoid conflicts
         const metadataKey = namespace === 'systemspace' ? `system::${key}` : key;
@@ -528,7 +528,7 @@ export class GameOptions {
           description: option.description || null,
           validator: option.validator ? option.validator.toString() : null,
           canModify: !option.locked,
-          gameState: this.gameState,
+          gameState: this._gameState,
           // Legacy fields for backwards compatibility
           type: option.lifecycle === 'frozen' ? 'frozen' : 'configurable',
           value: option.currentValue
@@ -541,7 +541,7 @@ export class GameOptions {
 
   // Reset applied values back to defaults in all namespaces
   resetAppliedValues() {
-    for (const [namespace, options] of this.namespaces) {
+    for (const [namespace, options] of this._namespaces) {
       for (const [key, option] of options) {
         option.currentValue = option.defaultValue;
       }
@@ -606,7 +606,7 @@ export class GameOptions {
     };
     const optionsByNamespace = {};
 
-    for (const [namespace, options] of this.namespaces) {
+    for (const [namespace, options] of this._namespaces) {
       optionsByNamespace[namespace] = options.size;
       totalOptions += options.size;
       
@@ -619,12 +619,12 @@ export class GameOptions {
     }
 
     return {
-      gameState: this.gameState,
+      gameState: this._gameState,
       totalOptions,
       lockedOptions,
       optionsByLifecycle,
       optionsByNamespace,
-      availableNamespaces: Array.from(this.namespaces.keys())
+      availableNamespaces: Array.from(this._namespaces.keys())
     };
   }
 } 
