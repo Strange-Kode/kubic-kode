@@ -427,9 +427,9 @@ class TicTacToeGame {
     const lines = [];
 
     // Rows
-    for (let y = 0; y < tileMap.height; y++) {
+    for (let y = 0; y < tileMap.getHeight(); y++) {
       const row = [];
-      for (let x = 0; x < tileMap.width; x++) {
+      for (let x = 0; x < tileMap.getWidth(); x++) {
         row.push({
           tile: tileMap.getTile(x, y),
           position: { x, y },
@@ -439,9 +439,9 @@ class TicTacToeGame {
     }
 
     // Columns
-    for (let x = 0; x < tileMap.width; x++) {
+    for (let x = 0; x < tileMap.getWidth(); x++) {
       const column = [];
-      for (let y = 0; y < tileMap.height; y++) {
+      for (let y = 0; y < tileMap.getHeight(); y++) {
         column.push({
           tile: tileMap.getTile(x, y),
           position: { x, y },

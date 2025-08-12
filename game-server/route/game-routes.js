@@ -28,7 +28,7 @@ const validateSessionMiddleware = validateSession(sessionManager);
 // Function to process tilemap data and generate debug information
 const processTileMapData = (tileMap) => {
   const MAX_SIZE = 5;
-  const isLargeTileMap = tileMap.width > MAX_SIZE || tileMap.height > MAX_SIZE;
+  const isLargeTileMap = tileMap.getWidth() > MAX_SIZE || tileMap.getHeight() > MAX_SIZE;
   
   // Always return the full tilemap to the client
   const responseTileMap = serializeRecursively(tileMap);
@@ -37,17 +37,16 @@ const processTileMapData = (tileMap) => {
     total_tiles: tileMap.getTotalTiles(),
     occupied_tiles: tileMap.getOccupiedCount(),
     free_tiles: tileMap.getTotalTiles() - tileMap.getOccupiedCount(),
-    dimensions: { width: tileMap.width, height: tileMap.height },
+    dimensions: { width: tileMap.getWidth(), height: tileMap.getHeight() },
     is_large_tilemap: isLargeTileMap
   };
   
   if (isLargeTileMap) {
-    // For large tilemaps, log only a subsection (center 10x10 area)
-    const startX = Math.max(0, Math.floor((tileMap.width - MAX_SIZE) / 2));
-    const startY = Math.max(0, Math.floor((tileMap.height - MAX_SIZE) / 2));
-    const endX = Math.min(tileMap.width, startX + MAX_SIZE);
-    const endY = Math.min(tileMap.height, startY + MAX_SIZE);
-    
+    // For large tilemaps, log only a subsection (center area of the tilemap)
+    const startX = Math.max(0, Math.floor((tileMap.getWidth() - MAX_SIZE) / 2));
+    const startY = Math.max(0, Math.floor((tileMap.getHeight() - MAX_SIZE) / 2));
+    const endX = Math.min(tileMap.getWidth(), startX + MAX_SIZE);
+    const endY = Math.min(tileMap.getHeight(), startY + MAX_SIZE);
 
     const subSectionTiles = tileMap.getArea(startX, startY, endX, endY);
     
@@ -69,11 +68,11 @@ const processTileMapData = (tileMap) => {
       subsection_dimensions: { width: loggedTileMap.width, height: loggedTileMap.height }
     };
     
-    kubicLog.debug(`game-routes.js::[processTileMapData] Large tilemap detected (${tileMap.width}x${tileMap.height}). Logging subsection: ${startX},${startY} to ${endX},${endY}`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Large tilemap detected (${tileMap.getWidth()}x${tileMap.getHeight()}). Logging subsection: ${startX},${startY} to ${endX},${endY}`);
     kubicLog.debug(`game-routes.js::[processTileMapData] Logged subsection:`, loggedTileMap.tiles);
   } else {
     // For small tilemaps, log the full tilemap
-    kubicLog.debug(`game-routes.js::[processTileMapData] Small tilemap (${tileMap.width}x${tileMap.height}). Logging full tilemap.`);
+    kubicLog.debug(`game-routes.js::[processTileMapData] Small tilemap (${tileMap.getWidth()}x${tileMap.getHeight()}). Logging full tilemap.`);
     kubicLog.debug(`game-routes.js::[processTileMapData] Full tilemap:`, tileMap);
   }
   
@@ -380,7 +379,7 @@ gameRouter.post("/game/get-tilemap/:sessionId", validateGameTokenWithParticipant
 
   const tileMap = gameInstance.getGameEngine().getTileMap();
   //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap:`, tileMap);
-  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.tiles);
+  //kubicLog.debug(`game-routes.js::[get-tilemap] Raw tileMap.tiles:`, tileMap.getTiles());
   
   // Process tilemap data using the dedicated function
   const response = processTileMapData(tileMap);
