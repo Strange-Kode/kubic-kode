@@ -23,9 +23,9 @@ const rl = readline.createInterface({
 
 class GameSetupWizard {
   constructor() {
-    this.config = {};
-    this.templateDir = path.join(__dirname, 'template');
-    this.conflicts = [];
+    this._config = {};
+    this._templateDir = path.join(__dirname, 'template');
+    this._conflicts = [];
   }
 
   // Helper to ask questions
@@ -139,28 +139,28 @@ class GameSetupWizard {
 
   // Check for file conflicts
   checkConflicts() {
-    this.conflicts = [];
-    const gameDir = `backend-${this.toKebabCase(this.config.GAME_NAME)}`;
+    this._conflicts = [];
+    const gameDir = `backend-${this.toKebabCase(this._config.GAME_NAME)}`;
     
     // Check if backend directory exists
     if (fs.existsSync(gameDir)) {
-      this.conflicts.push(`Directory: ${gameDir}/`);
+      this._conflicts.push(`Directory: ${gameDir}/`);
     }
 
     // Check if .env files exist
     if (!fs.existsSync('.env')) {
       // No conflict for .env - we'll create it
     } else {
-      this.conflicts.push('File: .env (will be updated, not overwritten)');
+      this._conflicts.push('File: .env (will be updated, not overwritten)');
     }
 
     if (!fs.existsSync('.env.example')) {
       // No conflict for .env.example - we'll create it
     } else {
-      this.conflicts.push('File: .env.example (will be updated, not overwritten)');
+      this._conflicts.push('File: .env.example (will be updated, not overwritten)');
     }
 
-    return this.conflicts;
+    return this._conflicts;
   }
 
   // Collect all necessary information
@@ -180,10 +180,10 @@ class GameSetupWizard {
       
       // Check if the generated class name would be valid JavaScript
       if (this.isValidJavaScriptIdentifier(gameClassName) && this.isValidJavaScriptIdentifier(gameCamelName)) {
-        this.config.GAME_NAME = gameName;
-        this.config.GAME_SHORT_NAME = this.toKebabCase(gameName);
-        this.config.GAME_CAMEL_NAME = gameCamelName;
-        this.config.GAME_CLASS_NAME = gameClassName;
+        this._config.GAME_NAME = gameName;
+        this._config.GAME_SHORT_NAME = this.toKebabCase(gameName);
+        this._config.GAME_CAMEL_NAME = gameCamelName;
+        this._config.GAME_CLASS_NAME = gameClassName;
         break;
       } else {
         // Suggest a valid alternative
@@ -195,10 +195,10 @@ class GameSetupWizard {
         const useSuggestion = await this.askYesNo(`\nWould you like to use "${suggestion}" instead?`);
         
         if (useSuggestion) {
-          this.config.GAME_NAME = suggestion;
-          this.config.GAME_SHORT_NAME = this.toKebabCase(suggestion);
-          this.config.GAME_CAMEL_NAME = this.toCamelCase(suggestion);
-          this.config.GAME_CLASS_NAME = this.toPascalCase(suggestion);
+          this._config.GAME_NAME = suggestion;
+          this._config.GAME_SHORT_NAME = this.toKebabCase(suggestion);
+          this._config.GAME_CAMEL_NAME = this.toCamelCase(suggestion);
+          this._config.GAME_CLASS_NAME = this.toPascalCase(suggestion);
           break;
         } else {
           console.log("Please enter a different game name that will generate valid JavaScript identifiers.");
@@ -216,14 +216,14 @@ class GameSetupWizard {
     const indentChoice = await this.askChoice("What indentation style do you prefer?", indentChoices);
     
     if (indentChoice.includes("4 spaces")) {
-      this.config.INDENT = "    "; // 4 spaces
-      this.config.INDENT_STYLE = "4 spaces";
+      this._config.INDENT = "    "; // 4 spaces
+      this._config.INDENT_STYLE = "4 spaces";
     } else if (indentChoice.includes("1 tab")) {
-      this.config.INDENT = "\t"; // 1 tab
-      this.config.INDENT_STYLE = "1 tab";
+      this._config.INDENT = "\t"; // 1 tab
+      this._config.INDENT_STYLE = "1 tab";
     } else {
-      this.config.INDENT = "  "; // 2 spaces (default)
-      this.config.INDENT_STYLE = "2 spaces";
+      this._config.INDENT = "  "; // 2 spaces (default)
+      this._config.INDENT_STYLE = "2 spaces";
     }
     
     // Play style
@@ -234,36 +234,36 @@ class GameSetupWizard {
       "non-blocking (continuous action, game implementation decides how to handle turns, e.g. advanced Dungeon Crawler like game)"
     ];
     const playStyleChoice = await this.askChoice("What play style will your game use?", playStyles);
-    this.config.PLAY_STYLE = playStyleChoice.split(' ')[0];
-    this.config.PLAY_STYLE_SINGLE_SET = this.config.PLAY_STYLE === "single-set";
+    this._config.PLAY_STYLE = playStyleChoice.split(' ')[0];
+    this._config.PLAY_STYLE_SINGLE_SET = this._config.PLAY_STYLE === "single-set";
     
     // Multiplayer support
-    this.config.IS_MULTIPLAYER = await this.askYesNo("Will this be a multiplayer game?");
-    if (this.config.IS_MULTIPLAYER) {
+    this._config.IS_MULTIPLAYER = await this.askYesNo("Will this be a multiplayer game?");
+    if (this._config.IS_MULTIPLAYER) {
       let maxPlayers;
       do {
         maxPlayers = await this.askQuestion("Maximum number of players (2-8): ");
         maxPlayers = parseInt(maxPlayers);
         if (maxPlayers >= 2 && maxPlayers <= 8) {
-          this.config.MAX_PLAYERS = maxPlayers;
+          this._config.MAX_PLAYERS = maxPlayers;
           break;
         }
         console.log("Please enter a number between 2 and 8.");
       } while (true);
     } else {
-      this.config.MAX_PLAYERS = 1;
+      this._config.MAX_PLAYERS = 1;
     }
     
     // Grid/Board configuration
-    this.config.IS_SCROLLABLE = await this.askYesNo("Will your game have a scrollable/large grid?");
+    this._config.IS_SCROLLABLE = await this.askYesNo("Will your game have a scrollable/large grid?");
     
-    if (this.config.IS_SCROLLABLE) {
+    if (this._config.IS_SCROLLABLE) {
       let width, height;
       do {
         width = await this.askQuestion("Default grid width (3-50): ");
         width = parseInt(width);
         if (width >= 3 && width <= 50) {
-          this.config.DEFAULT_GRID_WIDTH = width;
+          this._config.DEFAULT_GRID_WIDTH = width;
           break;
         }
         console.log("Please enter a number between 3 and 50.");
@@ -273,7 +273,7 @@ class GameSetupWizard {
         height = await this.askQuestion("Default grid height (3-50): ");
         height = parseInt(height);
         if (height >= 3 && height <= 50) {
-          this.config.DEFAULT_GRID_HEIGHT = height;
+          this._config.DEFAULT_GRID_HEIGHT = height;
           break;
         }
         console.log("Please enter a number between 3 and 50.");
@@ -285,16 +285,16 @@ class GameSetupWizard {
         "viewport-based (each player has their own independent view, enables fog-of-war and exploration)"
       ];
       const tilemapChoice = await this.askChoice("What type of scrollable grid implementation?", tilemapChoices);
-      this.config.USE_VIEWPORTS = tilemapChoice.includes("viewport-based");
-      this.config.USE_SCROLLABLE_TILEMAP = true;
+      this._config.USE_VIEWPORTS = tilemapChoice.includes("viewport-based");
+      this._config.USE_SCROLLABLE_TILEMAP = true;
       
-      if (this.config.USE_VIEWPORTS) {
+      if (this._config.USE_VIEWPORTS) {
         let viewportWidth, viewportHeight;
         do {
           viewportWidth = await this.askQuestion("Default viewport width (any positive integer): ");
           viewportWidth = parseInt(viewportWidth);
           if (viewportWidth > 0 && Number.isInteger(viewportWidth)) {
-            this.config.DEFAULT_VIEWPORT_WIDTH = viewportWidth;
+            this._config.DEFAULT_VIEWPORT_WIDTH = viewportWidth;
             break;
           }
           console.log("Please enter a positive integer.");
@@ -304,13 +304,13 @@ class GameSetupWizard {
           viewportHeight = await this.askQuestion("Default viewport height (any positive integer): ");
           viewportHeight = parseInt(viewportHeight);
           if (viewportHeight > 0 && Number.isInteger(viewportHeight)) {
-            this.config.DEFAULT_VIEWPORT_HEIGHT = viewportHeight;
+            this._config.DEFAULT_VIEWPORT_HEIGHT = viewportHeight;
             break;
           }
           console.log("Please enter a positive integer.");
         } while (true);
         
-        this.config.VIEWPORT_AUTO_FOLLOW = await this.askYesNo("Should viewports automatically follow player movement?");
+        this._config.VIEWPORT_AUTO_FOLLOW = await this.askYesNo("Should viewports automatically follow player movement?");
       }
     } else {
       let size;
@@ -318,15 +318,15 @@ class GameSetupWizard {
         size = await this.askQuestion("Default grid size (any positive integer): ");
         size = parseInt(size);
         if (size > 0 && Number.isInteger(size)) {
-          this.config.DEFAULT_GRID_WIDTH = size;
-          this.config.DEFAULT_GRID_HEIGHT = size;
+          this._config.DEFAULT_GRID_WIDTH = size;
+          this._config.DEFAULT_GRID_HEIGHT = size;
           break;
         }
         console.log("Please enter a positive integer.");
       } while (true);
       
-      this.config.USE_VIEWPORTS = false;
-      this.config.USE_SCROLLABLE_TILEMAP = false;
+      this._config.USE_VIEWPORTS = false;
+      this._config.USE_SCROLLABLE_TILEMAP = false;
     }
     
     // Game State Machine recommendation
@@ -372,10 +372,10 @@ class GameSetupWizard {
     
     const defaultGSMChoice = recommendGSM ? "y" : "n";
     const gsmAnswer = await this.askQuestion(`Would you like to use the Game State Machine? ${recommendGSM ? '(RECOMMENDED) ' : ''}(y/n) [${defaultGSMChoice}]: `);
-    this.config.USE_STATE_MACHINE = (gsmAnswer.toLowerCase() === 'y' || gsmAnswer.toLowerCase() === 'yes') || 
+    this._config.USE_STATE_MACHINE = (gsmAnswer.toLowerCase() === 'y' || gsmAnswer.toLowerCase() === 'yes') || 
                                    (gsmAnswer.trim() === '' && recommendGSM);
     
-    if (this.config.USE_STATE_MACHINE) {
+    if (this._config.USE_STATE_MACHINE) {
       console.log("✅ Game State Machine will be enabled in your GameEngine configuration.");
     } else {
       console.log("📝 Your game will use procedural code approach.");
@@ -388,79 +388,79 @@ class GameSetupWizard {
       "other (custom interaction model)"
     ];
     const gameTypeChoice = await this.askChoice("What type of game interaction does your game use?", gameTypes);
-    this.config.GAME_INTERACTION_TYPE = gameTypeChoice.split(' ')[0];
-    this.config.USES_PIECES = this.config.GAME_INTERACTION_TYPE === "piece-placement";
+    this._config.GAME_INTERACTION_TYPE = gameTypeChoice.split(' ')[0];
+    this._config.USES_PIECES = this._config.GAME_INTERACTION_TYPE === "piece-placement";
     
-    if (this.config.USES_PIECES) {
-      this.config.GAME_PIECE_TYPE = await this.askQuestion("What type of game pieces will players place? (e.g., 'stone', 'piece', 'card'): ");
-    } else if (this.config.GAME_INTERACTION_TYPE === "character-movement") {
-      this.config.GAME_PIECE_TYPE = "character";
+    if (this._config.USES_PIECES) {
+      this._config.GAME_PIECE_TYPE = await this.askQuestion("What type of game pieces will players place? (e.g., 'stone', 'piece', 'card'): ");
+    } else if (this._config.GAME_INTERACTION_TYPE === "character-movement") {
+      this._config.GAME_PIECE_TYPE = "character";
     } else {
-      this.config.GAME_PIECE_TYPE = await this.askQuestion("What will players interact with in your game? (e.g., 'units', 'tokens', 'cards'): ");
+      this._config.GAME_PIECE_TYPE = await this.askQuestion("What will players interact with in your game? (e.g., 'units', 'tokens', 'cards'): ");
     }
     
     // Additional features
-    this.config.HAS_PLAYER_SCORE = await this.askYesNo("Will players have scores?");
-    this.config.HAS_PLAYER_RESOURCES = await this.askYesNo("Will players have resources (coins, energy, etc.)?");
+    this._config.HAS_PLAYER_SCORE = await this.askYesNo("Will players have scores?");
+    this._config.HAS_PLAYER_RESOURCES = await this.askYesNo("Will players have resources (coins, energy, etc.)?");
     
     // Only ask about piece values if the game uses pieces
-    if (this.config.USES_PIECES) {
-      this.config.HAS_PIECE_VALUE = await this.askYesNo("Will game pieces have different values?");
+    if (this._config.USES_PIECES) {
+      this._config.HAS_PIECE_VALUE = await this.askYesNo("Will game pieces have different values?");
     } else {
-      this.config.HAS_PIECE_VALUE = false; // No pieces = no piece values
+      this._config.HAS_PIECE_VALUE = false; // No pieces = no piece values
     }
     
-    this.config.HAS_SPECIAL_ACTIONS = await this.askYesNo("Will the game have special actions beyond basic moves? (e.g., power-ups, abilities, card plays)");
-    this.config.HAS_INACTIVITY = await this.askYesNo("Should the game handle player inactivity timeouts?");
-    this.config.SUPPORTS_AI = await this.askYesNo("Should the game support computer opponents (AI)?");
-    this.config.SUPPORTS_SPECTATORS = await this.askYesNo("Should the game support spectators?");
-    this.config.HAS_DATABASE = await this.askYesNo("Will your game need database integration?");
-    this.config.HAS_EXTERNAL_API = await this.askYesNo("Will your game need external API integration?");
+    this._config.HAS_SPECIAL_ACTIONS = await this.askYesNo("Will the game have special actions beyond basic moves? (e.g., power-ups, abilities, card plays)");
+    this._config.HAS_INACTIVITY = await this.askYesNo("Should the game handle player inactivity timeouts?");
+    this._config.SUPPORTS_AI = await this.askYesNo("Should the game support computer opponents (AI)?");
+    this._config.SUPPORTS_SPECTATORS = await this.askYesNo("Should the game support spectators?");
+    this._config.HAS_DATABASE = await this.askYesNo("Will your game need database integration?");
+    this._config.HAS_EXTERNAL_API = await this.askYesNo("Will your game need external API integration?");
     
-    return this.config;
+    return this._config;
   }
 
   // Display configuration summary
   displaySummary() {
     console.log("\\n📋 Game Configuration Summary:");
     console.log("===============================");
-    console.log(`Game Name: ${this.config.GAME_NAME}`);
-    console.log(`File Names: ${this.config.GAME_SHORT_NAME} (kebab-case)`);
-    console.log(`Code Names: ${this.config.GAME_CAMEL_NAME}Router, ${this.config.GAME_CLASS_NAME}Game`);
-    console.log(`Directory: backend-${this.config.GAME_SHORT_NAME}`);
-    console.log(`Indentation: ${this.config.INDENT_STYLE}`);
-    console.log(`Play Style: ${this.config.PLAY_STYLE}`);
-    console.log(`Multiplayer: ${this.config.IS_MULTIPLAYER ? 'Yes' : 'No'}`);
-    if (this.config.IS_MULTIPLAYER) {
-      console.log(`Max Players: ${this.config.MAX_PLAYERS}`);
+    console.log(`Game Name: ${this._config.GAME_NAME}`);
+    console.log(`File Names: ${this._config.GAME_SHORT_NAME} (kebab-case)`);
+    console.log(`Code Names: ${this._config.GAME_CAMEL_NAME}Router, ${this._config.GAME_CLASS_NAME}Game`);
+    console.log(`Directory: backend-${this._config.GAME_SHORT_NAME}`);
+    console.log(`Indentation: ${this._config.INDENT_STYLE}`);
+    console.log(`Play Style: ${this._config.PLAY_STYLE}`);
+    console.log(`Multiplayer: ${this._config.IS_MULTIPLAYER ? 'Yes' : 'No'}`);
+    if (this._config.IS_MULTIPLAYER) {
+      console.log(`Max Players: ${this._config.MAX_PLAYERS}`);
     }
-    console.log(`Scrollable Grid: ${this.config.IS_SCROLLABLE ? 'Yes' : 'No'}`);
-    if (this.config.IS_SCROLLABLE) {
-      console.log(`Grid Size: ${this.config.DEFAULT_GRID_WIDTH} x ${this.config.DEFAULT_GRID_HEIGHT}`);
-      console.log(`Tilemap Type: ${this.config.USE_VIEWPORTS ? 'Viewport-based' : 'Basic scrollable'}`);
-      if (this.config.USE_VIEWPORTS) {
-        console.log(`Viewport Size: ${this.config.DEFAULT_VIEWPORT_WIDTH} x ${this.config.DEFAULT_VIEWPORT_HEIGHT}`);
-        console.log(`Auto-follow: ${this.config.VIEWPORT_AUTO_FOLLOW ? 'Yes' : 'No'}`);
+    console.log(`Scrollable Grid: ${this._config.IS_SCROLLABLE ? 'Yes' : 'No'}`);
+    if (this._config.IS_SCROLLABLE) {
+      console.log(`Grid Size: ${this._config.DEFAULT_GRID_WIDTH} x ${this._config.DEFAULT_GRID_HEIGHT}`);
+      console.log(`Tilemap Type: ${this._config.USE_VIEWPORTS ? 'Viewport-based' : 'Basic scrollable'}`);
+      if (this._config.USE_VIEWPORTS) {
+        console.log(`Viewport Size: ${this._config.DEFAULT_VIEWPORT_WIDTH} x ${this._config.DEFAULT_VIEWPORT_HEIGHT}`);
+        console.log(`Auto-follow: ${this._config.VIEWPORT_AUTO_FOLLOW ? 'Yes' : 'No'}`);
       }
     } else {
-      console.log(`Grid Size: ${this.config.DEFAULT_GRID_WIDTH} x ${this.config.DEFAULT_GRID_WIDTH}`);
+      console.log(`Grid Size: ${this._config.DEFAULT_GRID_WIDTH} x ${this._config.DEFAULT_GRID_WIDTH}`);
     }
-    console.log(`Game Interaction: ${this.config.GAME_INTERACTION_TYPE}`);
-    if (this.config.USES_PIECES) {
-      console.log(`Game Piece Type: ${this.config.GAME_PIECE_TYPE}`);
+    console.log(`Game Interaction: ${this._config.GAME_INTERACTION_TYPE}`);
+    if (this._config.USES_PIECES) {
+      console.log(`Game Piece Type: ${this._config.GAME_PIECE_TYPE}`);
     } else {
-      console.log(`Player Interaction: ${this.config.GAME_PIECE_TYPE}`);
+      console.log(`Player Interaction: ${this._config.GAME_PIECE_TYPE}`);
     }
     console.log(`Features:`);
-    console.log(`  - Player Scores: ${this.config.HAS_PLAYER_SCORE ? 'Yes' : 'No'}`);
-    console.log(`  - Player Resources: ${this.config.HAS_PLAYER_RESOURCES ? 'Yes' : 'No'}`);
-    console.log(`  - Piece Values: ${this.config.HAS_PIECE_VALUE ? 'Yes' : 'No'}`);
-    console.log(`  - Special Actions: ${this.config.HAS_SPECIAL_ACTIONS ? 'Yes' : 'No'}`);
-    console.log(`  - Inactivity Handling: ${this.config.HAS_INACTIVITY ? 'Yes' : 'No'}`);
-    console.log(`  - Computer Opponents (AI): ${this.config.SUPPORTS_AI ? 'Yes' : 'No'}`);
-    console.log(`  - Spectator Support: ${this.config.SUPPORTS_SPECTATORS ? 'Yes' : 'No'}`);
-    console.log(`  - Database: ${this.config.HAS_DATABASE ? 'Yes' : 'No'}`);
-    console.log(`  - External API: ${this.config.HAS_EXTERNAL_API ? 'Yes' : 'No'}`);
+    console.log(`  - Player Scores: ${this._config.HAS_PLAYER_SCORE ? 'Yes' : 'No'}`);
+    console.log(`  - Player Resources: ${this._config.HAS_PLAYER_RESOURCES ? 'Yes' : 'No'}`);
+    console.log(`  - Piece Values: ${this._config.HAS_PIECE_VALUE ? 'Yes' : 'No'}`);
+    console.log(`  - Special Actions: ${this._config.HAS_SPECIAL_ACTIONS ? 'Yes' : 'No'}`);
+    console.log(`  - Inactivity Handling: ${this._config.HAS_INACTIVITY ? 'Yes' : 'No'}`);
+    console.log(`  - Computer Opponents (AI): ${this._config.SUPPORTS_AI ? 'Yes' : 'No'}`);
+    console.log(`  - Spectator Support: ${this._config.SUPPORTS_SPECTATORS ? 'Yes' : 'No'}`);
+    console.log(`  - Database: ${this._config.HAS_DATABASE ? 'Yes' : 'No'}`);
+    console.log(`  - External API: ${this._config.HAS_EXTERNAL_API ? 'Yes' : 'No'}`);
   }
 
   // Process template file with mustache-like syntax
@@ -552,7 +552,7 @@ class GameSetupWizard {
 
   // Generate files from templates
   async generateFiles() {
-    const gameDir = `backend-${this.config.GAME_SHORT_NAME}`;
+    const gameDir = `backend-${this._config.GAME_SHORT_NAME}`;
     const routeDir = path.join(gameDir, 'route');
     const entityDir = path.join(gameDir, 'game-entity');
     
@@ -564,34 +564,34 @@ class GameSetupWizard {
       fs.mkdirSync(entityDir, { recursive: true });
       
       // Generate game.js (main game file)
-      console.log(`📄 Generating: ${gameDir}/${this.config.GAME_SHORT_NAME}.js`);
-      const gameTemplate = fs.readFileSync(path.join(this.templateDir, 'game.js.template'), 'utf8');
-      const gameContent = this.processTemplate(gameTemplate, this.config);
-      fs.writeFileSync(path.join(gameDir, `${this.config.GAME_SHORT_NAME}.js`), gameContent);
+      console.log(`📄 Generating: ${gameDir}/${this._config.GAME_SHORT_NAME}.js`);
+      const gameTemplate = fs.readFileSync(path.join(this._templateDir, 'game.js.template'), 'utf8');
+      const gameContent = this.processTemplate(gameTemplate, this._config);
+      fs.writeFileSync(path.join(gameDir, `${this._config.GAME_SHORT_NAME}.js`), gameContent);
       
       // Generate player-entity.js
       console.log(`📄 Generating: ${entityDir}/player-entity.js`);
-      const playerTemplate = fs.readFileSync(path.join(this.templateDir, 'player-entity.js.template'), 'utf8');
-      const playerContent = this.processTemplate(playerTemplate, this.config);
+      const playerTemplate = fs.readFileSync(path.join(this._templateDir, 'player-entity.js.template'), 'utf8');
+      const playerContent = this.processTemplate(playerTemplate, this._config);
       fs.writeFileSync(path.join(entityDir, 'player-entity.js'), playerContent);
       
       // Generate routes.js
-      console.log(`📄 Generating: ${routeDir}/${this.config.GAME_SHORT_NAME}-routes.js`);
-      const routesTemplate = fs.readFileSync(path.join(this.templateDir, 'routes.js.template'), 'utf8');
-      const routesContent = this.processTemplate(routesTemplate, this.config);
-      fs.writeFileSync(path.join(routeDir, `${this.config.GAME_SHORT_NAME}-routes.js`), routesContent);
+      console.log(`📄 Generating: ${routeDir}/${this._config.GAME_SHORT_NAME}-routes.js`);
+      const routesTemplate = fs.readFileSync(path.join(this._templateDir, 'routes.js.template'), 'utf8');
+      const routesContent = this.processTemplate(routesTemplate, this._config);
+      fs.writeFileSync(path.join(routeDir, `${this._config.GAME_SHORT_NAME}-routes.js`), routesContent);
       
       // Generate game-server.js (complete server file)
       console.log(`📄 Generating: ${gameDir}/game-server.js`);
-      const gameServerTemplate = fs.readFileSync(path.join(this.templateDir, 'game-server.js.template'), 'utf8');
-      const gameServerContent = this.processTemplate(gameServerTemplate, this.config);
+      const gameServerTemplate = fs.readFileSync(path.join(this._templateDir, 'game-server.js.template'), 'utf8');
+      const gameServerContent = this.processTemplate(gameServerTemplate, this._config);
       fs.writeFileSync(path.join(gameDir, 'game-server.js'), gameServerContent);
       
       // Generate .env file if it doesn't exist
       if (!fs.existsSync('.env')) {
         console.log('📄 Generating: .env');
-        const envTemplate = fs.readFileSync(path.join(this.templateDir, 'env.template'), 'utf8');
-        const envContent = this.processTemplate(envTemplate, this.config);
+        const envTemplate = fs.readFileSync(path.join(this._templateDir, 'env.template'), 'utf8');
+        const envContent = this.processTemplate(envTemplate, this._config);
         fs.writeFileSync('.env', envContent);
       } else {
         console.log('⚠️  .env already exists - skipping (use .env.example as reference)');
@@ -600,8 +600,8 @@ class GameSetupWizard {
       // Generate .env.example file if it doesn't exist
       if (!fs.existsSync('.env.example')) {
         console.log('📄 Generating: .env.example');
-        const envExampleTemplate = fs.readFileSync(path.join(this.templateDir, 'env.example.template'), 'utf8');
-        const envExampleContent = this.processTemplate(envExampleTemplate, this.config);
+        const envExampleTemplate = fs.readFileSync(path.join(this._templateDir, 'env.example.template'), 'utf8');
+        const envExampleContent = this.processTemplate(envExampleTemplate, this._config);
         fs.writeFileSync('.env.example', envExampleContent);
       } else {
         console.log('⚠️  .env.example already exists - skipping');
@@ -648,11 +648,11 @@ class GameSetupWizard {
         
         // Show generated folder structure
         console.log(`\n📁 Generated Folder Structure:`);
-        console.log(`backend-${this.config.GAME_SHORT_NAME}/`);
+        console.log(`backend-${this._config.GAME_SHORT_NAME}/`);
         console.log(`├── game-server.js                    # Complete Express server`);
-        console.log(`├── ${this.config.GAME_SHORT_NAME}.js              # Main game logic (${this.config.GAME_CLASS_NAME}Game class)`);
+        console.log(`├── ${this._config.GAME_SHORT_NAME}.js              # Main game logic (${this._config.GAME_CLASS_NAME}Game class)`);
         console.log(`├── route/`);
-        console.log(`│   └── ${this.config.GAME_SHORT_NAME}-routes.js   # API routes (${this.config.GAME_CAMEL_NAME}Router)`);
+        console.log(`│   └── ${this._config.GAME_SHORT_NAME}-routes.js   # API routes (${this._config.GAME_CAMEL_NAME}Router)`);
         console.log(`└── game-entity/`);
         console.log(`    └── player-entity.js             # Player entity class`);
         if (!fs.existsSync('.env')) {
@@ -663,21 +663,21 @@ class GameSetupWizard {
         }
         
         console.log(`\n📝 Next steps:`);
-        console.log(`   1. Implement your game logic in backend-${this.config.GAME_SHORT_NAME}/${this.config.GAME_SHORT_NAME}.js`);
+        console.log(`   1. Implement your game logic in backend-${this._config.GAME_SHORT_NAME}/${this._config.GAME_SHORT_NAME}.js`);
         console.log(`   2. Customize the win condition in the checkWinCondition method`);
         console.log(`   3. Add your game to the main server by importing and registering it`);
         console.log(`   4. Test your game using the generated routes`);
         
         let stepCounter = 5;
-        if (this.config.HAS_SPECIAL_ACTIONS) {
+        if (this._config.HAS_SPECIAL_ACTIONS) {
           console.log(`   ${stepCounter}. Implement special actions in the routes file`);
           stepCounter++;
         }
-        if (this.config.SUPPORTS_AI) {
+        if (this._config.SUPPORTS_AI) {
           console.log(`   ${stepCounter}. Implement AI logic in the calculateComputerMove method`);
           stepCounter++;
         }
-        if (this.config.SUPPORTS_SPECTATORS) {
+        if (this._config.SUPPORTS_SPECTATORS) {
           console.log(`   ${stepCounter}. Customize spectator view in getSpectatorView method`);
           stepCounter++;
         }
