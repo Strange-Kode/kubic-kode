@@ -47,10 +47,18 @@ export class GameEngine {
     }
   }
 
+  /**
+   * Get all registered entities in the game engine
+   * @returns {Array} Array of all registered player entities
+   */
   getEntities() {
     return this._player_entities;
   }
 
+  /**
+   * Register a player entity with the game engine
+   * @param {Object} entity - The player entity to register
+   */
   registerPlayerEntity(entity) {
     // Check if player is already registered to prevent duplicates
     const existingPlayer = this._player_entities.find(e => e.getPlayerId() === entity.getPlayerId());
@@ -77,7 +85,10 @@ export class GameEngine {
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
 
-  // Clear all registered players (useful for game restart)
+  /**
+   * Clear all registered players and reset turn state
+   * Useful for game restart scenarios
+   */
   clearPlayerEntities() {
     this._player_entities = [];
     this._turnOrder = [];
@@ -86,6 +97,12 @@ export class GameEngine {
     kubicLog.debug(`[GameEngine] Cleared all player entities and reset turn state`);
   }
 
+  /**
+   * Deregister a player entity from the game engine.
+   * Removing player entity from the game engine may have side effects,
+   * such as changing the turn order.
+   * @param {string} entityId - The ID of the player entity to deregister
+   */
   deregisterPlayerEntity(entityId) {
     this._player_entities = this._player_entities.filter(e => e.getPlayerId() !== entityId);
     
@@ -105,10 +122,20 @@ export class GameEngine {
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
   
+  /**
+   * Get all registered player entities
+   * @returns {Array} Array of all player entities
+   */
   getPlayerEntities() {
     return this._player_entities;
   }
   
+  /**
+   * Get a specific player entity by ID
+   * @param {string} playerId - The ID of the player to find
+   * @returns {Object} The player entity
+   * @throws {Error} If player is not found
+   */
   getPlayerEntity(playerId) {
     const playerEntity = this._player_entities.find(e => e.getPlayerId() === playerId);
     if (!playerEntity) {
@@ -117,6 +144,10 @@ export class GameEngine {
     return playerEntity;
   }
   
+  /**
+   * Start the game engine
+   * @throws {Error} If game is already started or no players are registered
+   */
   startGame() {
     if (this._gameStarted === true) {
       throw new Error(`Game is already started.`);
@@ -128,10 +159,18 @@ export class GameEngine {
     this._gameStarted = true;
   }
 
+  /**
+   * Check if the game has been started
+   * @returns {boolean} True if game is started, false otherwise
+   */
   isGameStarted() {
     return this._gameStarted;
   }
 
+  /**
+   * Stop the game engine and reset turn state
+   * @throws {Error} If game is already stopped
+   */
   stopGame() {
     if (this._gameStarted === false) {
       throw new Error(`Game is already stopped.`);
@@ -142,6 +181,11 @@ export class GameEngine {
     this._actedThisRound.clear();
   }
 
+  /**
+   * Get array of registered player entities whose turn it currently is.
+   * Return result depends on set play style.
+   * @returns {Object|Array|null} Current turn player(s) or null if no players
+   */
   getCurrentTurnPlayers() {
     if (this._playStyle === "single-set") {
       // Safety check for empty turn order
@@ -170,10 +214,19 @@ export class GameEngine {
     return this._player_entities;
   }
 
+  /**
+   * Find a registered player entity by ID
+   * @param {string} playerId - The ID of the player to find
+   * @returns {Object|undefined} The player entity or undefined if not found
+   */
   getPlayerById(playerId) {
     return this._player_entities.find(e => e.getPlayerId() === playerId);
   }
 
+  /**
+   * Advance to the next turn based on play style
+   * @param {string} playerId - Optional player ID for tracking who acted (used in multi-set/multi-subset play style)
+   */
   nextTurn(playerId = null) {
     if (this._playStyle === "single-set") {
       this._currentTurnIndex = (this._currentTurnIndex + 1) % this._turnOrder.length;
@@ -208,10 +261,19 @@ export class GameEngine {
     }
   }
   
+  /**
+   * Get the current turn number
+   * @returns {number} The current turn number
+   */
   getTurnNumber() {
     return this._currentTurnNumber;
   }
 
+  /**
+   * Update the game engine and all player entities
+   * @param {number} deltaTime - Time elapsed since last update in milliseconds (default: 16)
+   * @deprecated - Not used, will be removed in v. 1.1.x.
+   */
   update(deltaTime = 16) {
     for (const player_entity of this._player_entities) {
       player_entity.update();
@@ -223,16 +285,27 @@ export class GameEngine {
     }
   }
 
+  /**
+   * Get the current tile map
+   * @returns {TileMap} The tile map instance
+   */
   getTileMap() {
     return this._tileMap;
   }
   
+  /**
+   * Reset the tile map to a new instance
+   */
   resetTileMap() {
     this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
   }
 
-  // Method to update tile map dimensions
-  // Note: tileMap is completely reset, so all existing tiles are lost
+  /**
+   * Update tile map dimensions and recreate the tile map
+   * Note: This completely resets the tile map, so all existing tiles are lost
+   * @param {number} newWidth - The new width of the tile map
+   * @param {number} newHeight - The new height of the tile map
+   */
   updateTileMapDimensions(newWidth, newHeight) {
     this._tilemapWidth = newWidth;
     this._tilemapHeight = newHeight;
@@ -308,6 +381,11 @@ export class GameEngine {
     return this._playStyle;
   }
 
+  /**
+   * Register a component function with the game engine
+   * @param {Function} componentFunc - The component function to register
+   * @throws {Error} If component is missing name or already registered
+   */
   registerComponent(componentFunc) {
     const componentName = componentFunc.componentName;
 
@@ -327,6 +405,13 @@ export class GameEngine {
     this._componentNames.add(componentName);
   }
   
+  /**
+   * Apply a component to an entity
+   * @param {Object} entity - The entity to apply the component to
+   * @param {Function} componentFunc - The component function to apply
+   * @param {...any} args - Additional arguments to pass to the component function
+   * @throws {Error} If component is not registered or entity already has the component
+   */
   applyComponent(entity, componentFunc, ...args) {
     const componentName = this._registeredComponents.get(componentFunc);
 

@@ -2,6 +2,10 @@ import crypto from "crypto";
 import { kubicLog } from "../kubic-log.js";
 
 class GameTokenService {
+  /**
+   * Create a new game token service instance
+   * @throws {Error} If secret key is not properly configured
+   */
   constructor() {
     this.__secretKey = process.env.KUBIC_GAME_TOKEN_SECRET_KEY; // Required to be set in the .env file
     this.__algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || "aes-256-gcm";
@@ -35,6 +39,7 @@ class GameTokenService {
    * @param {string} sessionId - The session ID
    * @param {string} participantId - The participant ID (optional, for participant-specific tokens)
    * @returns {string} - Encrypted game token
+   * @throws {Error} If token generation fails
    */
   generateToken(sessionId, participantId = null) {
     try {
@@ -177,7 +182,14 @@ class GameTokenService {
 // Lazy instantiation to avoid issues with environment variables not being loaded
 let _gameTokenService = null;
 
+/**
+ * Game token service singleton with lazy instantiation
+ */
 export const gameTokenService = {
+  /**
+   * Get the game token service instance
+   * @returns {GameTokenService} The game token service instance
+   */
   get instance() {
     if (!_gameTokenService) {
       _gameTokenService = new GameTokenService();

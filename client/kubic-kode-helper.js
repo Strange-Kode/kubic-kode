@@ -32,6 +32,10 @@
 })(typeof window !== "undefined" ? window : this, function () {
 
 class KubicKodeHelper {
+  /**
+   * Create a new KubicKodeHelper instance
+   * @param {string} apiPrefix - The API base URL (default: "http://localhost:4000/api")
+   */
   constructor(apiPrefix = "http://localhost:4000/api") {
     this.config = {
       apiPrefix: apiPrefix,
@@ -99,6 +103,8 @@ class KubicKodeHelper {
 
   /**
    * Configure the KubicKode helper
+   * @param {Object} options - Configuration options to merge with existing config
+   * @returns {KubicKodeHelper} This instance for chaining
    */
   configure(options = {}) {
     this.config = { ...this.config, ...options };
@@ -215,9 +221,15 @@ class KubicKodeHelper {
   };
 
   /**
-   * Event management
+   * Event management system
    */
   events = {
+    /**
+     * Register an event listener
+     * @param {string} eventType - The type of event to listen for
+     * @param {Function} callback - The callback function to execute
+     * @returns {KubicKodeHelper} This instance for chaining
+     */
     on: (eventType, callback) => {
       if (!this.eventListeners.has(eventType)) {
         this.eventListeners.set(eventType, []);
@@ -226,6 +238,12 @@ class KubicKodeHelper {
       return this;
     },
 
+    /**
+     * Remove an event listener
+     * @param {string} eventType - The type of event
+     * @param {Function} callback - The callback function to remove
+     * @returns {KubicKodeHelper} This instance for chaining
+     */
     off: (eventType, callback) => {
       if (this.eventListeners.has(eventType)) {
         const listeners = this.eventListeners.get(eventType);
@@ -237,6 +255,12 @@ class KubicKodeHelper {
       return this;
     },
 
+    /**
+     * Emit an event to all registered listeners
+     * @param {string} eventType - The type of event to emit
+     * @param {any} data - The data to pass to event listeners
+     * @returns {KubicKodeHelper} This instance for chaining
+     */
     emit: (eventType, data) => {
       if (this.eventListeners.has(eventType)) {
         this.eventListeners.get(eventType).forEach(callback => {
@@ -253,6 +277,7 @@ class KubicKodeHelper {
 
   /**
    * Initialize WebSocket connection for real-time events
+   * @returns {KubicKodeHelper} This instance for chaining
    */
   connectWebSocket() {
     if (!this.sessionId) {
@@ -381,6 +406,7 @@ class KubicKodeHelper {
 
   /**
    * Handle incoming heartbeat from server
+   * @param {Object} data - The heartbeat data
    */
   handleHeartbeat(data) {
     // Respond to server heartbeat
@@ -394,6 +420,7 @@ class KubicKodeHelper {
 
   /**
    * Handle heartbeat response from server
+   * @param {Object} data - The heartbeat response data
    */
   handleHeartbeatResponse(data) {
     // Server confirmed our heartbeat
@@ -423,6 +450,7 @@ class KubicKodeHelper {
 
   /**
    * Disconnect WebSocket connection
+   * @returns {KubicKodeHelper} This instance for chaining
    */
   disconnectWebSocket() {
     if (this.websocket) {
@@ -436,6 +464,9 @@ class KubicKodeHelper {
 
   /**
    * Store game token in localStorage
+   * @param {string} sessionId - The session ID
+   * @param {string} gameToken - The game token to store for game authentication
+   * @private
    */
   _storeGameToken(sessionId, gameToken) {
     try {
@@ -449,7 +480,10 @@ class KubicKodeHelper {
   }
 
   /**
-   * Get game token from localStorage
+   * Get game token from localStorage for game authentication
+   * @param {string} sessionId - The session ID
+   * @returns {string|null} The game token or null if not found
+   * @private
    */
   _getGameToken(sessionId) {
     try {
@@ -463,6 +497,8 @@ class KubicKodeHelper {
 
   /**
    * Clear game token from localStorage
+   * @param {string} sessionId - The session ID
+   * @private
    */
   _clearGameToken(sessionId) {
     try {
@@ -477,6 +513,8 @@ class KubicKodeHelper {
 
   /**
    * Get all game tokens from localStorage
+   * @returns {Object} Object mapping session IDs to game tokens
+   * @private
    */
   _getAllGameTokens() {
     try {
@@ -502,6 +540,12 @@ class KubicKodeHelper {
 
   /**
    * Make HTTP request with retry logic
+   * @param {string} method - The HTTP method (GET, POST, etc.)
+   * @param {string} endpoint - The API endpoint
+   * @param {Object} data - The request data (for non-GET requests)
+   * @returns {Promise<Object>} The response object
+   * @throws {Error} If all retry attempts fail
+   * @private
    */
   async _makeRequest(method, endpoint, data = null) {
     const url = `${this.config.apiPrefix}${endpoint}`;
@@ -612,6 +656,7 @@ class KubicKodeHelper {
 
   /**
    * Get current session state
+   * @returns {Object} Object containing current session information
    */
   getState() {
     return {

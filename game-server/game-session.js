@@ -4,6 +4,12 @@ import { GameEventService } from "./game-event-service.js";
 import { kubicLog } from "../kubic-log.js";
 
 export class GameSession {
+  /**
+   * Create a new game session
+   * @param {string} sessionId - Unique identifier for the session
+   * @param {number} maxParticipants - Maximum number of participants allowed (default: 2)
+   * @param {string|null} gameVariantId - Optional game variant identifier
+   */
   constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
     this._sessionId = sessionId;
     this._maxParticipants = maxParticipants;
@@ -37,10 +43,18 @@ export class GameSession {
     this._gameHistory = gameHistoryManager.getGameHistory(sessionId);
   }
 
+  /**
+   * Get the game instance associated with this session
+   * @returns {Object|null} The game instance or null if not set
+   */
   getGameInstance() {
     return this._gameInstance;
   }
 
+  /**
+   * Set the game instance for this session
+   * @param {Object} gameInstance - The game instance to set
+   */
   setGameInstance(gameInstance) {
     this._gameInstance = gameInstance;
   }
@@ -49,14 +63,24 @@ export class GameSession {
     throw new Error("Attempting to access winCounter property on GameSession. Not allowed, winCounter is a protected property. Use getWinCounter() instead.");
   }
 
+  /**
+   * Get the current win counter value
+   * @returns {number} The number of wins in this session
+   */
   getWinCounter() {
     return this._winCounter;
   }
 
+  /**
+   * Increment the win counter
+   */
   increaseWinCounter() {
     this._winCounter++;
   }
 
+  /**
+   * Reset the win counter to zero
+   */
   resetWinCounter() {
     this._winCounter = 0;
   }
@@ -65,23 +89,44 @@ export class GameSession {
     throw new Error("Attempting to access restartCounter property on GameSession. Not allowed, restartCounter is a protected property. Use getRestartCounter() instead.");
   }
 
+  /**
+   * Get the current restart counter value
+   * @returns {number} The number of game restarts in this session
+   */
   getRestartCounter() {
     return this._restartCounter;
   }
 
+  /**
+   * Increment the restart counter
+   */
   increaseRestartCounter() {
     this._restartCounter++;
   }
 
+  /**
+   * Reset the restart counter to zero
+   */
   resetRestartCounter() {
     this._restartCounter = 0;
   }
 
+  /**
+   * Allocate a new participant ID
+   * @returns {number} The next available participant ID
+   */
   allocateParticipantId() {
     this.__participant_alloc_idx++;
     return this.__participant_alloc_idx;
   }
 
+  /**
+   * Add a participant to the session
+   * @param {string} name - The participant's name (must be unique)
+   * @param {string} participant_type - The type of participant ("user", "computer", or "spectator")
+   * @returns {number} The allocated participant ID
+   * @throws {Error} If name is already in use, session is full, or invalid participant type
+   */
   addParticipant(name, participant_type = "user") {
     // Validate unique names within session
     const existingName = this._participants.find(p => p.name === name);
@@ -154,6 +199,13 @@ export class GameSession {
     return participantId;
   }
 
+  /**
+   * Remove a participant from the session.
+   * Removing a participant may affect the session, such as if the host leaves.
+   * (a new host will be automatically selected if the host leaves)
+   * @param {number} id - The participant ID to remove
+   * @throws {Error} If participant is not found
+   */
   removeParticipant(id) {
     const index = this._participants.findIndex((p) => p.id === id);
 
@@ -187,6 +239,10 @@ export class GameSession {
     this._gameHistory.addParticipantLeftEvent(id, participant.name);
   }
 
+  /**
+   * Get a list of all participants in the session
+   * @returns {Array<Object>} Array of participant objects with id, name, type, and isPlayable flag
+   */
   listParticipants() {
     return this._participants.map((p) => ({ 
       id: p.id, 
@@ -200,6 +256,10 @@ export class GameSession {
     throw new Error("Attempting to access participants property on GameSession. Not allowed, participants is a protected property. Use getParticipants() instead.");
   }
 
+  /**
+   * Get all participants in the session
+   * @returns {Array<Object>} Array of all participant objects
+   */
   getParticipants() {
     return this._participants;
   }
@@ -208,6 +268,10 @@ export class GameSession {
     throw new Error("Attempting to access maxParticipants property on GameSession. Not allowed, maxParticipants is a protected property. Use getMaxParticipants() instead.");
   }
 
+  /**
+   * Get the maximum number of participants allowed in this session
+   * @returns {number} The maximum participant count
+   */
   getMaxParticipants() {
     return this._maxParticipants;
   }
@@ -216,10 +280,18 @@ export class GameSession {
     throw new Error("Attempting to access started property on GameSession. Not allowed, started is a protected property. Use isStarted() instead.");
   }
 
+  /**
+   * Check if the session has been started
+   * @returns {boolean} True if the session is started, false otherwise
+   */
   isStarted() {
     return this._started;
   }
 
+  /**
+   * Mark the session as started and initialize game state
+   * @throws {Error} If not enough players are available to start
+   */
   markStarted() {
     // Don't reset win counter here - it should persist across games in the same session
     // this.resetWinCounter(); // Removed - win counter should only reset on session restart
@@ -251,6 +323,9 @@ export class GameSession {
     this._gameHistory.addSessionStartedEvent(this._participants);
   }
 
+  /**
+   * Mark the session as ended and clean up resources
+   */
   markEnded() {
     this._started = false;
     if (this._inactivityManager) {
@@ -264,20 +339,38 @@ export class GameSession {
     this._gameHistory.addSessionEndedEvent(this._participants.length);
   }
 
+  /**
+   * Find a participant by their ID
+   * @param {number|string} id - The participant ID to find
+   * @returns {Object|null} The participant object or null if not found
+   */
   getParticipantById(id) {
     // Convert id to number if it's a string, since participant IDs are numbers
     const numericId = typeof id === "string" ? parseInt(id, 10) : id;
     return this._participants.find((p) => p.id === numericId) || null;
   }
 
+  /**
+   * Get all playable participants (users and computers)
+   * @returns {Array<Object>} Array of playable participant objects
+   */
   getPlayableParticipants() {
     return this._participants.filter(p => this.isParticipantPlayable(p));
   }
 
+  /**
+   * Get all spectator participants
+   * @returns {Array<Object>} Array of spectator participant objects
+   */
   getSpectatorParticipants() {
     return this._participants.filter(p => p.type === "spectator");
   }
 
+  /**
+   * Check if a participant is playable (user or computer)
+   * @param {Object} participant - The participant object to check
+   * @returns {boolean} True if the participant is playable, false otherwise
+   */
   isParticipantPlayable(participant) {
     return ["user", "computer"].includes(participant.type);
   }
@@ -286,6 +379,10 @@ export class GameSession {
     throw new Error("Attempting to access sessionId property on GameSession. Not allowed, sessionId is a protected property. Use getSessionId() instead.");
   }
 
+  /**
+   * Get the session ID
+   * @returns {string} The session ID
+   */
   getSessionId() {
     return this._sessionId;
   }
@@ -294,10 +391,17 @@ export class GameSession {
     throw new Error("Attempting to access gameVariantId property on GameSession. Not allowed, gameVariantId is a protected property. Use getGameVariantId() instead.");
   }
 
+  /**
+   * Get the game variant ID
+   * @returns {string|null} The game variant ID or null if not set
+   */
   getGameVariantId() {
     return this._gameVariantId;
   }
 
+  /**
+   * Start a restart game vote for the session
+   */
   startRestartVote() {
     // Only count playable participants (users and computers) for voting
     const playableParticipants = this.getPlayableParticipants();
@@ -310,6 +414,12 @@ export class GameSession {
     this._gameHistory.addRestartVoteStartedEvent(playableParticipants.length);
   }
 
+  /**
+   * Register a participant's vote for restart
+   * @param {number} participantId - The participant ID
+   * @param {boolean} voteYes - Whether the participant voted yes for restart
+   * @throws {Error} If no active restart vote exists
+   */
   registerRestartVote(participantId, voteYes) {
     if (!this._restartVote) {
       throw new Error("No active restart vote.");
@@ -325,10 +435,19 @@ export class GameSession {
     );
   }
 
+  /**
+   * Check if a restart vote is currently in progress
+   * @returns {boolean} True if a restart vote is active, false otherwise
+   */
   isRestartVoteInProgress() {
     return this._restartVote !== null;
   }
 
+  /**
+   * Check if the restart vote is complete (all playable participants (including "computer") have voted)
+   * Note: computer always votes yes.
+   * @returns {boolean} True if all playable participants have voted, false otherwise
+   */
   isRestartVoteComplete() {
     if (!this._restartVote) return false;
     return (
@@ -337,6 +456,12 @@ export class GameSession {
     );
   }
 
+  /**
+   * Get the result of the restart vote
+   * @returns {boolean} True if all playable participants (including "computer") voted yes, false otherwise
+   * Note: computer always votes yes.
+   * @throws {Error} If the vote is not complete
+   */
   getRestartVoteResult() {
     if (!this.isRestartVoteComplete()) {
       throw new Error("Vote not complete.");
@@ -344,6 +469,9 @@ export class GameSession {
     return Object.values(this._restartVote.votes).every((v) => v === true);
   }
 
+  /**
+   * Clear the current restart vote
+   */
   clearRestartVote() {
     const voteResult = this._restartVote ? this.getRestartVoteResult() : null;
     this._restartVote = null;
@@ -356,6 +484,10 @@ export class GameSession {
     throw new Error("Attempting to access restartVote property on GameSession. Not allowed, restartVote is a protected property. Use getRestartVote() instead.");
   }
 
+  /**
+   * Get the current restart vote state
+   * @returns {Object|null} The restart vote object or null if no vote is active
+   */
   getRestartVote() {
     return this._restartVote;
   }
@@ -364,6 +496,10 @@ export class GameSession {
     throw new Error("Attempting to access inactivityManager property on GameSession. Not allowed, inactivityManager is a protected property. Use getInactivityManager() instead.");
   }
 
+  /**
+   * Get the inactivity manager for this session
+   * @returns {InactivityManager|null} The inactivity manager or null if not set
+   */
   getInactivityManager() {
     return this._inactivityManager;
   }
@@ -372,6 +508,10 @@ export class GameSession {
     throw new Error("Attempting to access gameHistory property on GameSession. Not allowed, gameHistory is a protected property. Use getGameHistory() instead.");
   }
 
+  /**
+   * Get the game history for this session
+   * @returns {Object} The game history proxy object
+   */
   getGameHistory() {
     return this._gameHistory;
   }

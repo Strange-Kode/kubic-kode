@@ -42,22 +42,40 @@ export class GameContract {
     ]);
   }
 
-  // Check if a method is required
+  /**
+   * Check if a method is required for game implementations
+   * @param {string} methodName - The name of the method to check
+   * @returns {boolean} True if the method is required, false otherwise
+   */
   isRequired(methodName) {
     return this._requiredMethods.has(methodName);
   }
 
-  // Check if a method is optional
+  /**
+   * Check if a method is optional for game implementations
+   * @param {string} methodName - The name of the method to check
+   * @returns {boolean} True if the method is optional, false otherwise
+   */
   isOptional(methodName) {
     return this._optionalMethods.has(methodName);
   }
 
-  // Check if a method is provided by the wrapper
+  /**
+   * Check if a method is provided by the KubicKodeGame wrapper
+   * @param {string} methodName - The name of the method to check
+   * @returns {boolean} True if the method is provided by the wrapper, false otherwise
+   */
   isWrapperMethod(methodName) {
     return this._wrapperMethods.has(methodName);
   }
 
-  // Validate that a game instance implements the required contract
+  /**
+   * Validate that a game instance implements the required contract
+   * @param {Object} gameInstance - The game instance to validate
+   * @param {string} className - The class name for error messages (default: "GameInstance")
+   * @returns {Object} Validation result with valid flag, required methods, optional methods, and implemented methods
+   * @throws {Error} If required methods are missing
+   */
   validateGameInstance(gameInstance, className = "GameInstance") {
     const missingMethods = [];
     const implementedMethods = [];
@@ -98,7 +116,10 @@ export class GameContract {
     };
   }
 
-  // Get all method names
+  /**
+   * Get all method names defined in the contract
+   * @returns {Array<string>} Array of all method names (required, optional, and wrapper methods)
+   */
   getAllMethods() {
     return [
       ...Array.from(this._requiredMethods),
@@ -107,7 +128,10 @@ export class GameContract {
     ];
   }
 
-  // Get documentation for the contract
+  /**
+   * Get comprehensive documentation for the contract
+   * @returns {Object} Documentation object containing method lists, descriptions, and notes
+   */
   getDocumentation() {
     return {
       required: Array.from(this._requiredMethods),
