@@ -627,4 +627,4 @@ export class GameOptions {
       availableNamespaces: Array.from(this._namespaces.keys())
     };
   }
-} 
+}

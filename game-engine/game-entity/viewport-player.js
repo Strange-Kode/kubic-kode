@@ -144,4 +144,4 @@ export class ViewportPlayer extends GameEntityPlayer {
             autoFollow: this.autoFollow
         };
     }
-} 
+}

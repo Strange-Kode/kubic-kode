@@ -89,4 +89,4 @@ export const GAME_INTERFACE_METHODS = [
   'getGameOptions',
   'applyGameOptions',
   'resetGameOptions'
-]; 
+];

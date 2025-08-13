@@ -241,4 +241,4 @@ export class Viewport {
   static fromJSON(data) {
     return new Viewport(data.x, data.y, data.width, data.height);
   }
-} 
+}

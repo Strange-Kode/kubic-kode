@@ -396,4 +396,4 @@ export class GameHistory {
       payload: turnData
     });
   }
-} 
+}

@@ -180,4 +180,4 @@ export class ScrollableTileMap extends TileMap {
       viewports: Object.fromEntries(this._viewports)
     };
   }
-} 
+}

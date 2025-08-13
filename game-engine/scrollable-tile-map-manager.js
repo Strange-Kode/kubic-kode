@@ -159,4 +159,4 @@ export class ScrollableTileMapManager {
             tileMap: this._tileMap.toJSON()
         };
     }
-} 
+}
