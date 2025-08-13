@@ -3,7 +3,7 @@ import { GameEntity } from "../../../../game-engine/game-entity/game-entity.js";
 class MarkEntity extends GameEntity {
   constructor({ type, owner, position }) {
     super(null, type, position);
-    this._type = type; // 'X' or 'O'
+    this._type = type; // "X" or "O"
     this._owner = owner; // Reference to PlayerEntity
     this._position = position; // e.g., { x: 1, y: 2 }
   }

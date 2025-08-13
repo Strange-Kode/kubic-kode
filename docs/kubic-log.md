@@ -96,10 +96,10 @@ Maximum verbosity including:
 The debug system can also be configured at runtime through the debug utility:
 
 ```javascript
-import { kubicLog } from './kubic-log.js';
+import { kubicLog } from "./kubic-log.js";
 
 // Enable debug mode at runtime
-kubicLog.setMode(true, 'debug');
+kubicLog.setMode(true, "debug");
 
 // Check if debug is enabled
 if (kubicLog.isEnabled()) {
@@ -107,11 +107,11 @@ if (kubicLog.isEnabled()) {
 }
 
 // Log at different levels
-kubicLog.error('Critical error occurred');
-kubicLog.warn('Warning message');
-kubicLog.info('Informational message');
-kubicLog.debug('Debug information');
-kubicLog.trace('Trace-level details');
+kubicLog.error("Critical error occurred");
+kubicLog.warn("Warning message");
+kubicLog.info("Informational message");
+kubicLog.debug("Debug information");
+kubicLog.trace("Trace-level details");
 ```
 
 ## Output Format

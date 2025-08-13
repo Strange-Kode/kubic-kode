@@ -29,10 +29,10 @@ export function useSession() {
       const tokens = getAllGameTokens();
       tokens[sessionId] = tokens[sessionId] || {};
       tokens[sessionId][participantId] = gameToken;
-      localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+      localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
       console.log(`🔐 Stored game token for session: ${sessionId}, participant: ${participantId}`);
     } catch (error) {
-      console.error('Error storing game token:', error);
+      console.error("Error storing game token:", error);
     }
   }, []);
 
@@ -41,7 +41,7 @@ export function useSession() {
       const tokens = getAllGameTokens();
       return tokens[sessionId]?.[participantId] || null;
     } catch (error) {
-      console.error('Error getting game token:', error);
+      console.error("Error getting game token:", error);
       return null;
     }
   }, []);
@@ -54,20 +54,20 @@ export function useSession() {
         if (Object.keys(tokens[sessionId]).length === 0) {
           delete tokens[sessionId];
         }
-        localStorage.setItem('kubic_game_tokens', JSON.stringify(tokens));
+        localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
         console.log(`🔐 Cleared game token for session: ${sessionId}, participant: ${participantId}`);
       }
     } catch (error) {
-      console.error('Error clearing game token:', error);
+      console.error("Error clearing game token:", error);
     }
   }, []);
 
   const getAllGameTokens = useCallback(() => {
     try {
-      const stored = localStorage.getItem('kubic_game_tokens');
+      const stored = localStorage.getItem("kubic_game_tokens");
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error('Error getting all game tokens:', error);
+      console.error("Error getting all game tokens:", error);
       return {};
     }
   }, []);

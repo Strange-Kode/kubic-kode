@@ -1,16 +1,16 @@
-import crypto from 'crypto';
-import { kubicLog } from '../kubic-log.js';
+import crypto from "crypto";
+import { kubicLog } from "../kubic-log.js";
 
 class GameTokenService {
   constructor() {
     this.__secretKey = process.env.KUBIC_GAME_TOKEN_SECRET_KEY; // Required to be set in the .env file
-    this.__algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || 'aes-256-gcm';
+    this.__algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || "aes-256-gcm";
     this.__ivLength = parseInt(process.env.KUBIC_GAME_TOKEN_IV_LENGTH) || 16;
     this.__saltLength = parseInt(process.env.KUBIC_GAME_TOKEN_SALT_LENGTH) || 64;
     
     // Validate secret key length
     if (this.__secretKey.length < 32) {
-        throw new Error('Secret key length is too short. It must be at least 32 characters.');
+        throw new Error("Secret key length is too short. It must be at least 32 characters.");
     }
   }
 
@@ -42,7 +42,7 @@ class GameTokenService {
         sessionId,
         participantId,
         timestamp: Date.now(),
-        nonce: crypto.randomBytes(16).toString('hex')
+        nonce: crypto.randomBytes(16).toString("hex")
       };
 
       const tokenString = JSON.stringify(tokenData);
@@ -51,8 +51,8 @@ class GameTokenService {
       kubicLog.debug(`[GameTokenService]::generateToken - Generated token for session: ${sessionId}, participant: ${participantId}`);
       return encryptedToken;
     } catch (error) {
-      kubicLog.error('[GameTokenService]::generateToken - Error generating token:', error);
-      throw new Error('Failed to generate game token');
+      kubicLog.error("[GameTokenService]::generateToken - Error generating token:", error);
+      throw new Error("Failed to generate game token");
     }
   }
 
@@ -68,7 +68,7 @@ class GameTokenService {
       
       // Basic validation
       if (!tokenData.sessionId || !tokenData.timestamp || !tokenData.nonce) {
-        kubicLog.warn('[GameTokenService] Invalid token structure');
+        kubicLog.warn("[GameTokenService] Invalid token structure");
         return null;
       }
 
@@ -84,7 +84,7 @@ class GameTokenService {
       kubicLog.debug(`[GameTokenService]::validateToken - Validated token for session: ${tokenData.sessionId}`);
       return tokenData;
     } catch (error) {
-      kubicLog.error('[GameTokenService]::validateToken - Error validating token:', error);
+      kubicLog.error("[GameTokenService]::validateToken - Error validating token:", error);
       return null;
     }
   }
@@ -99,23 +99,23 @@ class GameTokenService {
     const salt = crypto.randomBytes(this.__saltLength);
     
     // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, 'sha256');
+    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, "sha256");
     
     // Create cipher
     const cipher = crypto.createCipher(this.__algorithm, key);
     cipher.setAAD(salt);
     
     // Encrypt data
-    let encrypted = cipher.update(data, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    let encrypted = cipher.update(data, "utf8", "hex");
+    encrypted += cipher.final("hex");
     
     // Get auth tag
     const authTag = cipher.getAuthTag();
     
     // Combine all components: salt + iv + authTag + encrypted
-    const combined = Buffer.concat([salt, iv, authTag, Buffer.from(encrypted, 'hex')]);
+    const combined = Buffer.concat([salt, iv, authTag, Buffer.from(encrypted, "hex")]);
     
-    return combined.toString('base64');
+    return combined.toString("base64");
   }
 
   /**
@@ -124,7 +124,7 @@ class GameTokenService {
    * @returns {string} - Decrypted data
    */
   decrypt(encryptedData) {
-    const combined = Buffer.from(encryptedData, 'base64');
+    const combined = Buffer.from(encryptedData, "base64");
     
     // Extract components
     const salt = combined.subarray(0, this.__saltLength);
@@ -133,7 +133,7 @@ class GameTokenService {
     const encrypted = combined.subarray(this.__saltLength + this.__ivLength + 16);
     
     // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, 'sha256');
+    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, "sha256");
     
     // Create decipher
     const decipher = crypto.createDecipher(this.__algorithm, key);
@@ -141,8 +141,8 @@ class GameTokenService {
     decipher.setAAD(salt);
     
     // Decrypt data
-    let decrypted = decipher.update(encrypted, null, 'utf8');
-    decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encrypted, null, "utf8");
+    decrypted += decipher.final("utf8");
     
     return decrypted;
   }

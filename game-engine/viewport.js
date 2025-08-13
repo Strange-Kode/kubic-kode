@@ -15,7 +15,7 @@ import { kubicLog } from "../kubic-log.js";
  * 
  * // Check if a position is visible to this player
  * if (viewport.contains(10, 8)) {
- *   kubicLog.info('Player can see this position');
+ *   kubicLog.info("Player can see this position");
  * }
  * 
  * // Move the viewport to follow the player

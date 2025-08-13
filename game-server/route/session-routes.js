@@ -440,7 +440,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
     );
     
     // If onlyJoinable flag is set, filter to only sessions that need players
-    if (onlyJoinable === 'true') {
+    if (onlyJoinable === "true") {
       filteredSessions = filteredSessions.filter(session => {
         const status = session.getLobbyStatus();
         return !status.started && status.needsMorePlayers;
@@ -452,7 +452,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
     res.json({
       success: true,
       game_variant_id: gameVariantId,
-      only_joinable: onlyJoinable === 'true',
+      only_joinable: onlyJoinable === "true",
       total_sessions: sessionList.length,
       sessions: sessionList
     });
@@ -473,7 +473,7 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  if (!config || typeof config !== 'object') {
+  if (!config || typeof config !== "object") {
     return res.status(400).json({ error: "config object is required." });
   }
 
@@ -513,7 +513,7 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
       });
 
       // Add system message about config changes
-      const changesList = configChanges.map(c => `${c.key}: ${c.newValue}`).join(', ');
+      const changesList = configChanges.map(c => `${c.key}: ${c.newValue}`).join(", ");
       const systemMessage = session.addSystemMessage(`Host updated game settings: ${changesList}`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
@@ -562,7 +562,7 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
     const deleted = session.deleteLobbyConfig(configKey, participantId);
 
     if (!deleted) {
-      return res.status(404).json({ error: `Configuration key '${configKey}' not found.` });
+      return res.status(404).json({ error: `Configuration key "${configKey}" not found.` });
     }
 
     res.json({
@@ -670,7 +670,7 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
 
     // Broadcast the join event
     try {
-      const eventType = participantType === 'spectator' ? 'sessionSpectatorJoined' : 'sessionParticipantJoined';
+      const eventType = participantType === "spectator" ? "sessionSpectatorJoined" : "sessionParticipantJoined";
       GameEventService.broadcastToSession(targetSession, {
         type: eventType,
         payload: { participant: serializeRecursively(participant) },
@@ -765,7 +765,7 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  if (typeof ready !== 'boolean') {
+  if (typeof ready !== "boolean") {
     return res.status(400).json({ error: "ready must be a boolean value." });
   }
 
@@ -969,7 +969,7 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, 
     return res.status(400).json({ error: "participantId is required." });
   }
 
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
     return res.status(400).json({ error: "message is required and must be a non-empty string." });
   }
 
@@ -986,7 +986,7 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, 
     }
 
     // Determine message type based on participant
-    const messageType = session.isHost(participantId) ? 'host' : 'user';
+    const messageType = session.isHost(participantId) ? "host" : "user";
     const chatMessage = session.addChatMessage(participantId, message, messageType);
 
     res.json({

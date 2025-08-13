@@ -13,8 +13,8 @@
  * @param {Object} gameState - Current state of the game
  * @param {number} depth - Current depth in the game tree
  * @param {boolean} isMaximizing - True if maximizing player's turn
- * @param {string} maxPlayer - Mark type for maximizing player ('X' or 'O')
- * @param {string} minPlayer - Mark type for minimizing player ('X' or 'O')
+ * @param {string} maxPlayer - Mark type for maximizing player ("X" or "O")
+ * @param {string} minPlayer - Mark type for minimizing player ("X" or "O")
  * @param {Function} evaluateBoard - Function to evaluate board state
  * @param {Function} getAvailableMoves - Function to get available moves
  * @param {Function} makeMove - Function to apply a move and return new state
@@ -94,8 +94,8 @@ export function minimax(
  * Handles the game-specific logic internally
  * 
  * @param {Object} tileMap - The game's tile map
- * @param {string} computerMark - Computer's mark ('X' or 'O')
- * @param {string} humanMark - Human's mark ('X' or 'O') 
+ * @param {string} computerMark - Computer's mark ("X" or "O")
+ * @param {string} humanMark - Human's mark ("X" or "O") 
  * @param {number} maxDepth - Maximum search depth (default: 9 for full search)
  * @returns {Object} { x, y } - Best move coordinates
  */

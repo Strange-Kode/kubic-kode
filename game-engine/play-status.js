@@ -9,26 +9,26 @@ export class PlayStatus {
     this._properties = new Map();
     
     // Required properties
-    this._properties.set('status', options.status || 'ok'); // 'ok' or 'invalid'
-    this._properties.set('playerId', options.playerId || null); // int - player who made the turn
+    this._properties.set("status", options.status || "ok"); // "ok" or "invalid"
+    this._properties.set("playerId", options.playerId || null); // int - player who made the turn
 
     // Optional properties that only make sense for certain game types
-    this._properties.set('playerHasWon', options.playerHasWon !== undefined ? options.playerHasWon : null);
-    this._properties.set('gameIsTied', options.gameIsTied !== undefined ? options.gameIsTied : null);
+    this._properties.set("playerHasWon", options.playerHasWon !== undefined ? options.playerHasWon : null);
+    this._properties.set("gameIsTied", options.gameIsTied !== undefined ? options.gameIsTied : null);
 
     // Additional optional properties for extensibility
-    this._properties.set('message', options.message || null);
-    this._properties.set('type', options.type || null); // e.g., 'occupied_tile', 'invalid_position'
-    this._properties.set('mark', options.mark || null); // for games that place marks/pieces
-    this._properties.set('winCondition', options.winCondition || null); // description of how player won
-    this._properties.set('gameEnded', options.gameEnded !== undefined ? options.gameEnded : null);
-    this._properties.set('timeLeft', options.timeLeft || null); // remaining time for turn/game
+    this._properties.set("message", options.message || null);
+    this._properties.set("type", options.type || null); // e.g., "occupied_tile", "invalid_position"
+    this._properties.set("mark", options.mark || null); // for games that place marks/pieces
+    this._properties.set("winCondition", options.winCondition || null); // description of how player won
+    this._properties.set("gameEnded", options.gameEnded !== undefined ? options.gameEnded : null);
+    this._properties.set("timeLeft", options.timeLeft || null); // remaining time for turn/game
   }
 
   // Validate that playerId is a valid positive integer
   static _validatePlayerId(playerId) {
     if (playerId === null || playerId === undefined) {
-      throw new Error('PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)');
+      throw new Error("PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)");
     }
     
     if (!Number.isInteger(playerId) || playerId <= 0) {
@@ -40,8 +40,8 @@ export class PlayStatus {
   // Throws an error if the property doesn't exist, preventing silent typos
   access(propertyName) {
     if (!this._properties.has(propertyName)) {
-      const availableProperties = Array.from(this._properties.keys()).join(', ');
-      throw new Error(`PlayStatus does not have property '${propertyName}'. Available properties: ${availableProperties}`);
+      const availableProperties = Array.from(this._properties.keys()).join(", ");
+      throw new Error(`PlayStatus does not have property "${propertyName}". Available properties: ${availableProperties}`);
     }
     return this._properties.get(propertyName);
   }
@@ -68,7 +68,7 @@ export class PlayStatus {
   static success(playerId, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'ok',
+      status: "ok",
       playerId,
       playerHasWon: false,
       gameIsTied: false,
@@ -80,7 +80,7 @@ export class PlayStatus {
   static win(playerId, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'ok',
+      status: "ok",
       playerId,
       playerHasWon: true,
       gameIsTied: false,
@@ -93,7 +93,7 @@ export class PlayStatus {
   static tie(playerId, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'ok',
+      status: "ok",
       playerId,
       playerHasWon: false,
       gameIsTied: true,
@@ -106,7 +106,7 @@ export class PlayStatus {
   static invalid(playerId, message, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'invalid',
+      status: "invalid",
       playerId,
       message,
       ...options
@@ -118,7 +118,7 @@ export class PlayStatus {
   static nonCompetitive(playerId, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'ok',
+      status: "ok",
       playerId,
       // Explicitly leave playerHasWon and gameIsTied as null for non-competitive games
       // They will be excluded from toSnakeCase() output
@@ -130,7 +130,7 @@ export class PlayStatus {
   static movement(playerId, options = {}) {
     PlayStatus._validatePlayerId(playerId);
     return new PlayStatus({
-      status: 'ok',
+      status: "ok",
       playerId,
       // Movement games typically don't have win/tie concepts
       message: options.message || "Move successful",

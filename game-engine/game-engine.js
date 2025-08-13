@@ -112,7 +112,7 @@ export class GameEngine {
   getPlayerEntity(playerId) {
     const playerEntity = this._player_entities.find(e => e.getPlayerId() === playerId);
     if (!playerEntity) {
-      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(', ')}.`);
+      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(", ")}.`);
     }
     return playerEntity;
   }
@@ -369,7 +369,7 @@ export class GameEngine {
    */
   getStateMachine() {
     if (!this._useStateMachine) {
-      kubicLog.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
+      kubicLog.warn("[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.");
       return null;
     }
     return this._stateMachine;
@@ -419,7 +419,7 @@ export class GameEngine {
     if (this._useStateMachine && this._stateMachine) {
       return await this._stateMachine.transitionTo(stateName, data);
     }
-    kubicLog.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
+    kubicLog.warn("[GameEngine] Cannot transition to state - state machine is not enabled.");
     return false;
   }
 

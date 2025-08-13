@@ -70,7 +70,7 @@ class PlayerEntity extends GameEntity {
 {{INDENT}}{{/USES_PIECES}}
 {{NEWLINE}}
 {{INDENT}}getPlayerType() {
-{{INDENT}}{{INDENT}}return this._isComputer ? 'computer' : 'human';
+{{INDENT}}{{INDENT}}return this._isComputer ? "computer" : "human";
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}{{#HAS_PLAYER_SCORE}}

@@ -5,147 +5,147 @@
  */
 
 // Import the KubicKode helper
-import { KubicKode } from './kubic-kode-helper.js';
+import { KubicKode } from "./kubic-kode-helper.js";
 
 // Example 1: Basic Setup and Configuration
 async function basicSetup() {
-    console.log('🚀 Setting up KubicKode for Rock Paper Scissors...');
+    console.log("🚀 Setting up KubicKode for Rock Paper Scissors...");
     
     // Configure the helper
     KubicKode.configure({
-        apiPrefix: 'http://localhost:3000/api',
+        apiPrefix: "http://localhost:3000/api",
         autoReconnect: true,
         retryAttempts: 3,
         retryDelay: 1000
     });
     
     // Register the RPS game type
-    KubicKode.game.register('rock-paper-scissors');
+    KubicKode.game.register("rock-paper-scissors");
     
     // Set up WebSocket connection for real-time events
     KubicKode.connectWebSocket();
     
-    console.log('✅ Basic setup complete');
+    console.log("✅ Basic setup complete");
 }
 
 // Example 2: Session Management
 async function sessionManagement() {
-    console.log('🎮 Managing game session...');
+    console.log("🎮 Managing game session...");
     
     try {
         // Initialize a new session for RPS
-        const initResponse = await KubicKode.initSession('rock-paper-scissors');
-        console.log('Session initialized:', initResponse.data.session_id);
+        const initResponse = await KubicKode.initSession("rock-paper-scissors");
+        console.log("Session initialized:", initResponse.data.session_id);
         
         // Join the session as a player
-        const joinResponse = await KubicKode.joinSession('Alice', 'human');
-        console.log('Joined session:', joinResponse.data);
+        const joinResponse = await KubicKode.joinSession("Alice", "human");
+        console.log("Joined session:", joinResponse.data);
         
         // Get session participants
-        const participants = await KubicKode.route.session('participants');
-        console.log('Participants:', participants.data);
+        const participants = await KubicKode.route.session("participants");
+        console.log("Participants:", participants.data);
         
     } catch (error) {
-        console.error('Session management error:', error);
+        console.error("Session management error:", error);
     }
 }
 
 // Example 3: Game Flow
 async function gameFlow() {
-    console.log('🎯 Starting game flow...');
+    console.log("🎯 Starting game flow...");
     
     try {
         // Start the game with options
         const startResponse = await KubicKode.startGame({
-            playStyle: 'competitive',
+            playStyle: "competitive",
             maxRounds: 5,
             timeLimit: 30
         });
-        console.log('Game started:', startResponse.data);
+        console.log("Game started:", startResponse.data);
         
         // Check if game is active
-        const isActive = await KubicKode.route.game('is-active');
-        console.log('Game active:', isActive.data);
+        const isActive = await KubicKode.route.game("is-active");
+        console.log("Game active:", isActive.data);
         
         // Get current player
-        const currentPlayer = await KubicKode.route.game('get-current-player');
-        console.log('Current player:', currentPlayer.data);
+        const currentPlayer = await KubicKode.route.game("get-current-player");
+        console.log("Current player:", currentPlayer.data);
         
     } catch (error) {
-        console.error('Game flow error:', error);
+        console.error("Game flow error:", error);
     }
 }
 
 // Example 4: Making Game Moves
 async function makeGameMoves() {
-    console.log('🎲 Making game moves...');
+    console.log("🎲 Making game moves...");
     
     try {
         // Make a move using the dynamic game method
         const moveResponse = await KubicKode.rock_paper_scissors.playTurn(0, 0, {
-            choice: 'rock',
-            playerName: 'Alice'
+            choice: "rock",
+            playerName: "Alice"
         });
-        console.log('Move made:', moveResponse.data);
+        console.log("Move made:", moveResponse.data);
         
         // Alternative: Use the generic playTurn method
         const genericMove = await KubicKode.playTurn(0, 0, {
-            choice: 'paper',
-            playerName: 'Alice'
+            choice: "paper",
+            playerName: "Alice"
         });
-        console.log('Generic move:', genericMove.data);
+        console.log("Generic move:", genericMove.data);
         
     } catch (error) {
-        console.error('Move error:', error);
+        console.error("Move error:", error);
     }
 }
 
 // Example 5: Event Handling
 function setupEventHandlers() {
-    console.log('📡 Setting up event handlers...');
+    console.log("📡 Setting up event handlers...");
     
     // WebSocket connection events
     KubicKode.events
-        .on('websocketConnected', (data) => {
-            console.log('🔌 WebSocket connected');
+        .on("websocketConnected", (data) => {
+            console.log("🔌 WebSocket connected");
         })
-        .on('websocketDisconnected', (data) => {
-            console.log('🔌 WebSocket disconnected');
+        .on("websocketDisconnected", (data) => {
+            console.log("🔌 WebSocket disconnected");
         })
-        .on('websocketError', (error) => {
-            console.error('WebSocket error:', error);
+        .on("websocketError", (error) => {
+            console.error("WebSocket error:", error);
         });
     
     // Session events
     KubicKode.events
-        .on('sessionInitialized', (data) => {
-            console.log('📋 Session initialized:', data.sessionId);
+        .on("sessionInitialized", (data) => {
+            console.log("📋 Session initialized:", data.sessionId);
         });
     
     // Game events
     KubicKode.events
-        .on('gameStarted', (data) => {
-            console.log('🎮 Game started:', data);
+        .on("gameStarted", (data) => {
+            console.log("🎮 Game started:", data);
         })
-        .on('turnPlayed', (data) => {
-            console.log('🎲 Turn played:', data);
+        .on("turnPlayed", (data) => {
+            console.log("🎲 Turn played:", data);
         })
-        .on('gameEnded', (data) => {
-            console.log('🏁 Game ended:', data);
+        .on("gameEnded", (data) => {
+            console.log("🏁 Game ended:", data);
         })
-        .on('playerJoined', (data) => {
-            console.log('👤 Player joined:', data);
+        .on("playerJoined", (data) => {
+            console.log("👤 Player joined:", data);
         })
-        .on('playerLeft', (data) => {
-            console.log('👤 Player left:', data);
+        .on("playerLeft", (data) => {
+            console.log("👤 Player left:", data);
         });
     
-    console.log('✅ Event handlers set up');
+    console.log("✅ Event handlers set up");
 }
 
 // Example 6: Complete Game Session
 async function completeGameSession() {
-    console.log('🎯 Complete RPS game session...');
+    console.log("🎯 Complete RPS game session...");
     
     try {
         // 1. Setup
@@ -163,14 +163,14 @@ async function completeGameSession() {
         
         // 5. Get game state
         const state = KubicKode.getState();
-        console.log('Current state:', state);
+        console.log("Current state:", state);
         
         // 6. Clean up
-        await KubicKode.route.game('stop');
-        console.log('🎉 Game session completed!');
+        await KubicKode.route.game("stop");
+        console.log("🎉 Game session completed!");
         
     } catch (error) {
-        console.error('Game session error:', error);
+        console.error("Game session error:", error);
     }
 }
 
@@ -180,7 +180,7 @@ function createAlpineComponent() {
         // Alpine.js component state
         connected: false,
         sessionId: null,
-        playerName: '',
+        playerName: "",
         gameStarted: false,
         isMyTurn: false,
         loading: false,
@@ -201,28 +201,28 @@ function createAlpineComponent() {
                 setupEventHandlers();
                 
                 // Initialize session
-                const response = await KubicKode.initSession('rock-paper-scissors');
+                const response = await KubicKode.initSession("rock-paper-scissors");
                 this.sessionId = response.data.session_id;
                 this.connected = true;
                 
             } catch (error) {
-                this.error = 'Failed to initialize: ' + error.message;
+                this.error = "Failed to initialize: " + error.message;
             }
         },
         
         // Join game
         async joinGame() {
             if (!this.playerName.trim()) {
-                this.error = 'Please enter your name';
+                this.error = "Please enter your name";
                 return;
             }
             
             try {
                 this.loading = true;
-                await KubicKode.joinSession(this.playerName, 'human');
-                this.success = 'Joined game successfully';
+                await KubicKode.joinSession(this.playerName, "human");
+                this.success = "Joined game successfully";
             } catch (error) {
-                this.error = 'Failed to join: ' + error.message;
+                this.error = "Failed to join: " + error.message;
             } finally {
                 this.loading = false;
             }
@@ -233,16 +233,16 @@ function createAlpineComponent() {
             try {
                 this.loading = true;
                 const response = await KubicKode.startGame({
-                    playStyle: 'competitive',
+                    playStyle: "competitive",
                     maxRounds: 5
                 });
                 
                 this.gameStarted = true;
                 this.isMyTurn = response.data.currentPlayer === this.playerName;
-                this.success = 'Game started!';
+                this.success = "Game started!";
                 
             } catch (error) {
-                this.error = 'Failed to start game: ' + error.message;
+                this.error = "Failed to start game: " + error.message;
             } finally {
                 this.loading = false;
             }
@@ -265,7 +265,7 @@ function createAlpineComponent() {
                 this.success = `You chose ${choice}`;
                 
             } catch (error) {
-                this.error = 'Failed to make choice: ' + error.message;
+                this.error = "Failed to make choice: " + error.message;
                 this.playerChoice = null;
             } finally {
                 this.loading = false;

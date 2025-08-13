@@ -98,7 +98,7 @@ export class StateTransition {
       return false;
     }
     
-    if (typeof this._condition === 'function') {
+    if (typeof this._condition === "function") {
       return this._condition(context);
     }
     
@@ -144,7 +144,7 @@ export class GameStateMachine {
    */
   addState(state) {
     if (!(state instanceof GameState)) {
-      throw new Error('State must be an instance of GameState');
+      throw new Error("State must be an instance of GameState");
     }
     
     this._states.set(state.getName(), state);
@@ -170,7 +170,7 @@ export class GameStateMachine {
    */
   addTransition(transition) {
     if (!(transition instanceof StateTransition)) {
-      throw new Error('Transition must be an instance of StateTransition');
+      throw new Error("Transition must be an instance of StateTransition");
     }
     
     this._transitions.push(transition);
@@ -207,7 +207,7 @@ export class GameStateMachine {
   setInitialState(stateName) {
     const state = this._states.get(stateName);
     if (!state) {
-      throw new Error(`State '${stateName}' not found`);
+      throw new Error(`State "${stateName}" not found`);
     }
     
     this._currentState = state;
@@ -222,7 +222,7 @@ export class GameStateMachine {
   async transitionTo(stateName, data = {}) {
     const newState = this._states.get(stateName);
     if (!newState) {
-      throw new Error(`State '${stateName}' not found`);
+      throw new Error(`State "${stateName}" not found`);
     }
 
     if (this._currentState === newState) {
@@ -246,7 +246,7 @@ export class GameStateMachine {
     
     this._addToHistory(stateName);
     
-    kubicLog.debug(`[GSM] State transition: ${previousState?.getName() || 'null'} -> ${stateName}`);
+    kubicLog.debug(`[GSM] State transition: ${previousState?.getName() || "null"} -> ${stateName}`);
     return true;
   }
 

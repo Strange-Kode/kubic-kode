@@ -1,4 +1,4 @@
-import { GameEntity } from './game-entity.js';
+import { GameEntity } from "./game-entity.js";
 
 import { kubicLog } from "../../kubic-log.js";
 

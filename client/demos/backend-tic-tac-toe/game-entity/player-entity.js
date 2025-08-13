@@ -6,7 +6,7 @@ class PlayerEntity extends GameEntity {
     // Generate a simple ID based on the markType for now
     const playerId = markType === "X" ? 1 : 2;
     super(playerId, name, null); // Pass id, name, position to parent
-    this._markType = markType; // 'X' or 'O'
+    this._markType = markType; // "X" or "O"
     this._marks = []; // List of MarkEntity objects
     this._isComputer = isComputer;
   }
@@ -59,9 +59,9 @@ class PlayerEntity extends GameEntity {
 
   getPlayerType() {
     if (this.isComputer()) {
-      return 'computer';
+      return "computer";
     }
-    return 'human';
+    return "human";
   }
 
   clearMarks() {

@@ -328,7 +328,7 @@ session.startHeartbeat();
 
 // Check participant connection
 if (session.isParticipantConnected(participantId)) {
-  console.log('Participant is connected');
+  console.log("Participant is connected");
 }
 
 // Handle disconnection
@@ -336,7 +336,7 @@ session.handleParticipantDisconnection(participantId);
 
 // Check session viability
 if (!session.checkSessionViability()) {
-  console.log('Session ended due to insufficient players');
+  console.log("Session ended due to insufficient players");
 }
 ```
 
@@ -347,15 +347,15 @@ if (!session.checkSessionViability()) {
 const kubicKode = new KubicKodeHelper();
 
 // Listen for connection events
-kubicKode.events.on('participantDisconnected', (data) => {
+kubicKode.events.on("participantDisconnected", (data) => {
   console.log(`${data.participantName} disconnected`);
 });
 
-kubicKode.events.on('participantReconnected', (data) => {
+kubicKode.events.on("participantReconnected", (data) => {
   console.log(`${data.participantName} reconnected`);
 });
 
-kubicKode.events.on('sessionEnded', (data) => {
+kubicKode.events.on("sessionEnded", (data) => {
   console.log(`Session ended: ${data.message}`);
 });
 
@@ -436,7 +436,7 @@ Enable debug logging:
 
 ```javascript
 // In kubic-log.js
-kubicLog.setLevel('debug');
+kubicLog.setLevel("debug");
 ```
 
 Monitor connection events:
@@ -447,9 +447,9 @@ kubicLog.debug(`[GameEventService] Participant ${participantId} connected`);
 kubicLog.debug(`[GameEventService] Participant ${participantId} disconnected`);
 
 // Client-side
-console.log('💓 Heartbeat sent');
-console.log('🔌 WebSocket connected');
-console.log('⚠️ Participant disconnected');
+console.log("💓 Heartbeat sent");
+console.log("🔌 WebSocket connected");
+console.log("⚠️ Participant disconnected");
 ```
 
 ## Performance Considerations

@@ -82,27 +82,27 @@ export class GameSession {
     return this.__participant_alloc_idx;
   }
 
-  addParticipant(name, participant_type = 'user') {
+  addParticipant(name, participant_type = "user") {
     // Validate unique names within session
     const existingName = this._participants.find(p => p.name === name);
     if (existingName) {
-      throw new Error(`Participant name '${name}' is already in use. Names must be unique within the session.`);
+      throw new Error(`Participant name "${name}" is already in use. Names must be unique within the session.`);
     }
 
     // Only count playable participants (user, computer) against maxParticipants limit
     // Spectators can join even when the game is "full"
     const playableParticipants = this._participants.filter(p => this.isParticipantPlayable(p));
-    if (participant_type !== 'spectator' && playableParticipants.length >= this._maxParticipants) {
+    if (participant_type !== "spectator" && playableParticipants.length >= this._maxParticipants) {
       throw new Error("Game session is full.");
     }
 
-    if (this._started && participant_type !== 'spectator') {
+    if (this._started && participant_type !== "spectator") {
       throw new Error("Cannot join. Game session has already started.");
     }
 
     // Validate participant type
-    if (!['user', 'computer', 'spectator'].includes(participant_type)) {
-      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: 'user', 'computer', or 'spectator'`);
+    if (!["user", "computer", "spectator"].includes(participant_type)) {
+      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: "user", "computer", or "spectator"`);
     }
 
     const participantId = this.allocateParticipantId();
@@ -131,7 +131,7 @@ export class GameSession {
     });
 
     // Set host if this is the first participant
-    if (this._hostId === null && participant_type !== 'spectator') {
+    if (this._hostId === null && participant_type !== "spectator") {
       this.setHost(participantId, name);
     }
 
@@ -191,7 +191,7 @@ export class GameSession {
     return this._participants.map((p) => ({ 
       id: p.id, 
       name: p.name, 
-      type: p.type || 'user',
+      type: p.type || "user",
       isPlayable: this.isParticipantPlayable(p)
     }));
   }
@@ -266,7 +266,7 @@ export class GameSession {
 
   getParticipantById(id) {
     // Convert id to number if it's a string, since participant IDs are numbers
-    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    const numericId = typeof id === "string" ? parseInt(id, 10) : id;
     return this._participants.find((p) => p.id === numericId) || null;
   }
 
@@ -275,11 +275,11 @@ export class GameSession {
   }
 
   getSpectatorParticipants() {
-    return this._participants.filter(p => p.type === 'spectator');
+    return this._participants.filter(p => p.type === "spectator");
   }
 
   isParticipantPlayable(participant) {
-    return ['user', 'computer'].includes(participant.type);
+    return ["user", "computer"].includes(participant.type);
   }
 
   get sessionId() {
@@ -552,7 +552,7 @@ export class GameSession {
   // Chat Functionality
   // ------------------
 
-  addChatMessage(participantId, message, messageType = 'user') {
+  addChatMessage(participantId, message, messageType = "user") {
     const participant = this.getParticipantById(participantId);
     if (!participant) {
       throw new Error("Participant not found.");
@@ -564,7 +564,7 @@ export class GameSession {
       participantName: participant.name,
       message: message.trim(),
       timestamp: new Date().toISOString(),
-      type: messageType // 'user', 'system', 'host'
+      type: messageType // "user", "system", "host"
     };
 
     this._chatMessages.push(chatMessage);
@@ -585,10 +585,10 @@ export class GameSession {
     const systemMessage = {
       id: `sys-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       participantId: null,
-      participantName: 'System',
+      participantName: "System",
       message: message.trim(),
       timestamp: new Date().toISOString(),
-      type: 'system'
+      type: "system"
     };
 
     this._chatMessages.push(systemMessage);
@@ -649,7 +649,7 @@ export class GameSession {
           
           // Broadcast reconnection event
           GameEventService.broadcastToSession(this, {
-            type: 'participantReconnected',
+            type: "participantReconnected",
             payload: {
               participantId: participantId,
               participantName: participant.name,
@@ -705,10 +705,10 @@ export class GameSession {
       
       // Broadcast session ended event
       GameEventService.broadcastToSession(this, {
-        type: 'sessionEnded',
+        type: "sessionEnded",
         payload: {
-          reason: 'insufficient_players',
-          message: 'Session ended due to insufficient connected players',
+          reason: "insufficient_players",
+          message: "Session ended due to insufficient connected players",
           connectedParticipants: connectedParticipants.length,
           requiredParticipants: requiredPlayers
         }
@@ -820,7 +820,7 @@ export class GameSession {
    */
   async generateParticipantToken(participantId) {
     // Import the service dynamically to avoid circular dependencies
-    return import('./game-token-service.js').then(({ gameTokenService }) => {
+    return import("./game-token-service.js").then(({ gameTokenService }) => {
       return gameTokenService.instance.generateToken(this._sessionId, participantId);
     });
   }

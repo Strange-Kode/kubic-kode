@@ -1,21 +1,21 @@
 export class GameHistory {
   // Define all possible game history event types
   static GAME_HISTORY_EVENT_TYPES = {
-    TURN_PLAYED: 'turnPlayed',
-    PLAYER_WON: 'playerWon',
-    GAME_STARTED: 'gameStarted',
-    GAME_ENDED: 'gameEnded',
-    GAME_TIED: 'gameTied',
-    PARTICIPANT_JOINED: 'participantJoined',
-    PARTICIPANT_LEFT: 'participantLeft',
-    RESTART_VOTE_STARTED: 'restartVoteStarted',
-    RESTART_VOTE_REGISTERED: 'restartVoteRegistered',
-    RESTART_VOTE_CLEARED: 'restartVoteCleared',
-    PLAYER_ADDED: 'playerAdded',
-    GAME_INSTANCE_STARTED: 'gameInstanceStarted',
-    GAME_INSTANCE_RESET: 'gameInstanceReset',
-    GAME_STOPPED: 'gameStopped',
-    INVALID_TURN_ATTEMPTED: 'invalidTurnAttempted'
+    TURN_PLAYED: "turnPlayed",
+    PLAYER_WON: "playerWon",
+    GAME_STARTED: "gameStarted",
+    GAME_ENDED: "gameEnded",
+    GAME_TIED: "gameTied",
+    PARTICIPANT_JOINED: "participantJoined",
+    PARTICIPANT_LEFT: "participantLeft",
+    RESTART_VOTE_STARTED: "restartVoteStarted",
+    RESTART_VOTE_REGISTERED: "restartVoteRegistered",
+    RESTART_VOTE_CLEARED: "restartVoteCleared",
+    PLAYER_ADDED: "playerAdded",
+    GAME_INSTANCE_STARTED: "gameInstanceStarted",
+    GAME_INSTANCE_RESET: "gameInstanceReset",
+    GAME_STOPPED: "gameStopped",
+    INVALID_TURN_ATTEMPTED: "invalidTurnAttempted"
   };
 
   constructor(sessionId) {
@@ -55,7 +55,7 @@ export class GameHistory {
   addEvent(event) {
     // Validate that the event type is a valid game history event type
     if (!GameHistory.isValidEventType(event.type)) {
-      throw new Error(`Invalid game history event type: ${event.type}. Valid types are: ${GameHistory.getValidEventTypes().join(', ')}`);
+      throw new Error(`Invalid game history event type: ${event.type}. Valid types are: ${GameHistory.getValidEventTypes().join(", ")}`);
     }
 
     const historyEvent = {
@@ -218,7 +218,7 @@ export class GameHistory {
 
   /**
    * Add a game state change event to game history
-   * @param {string} eventType - Type of state change (e.g., 'gamePaused', 'gameResumed', 'timeout')
+   * @param {string} eventType - Type of state change (e.g., "gamePaused", "gameResumed", "timeout")
    * @param {Object} stateData - Additional state data
    * @returns {Object} The event that was added
    */
@@ -233,7 +233,7 @@ export class GameHistory {
    * Add a participant joined event to game history
    * @param {string} participantId - ID of the participant who joined
    * @param {string} participantName - Name of the participant
-   * @param {string} participantType - Type of the participant (e.g., 'user', 'computer', 'spectator')
+   * @param {string} participantType - Type of the participant (e.g., "user", "computer", "spectator")
    * @returns {Object} The event that was added
    */
   addParticipantJoinedEvent(participantId, participantName, participantType) {

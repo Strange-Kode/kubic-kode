@@ -84,12 +84,12 @@ const processTileMapData = (tileMap) => {
 
 // Helper function to format player IDs based on returnSinglePlayerId option
 const formatPlayerIds = (gameInstance, currentPlayerIds) => {
-  const returnSinglePlayerId = gameInstance.getGameOptions()?.getCurrentSystemValue('returnSinglePlayerId') || false;
+  const returnSinglePlayerId = gameInstance.getGameOptions()?.getCurrentSystemValue("returnSinglePlayerId") || false;
   
   if (returnSinglePlayerId) {
     // Validate requirements for returnSinglePlayerId
     const playStyle = gameInstance.getGameEngine().getPlayStyle();
-    if (playStyle !== 'single-set') {
+    if (playStyle !== "single-set") {
       return {
         error: true,
         message: "returnSinglePlayerId option requires single-set play style",
@@ -166,13 +166,13 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     let participant = sessionParticipants[i];
     // Only convert playable participants to players
     if (gameSession.isParticipantPlayable(participant)) {
-      let player = gameInstance.addPlayer(participant.name, participant.type === 'computer');
+      let player = gameInstance.addPlayer(participant.name, participant.type === "computer");
       playerMappings[participant.id] = player.getPlayerId();
     }
   }
 
   // Store the player mappings in the game instance for later use
-  if (typeof gameInstance.setPlayerMappings === 'function') {
+  if (typeof gameInstance.setPlayerMappings === "function") {
     gameInstance.setPlayerMappings(playerMappings);
   }
 
@@ -202,7 +202,7 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
 
       // Apply valid options
       for (const [key, value] of Object.entries(validation.applied)) {
-        if (key === 'gridSize') {
+        if (key === "gridSize") {
           // Don't resize tile map here - let KubicKodeGame handle it in applyGameOptions
           // The tile map will be resized after the game starts
         }
@@ -216,7 +216,7 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
 
       // Call applyGameOptions on the game instance if it exists
       // This allows the game to update its internal state (like gridSize property)
-      if (typeof gameInstance.applyGameOptions === 'function') {
+      if (typeof gameInstance.applyGameOptions === "function") {
         gameInstance.applyGameOptions(validation.applied);
       }
     }
@@ -258,21 +258,21 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
       payload: { playerMappings: serializeRecursively(playerMappings) },
     });
       } catch (broadcastError) {
-    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
-      // Don't throw here - the game was started successfully, just the broadcast failed
+    kubicLog.error("game-routes.js::Broadcast error (non-blocking):", broadcastError);
+      // don't throw here - the game was started successfully, just the broadcast failed
     }
 
   // After game start, check if any current players are computers and handle computer turns
   // This is crucial for cases where computers are first players (alternating first player)
   const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
-  const computerPlayers = playersArray.filter(player => player?.getPlayerType() === 'computer');
+  const computerPlayers = playersArray.filter(player => player?.getPlayerType() === "computer");
   
   if (computerPlayers.length > 0) {
     // Process computer turns asynchronously to avoid blocking the game start response
     // This handles the case where computers are first players or multiple computers in sequence
     setImmediate(() => {
       processComputerTurns(gameSession, null).catch(error => {
-        kubicLog.error('game-routes.js::Error processing initial computer turns after game start:', error);
+        kubicLog.error("game-routes.js::Error processing initial computer turns after game start:", error);
       });
     });
   }
@@ -331,8 +331,8 @@ gameRouter.post("/game/stop/:sessionId", validateGameTokenWithParticipant(sessio
       type: "gameStopped",
     });
   } catch (broadcastError) {
-    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
-    // Don't throw here - the game was stopped successfully, just the broadcast failed
+    kubicLog.error("game-routes.js::Broadcast error (non-blocking):", broadcastError);
+    // don't throw here - the game was stopped successfully, just the broadcast failed
   }
 });
 
@@ -433,7 +433,7 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
     playStatus = gameInstance.playTurn(playerId, moveData);
     
     console.log(`[game-routes] playTurn returned:`, playStatus);
-    console.log(`[game-routes] playStatus.playerHasWon:`, playStatus.access('playerHasWon'));
+    console.log(`[game-routes] playStatus.playerHasWon:`, playStatus.access("playerHasWon"));
   } catch (error) {
     console.error(`[game-routes] Error in playTurn:`, error);
     return res.status(400).json({ 
@@ -443,8 +443,8 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   }
   
   // Handle win condition
-  if (playStatus.access('playerHasWon')) {
-    console.log(`[game-routes] Win condition detected! Player ${playStatus.access('playerId')} won`);
+  if (playStatus.access("playerHasWon")) {
+    console.log(`[game-routes] Win condition detected! Player ${playStatus.access("playerId")} won`);
     
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
@@ -456,7 +456,7 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
   }
   
   // Handle tie condition
-  if (playStatus.access('gameIsTied')) {
+  if (playStatus.access("gameIsTied")) {
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
       type: "winCount",
@@ -479,18 +479,18 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
     });
     
     // If the player won, also broadcast a win event
-    if (playStatus.access('playerHasWon')) {
+    if (playStatus.access("playerHasWon")) {
       GameEventService.broadcastToSession(gameSession, {
         type: "playerWon",
         payload: { 
-          playerId: playStatus.access('playerId'),
-          winCondition: playStatus.access('winCondition') || 'unknown'
+          playerId: playStatus.access("playerId"),
+          winCondition: playStatus.access("winCondition") || "unknown"
         }
       });
     }
     
     // If the game is tied, broadcast a tie event
-    if (playStatus.access('gameIsTied')) {
+    if (playStatus.access("gameIsTied")) {
       GameEventService.broadcastToSession(gameSession, {
         type: "gameTied",
         payload: { 
@@ -499,7 +499,7 @@ gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(s
       });
     }
   } catch (broadcastError) {
-    kubicLog.error('game-routes.js::Broadcast error (non-blocking):', broadcastError);
+    kubicLog.error("game-routes.js::Broadcast error (non-blocking):", broadcastError);
     // Don't throw here - the turn was played successfully, just the broadcast failed
   }
 });
@@ -513,7 +513,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
   // 1. No one has won yet and game hasn't tied (or no initial status provided)
   // 2. Current players include computers
   // 3. Game is still active
-  while ((!lastPlayStatus || (!lastPlayStatus.access('playerHasWon') && !lastPlayStatus.access('gameIsTied'))) && 
+  while ((!lastPlayStatus || (!lastPlayStatus.access("playerHasWon") && !lastPlayStatus.access("gameIsTied"))) && 
          gameInstance.getGameEngine().isGameStarted()) {
     
     // Get current players for this iteration
@@ -521,7 +521,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
     const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
     
     // Extract computer players from current players
-    const computerPlayers = playersArray.filter(player => player?.getPlayerType() === 'computer');
+    const computerPlayers = playersArray.filter(player => player?.getPlayerType() === "computer");
     
     // If no computer players, break the loop
     if (computerPlayers.length === 0) {
@@ -545,26 +545,26 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         let compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
 
         // Handle computer win
-        if (compPlayStatus.access('playerHasWon')) {
+        if (compPlayStatus.access("playerHasWon")) {
           // Record the win in game history
           try {
             const playerMappings = gameInstance.getPlayerMappings();
             let participantId = null;
             
             for (const [pid, playerId] of Object.entries(playerMappings)) {
-              if (playerId === compPlayStatus.access('playerId')) {
+              if (playerId === compPlayStatus.access("playerId")) {
                 participantId = pid;
                 break;
               }
             }
             
-            console.log(`[game-routes] Recording computer win for player ${compPlayStatus.access('playerId')} -> participant ${participantId}`);
+            console.log(`[game-routes] Recording computer win for player ${compPlayStatus.access("playerId")} -> participant ${participantId}`);
             
             gameSession.getGameHistory().addPlayerWonEvent(
-              compPlayStatus.access('playerId'),
+              compPlayStatus.access("playerId"),
               participantId,
               {
-                winCondition: compPlayStatus.access('winCondition') || 'unknown',
+                winCondition: compPlayStatus.access("winCondition") || "unknown",
                 finalPosition: { x: computerMove.xPos, y: computerMove.yPos },
                 gameState: "completed",
               }
@@ -583,7 +583,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         }
         
         // Handle computer tie
-        if (compPlayStatus.access('gameIsTied')) {
+        if (compPlayStatus.access("gameIsTied")) {
           let winCount = gameSession.getWinCounter();
           GameEventService.broadcastToSession(gameSession, {
             type: "winCount",
@@ -601,12 +601,12 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         });
         
         // If the computer won, also broadcast a win event
-        if (compPlayStatus.access('playerHasWon')) {
+        if (compPlayStatus.access("playerHasWon")) {
           GameEventService.broadcastToSession(gameSession, {
             type: "playerWon",
             payload: { 
-              playerId: compPlayStatus.access('playerId'),
-              winCondition: compPlayStatus.access('winCondition') || 'unknown'
+              playerId: compPlayStatus.access("playerId"),
+              winCondition: compPlayStatus.access("winCondition") || "unknown"
             }
           });
           
@@ -615,7 +615,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         }
         
         // If the game is tied, broadcast a tie event
-        if (compPlayStatus.access('gameIsTied')) {
+        if (compPlayStatus.access("gameIsTied")) {
           GameEventService.broadcastToSession(gameSession, {
             type: "gameTied",
             payload: { 
@@ -669,10 +669,10 @@ gameRouter.post("/game/options/:sessionId", validateGameTokenWithParticipant(ses
     metadata: gameOptions.getOptionsMetadata(),
     // New lifecycle-based groupings
     lifecycle: {
-      frozen: gameOptions.getOptionsByLifecycle('frozen'),
-      'pre-start': gameOptions.getOptionsByLifecycle('pre-start'),
-      runtime: gameOptions.getOptionsByLifecycle('runtime'),
-      'between-rounds': gameOptions.getOptionsByLifecycle('between-rounds')
+      frozen: gameOptions.getOptionsByLifecycle("frozen"),
+      "pre-start": gameOptions.getOptionsByLifecycle("pre-start"),
+      runtime: gameOptions.getOptionsByLifecycle("runtime"),
+      "between-rounds": gameOptions.getOptionsByLifecycle("between-rounds")
     },
     // Current modifiable options based on game state
     modifiable: gameOptions.getModifiableOptions(),

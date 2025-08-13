@@ -1,5 +1,5 @@
-import { GameEntityPlayer } from './game-entity-player.js';
-import { Viewport } from '../viewport.js';
+import { GameEntityPlayer } from "./game-entity-player.js";
+import { Viewport } from "../viewport.js";
 
 import { kubicLog } from "../../kubic-log.js";
 
@@ -11,7 +11,7 @@ import { kubicLog } from "../../kubic-log.js";
 * Example usage:
 * ```javascript
 * // Create a player with viewport capabilities
-* const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, {
+* const player = new ViewportPlayer("player1", "Alice", { x: 10, y: 10 }, {
 *   width: 15,
 *   height: 10,
 *   autoFollow: true
@@ -21,7 +21,7 @@ import { kubicLog } from "../../kubic-log.js";
 * player.moveTo(20, 20);
 * 
 * // Or manually control the viewport
-* player.scrollViewport('right', 5);
+* player.scrollViewport("right" 5);
 * player.centerViewportOnPlayer();
 * ```
 */
@@ -65,21 +65,21 @@ export class ViewportPlayer extends GameEntityPlayer {
   
   /**
   * Scroll the viewport in a specific direction
-  * @param {string} direction - 'up', 'down', 'left', 'right'
+  * @param {string} direction - "up", "down", "left", "right"
   * @param {number} amount - Number of tiles to scroll (default: 1)
   */
   scrollViewport(direction, amount = 1) {
     switch (direction) {
-      case 'up':
+      case "up":
       this.viewport.moveBy(0, -amount);
       break;
-      case 'down':
+      case "down":
       this.viewport.moveBy(0, amount);
       break;
-      case 'left':
+      case "left":
       this.viewport.moveBy(-amount, 0);
       break;
-      case 'right':
+      case "right":
       this.viewport.moveBy(amount, 0);
       break;
     }

@@ -1,4 +1,4 @@
-import { GameEventService } from '../game-server/game-event-service.js';
+import { GameEventService } from "../game-server/game-event-service.js";
 
 export class InactivityManager {
   constructor(gameSession, gameInstance) {
@@ -91,7 +91,7 @@ export class InactivityManager {
 
     // Broadcast inactivity event with all inactive players
     GameEventService.broadcastToSession(this._gameSession, {
-      type: 'playerInactive',
+      type: "playerInactive",
       payload: { 
         sessionId: this._gameSession.getSessionId(), 
         inactivePlayers: inactivityResults 
@@ -104,7 +104,7 @@ export class InactivityManager {
 
     this._broadcastInterval = setInterval(() => {
       GameEventService.broadcastToSession(this._gameSession, {
-        type: 'timeLeft',
+        type: "timeLeft",
         payload: { secondsLeft: this.getTimeRemaining() }
       });
     }, interval);

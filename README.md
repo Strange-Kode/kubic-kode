@@ -80,11 +80,11 @@ kubic-kode now supports **scrollable TileMaps** - a powerful feature that enable
 // Create a game engine with scrollable tile map
 const gameEngine = new GameEngine(100, 100, {
     useScrollableTileMap: true,
-    playStyle: 'multi-set'
+    playStyle: "multi-set"
 });
 
 // Create a player with viewport configuration
-const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, {
+const player = new ViewportPlayer("player1", "Alice", { x: 10, y: 10 }, {
     width: 15,        // Viewport width in tiles
     height: 10,       // Viewport height in tiles
     autoFollow: true  // Auto-follow player movement
@@ -92,7 +92,7 @@ const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, {
 
 // Get only visible tiles for this player
 const scrollable = gameEngine.getScrollable();
-const visibleTiles = scrollable.getVisibleTilesForPlayer('player1');
+const visibleTiles = scrollable.getVisibleTilesForPlayer("player1");
 ```
 
 For detailed documentation, see [docs/scrollable-tilemap.md](docs/scrollable-tilemap.md).
@@ -111,8 +111,8 @@ The system supports three participant types:
 
 Each participant's playability is determined by the `isParticipantPlayable()` method:
 
-- Returns `true` for 'user' and 'computer' types
-- Returns `false` for 'spectator' type
+- Returns `true` for "user" and "computer" types
+- Returns `false` for "spectator" type
 
 ### Spectator Capabilities
 
@@ -136,7 +136,7 @@ Each participant's playability is determined by the `isParticipantPlayable()` me
 
 ```javascript
 // Using KubicKode helper
-const result = await KubicKode.spectateSession('Charlie');
+const result = await KubicKode.spectateSession("Charlie");
 
 // Direct API call
 POST /api/session/:sessionId/spectate
@@ -149,7 +149,7 @@ POST /api/session/:sessionId/spectate
 
 ```javascript
 // Using KubicKode helper
-const stats = await KubicKode.route.session('participant-stats');
+const stats = await KubicKode.route.session("participant-stats");
 
 // Direct API call
 GET /api/session/participants/stats/:sessionId
@@ -176,8 +176,8 @@ try {
   // This will fail for spectators
   await KubicKode.startGame();
 } catch (error) {
-  if (error.message.includes('cannot perform game actions')) {
-    console.log('Spectators cannot start games');
+  if (error.message.includes("cannot perform game actions")) {
+    console.log("Spectators cannot start games");
   }
 }
 ```
@@ -278,19 +278,19 @@ Here's how to set up both userspace and systemspace options in your game:
 ```javascript
 initializeGameOptions() {
   // Userspace options (default namespace) - game-specific settings
-  this.getGameOptions().addOption('gridSize', 3, 'pre-start');
-  this.getGameOptions().addOption('difficulty', 'medium', 'pre-start');
-  this.getGameOptions().addOption('soundEnabled', true, 'runtime');
-  this.getGameOptions().addOption('timeLimit', 30, 'between-rounds');
+  this.getGameOptions().addOption("gridSize", 3, "pre-start");
+  this.getGameOptions().addOption("difficulty", "medium", "pre-start");
+  this.getGameOptions().addOption("soundEnabled", true, "runtime");
+  this.getGameOptions().addOption("timeLimit", 30, "between-rounds");
 
   // Systemspace options - system-level settings with global uniqueness
-  this.getGameOptions().addSystemOption('debugMode', false, 'runtime', null, 'Enable debug logging');
-  this.getGameOptions().addSystemOption('maxConcurrentGames', 10, 'frozen', null, 'System limit for concurrent games');
-  this.getGameOptions().addSystemOption('apiVersion', '2.1', 'frozen', null, 'API version for this game');
+  this.getGameOptions().addSystemOption("debugMode", false, "runtime", null, "Enable debug logging");
+  this.getGameOptions().addSystemOption("maxConcurrentGames", 10, "frozen", null, "System limit for concurrent games");
+  this.getGameOptions().addSystemOption("apiVersion", "2.1", "frozen", null, "API version for this game");
 
   // Access values
-  const gridSize = this.getGameOptions().getCurrentValue('gridSize'); // userspace
-  const debugMode = this.getGameOptions().getCurrentSystemValue('debugMode'); // systemspace
+  const gridSize = this.getGameOptions().getCurrentValue("gridSize"); // userspace
+  const debugMode = this.getGameOptions().getCurrentSystemValue("debugMode"); // systemspace
 }
 ```
 
@@ -323,13 +323,13 @@ initializeGameOptions() {
 
    ```javascript
    // Userspace (default)
-   const gameSize = this.getGameOptions().getCurrentValue('gridSize');
+   const gameSize = this.getGameOptions().getCurrentValue("gridSize");
    
    // Systemspace (explicit)
-   const debugEnabled = this.getGameOptions().getCurrentSystemValue('debugMode');
+   const debugEnabled = this.getGameOptions().getCurrentSystemValue("debugMode");
    
    // Alternative systemspace access
-   const debugEnabled2 = this.getGameOptions().getCurrentValue('debugMode', 'systemspace');
+   const debugEnabled2 = this.getGameOptions().getCurrentValue("debugMode", "systemspace");
    ```
 
 ### Game Options - Error Handling
@@ -376,7 +376,7 @@ Games can implement `establishFirstPlayers()` to define custom first player logi
 establishFirstPlayers() {
   // Example: In tic-tac-toe, X always goes first
   const players = this.engine.getPlayerEntities();
-  const xPlayer = players.find(player => player.getMarkType() === 'X');
+  const xPlayer = players.find(player => player.getMarkType() === "X");
   return xPlayer ? xPlayer.getPlayerId() : null;
 }
 ```
@@ -431,7 +431,7 @@ The KubicKode helper automatically manages tokens:
 
 ```javascript
 // Join session (token automatically stored)
-await KubicKode.joinSession('Alice');
+await KubicKode.joinSession("Alice");
 
 // Game operations (token automatically included)
 await KubicKode.getTileMap();
@@ -564,14 +564,14 @@ class MyGame {
 
   initializeGameOptions() {
     // New lifecycle-based approach
-    this.getGameOptions().addOption('gridSize', 5, 'frozen');
+    this.getGameOptions().addOption("gridSize", 5, "frozen");
   }
 
   establishFirstPlayers() {
     // Optional: Define game-specific first player logic
     // For example, in tic-tac-toe, X always goes first
     const players = this.engine.getPlayerEntities();
-    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    const xPlayer = players.find(player => player.getMarkType() === "X");
     return xPlayer ? xPlayer.getPlayerId() : null;
   }
 }
@@ -581,14 +581,14 @@ Example game options definition:
 
 ```javascript
 // Lifecycle-based options (recommended)
-this.getGameOptions().addOption('gridSize', 3, 'frozen');                    // Never changeable
-this.getGameOptions().addOption('difficulty', 'medium', 'pre-start');        // Only before game starts
-this.getGameOptions().addOption('soundEnabled', true, 'runtime');            // Changeable anytime
-this.getGameOptions().addOption('timeLimit', 30, 'between-rounds');          // Only between rounds
+this.getGameOptions().addOption("gridSize", 3, "frozen");                    // Never changeable
+this.getGameOptions().addOption("difficulty", "medium", "pre-start");        // Only before game starts
+this.getGameOptions().addOption("soundEnabled", true, "runtime");            // Changeable anytime
+this.getGameOptions().addOption("timeLimit", 30, "between-rounds");          // Only between rounds
 
 // With validation
-this.getGameOptions().addOption('maxRounds', 10, 'pre-start', (value) => {
-  if (value < 1 || value > 100) return 'Max rounds must be between 1 and 100';
+this.getGameOptions().addOption("maxRounds", 10, "pre-start", (value) => {
+  if (value < 1 || value > 100) return "Max rounds must be between 1 and 100";
   return true;
 });
 ```

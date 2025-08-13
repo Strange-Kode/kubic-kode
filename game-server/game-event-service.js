@@ -1,5 +1,5 @@
-import { WebSocketServer } from 'ws';
-import { kubicLog } from '../kubic-log.js';
+import { WebSocketServer } from "ws";
+import { kubicLog } from "../kubic-log.js";
 
 const connectionsBySession = new Map();
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
@@ -15,10 +15,10 @@ const RECONNECTION_WINDOW = 120000; // 2 minutes - time to allow reconnection
 function initWebSocketServer(server) {
   wss = new WebSocketServer({ server });
   
-  wss.on('connection', (ws, req) => {
-    const params = new URLSearchParams(req.url.split('?')[1]);
-    const sessionId = params.get('sessionId');
-    const participantId = params.get('participantId');
+  wss.on("connection", (ws, req) => {
+    const params = new URLSearchParams(req.url.split("?")[1]);
+    const sessionId = params.get("sessionId");
+    const participantId = params.get("participantId");
     
     kubicLog.info(`[GameEventService]::initWebSocketServer: New WebSocket connection for session: ${sessionId}, participant: ${participantId}`);
     
@@ -39,7 +39,7 @@ function initWebSocketServer(server) {
       
       // Send immediate connection confirmation
       ws.send(JSON.stringify({
-        type: 'connectionConfirmed',
+        type: "connectionConfirmed",
         payload: { sessionId, participantId }
       }));
     }
@@ -47,11 +47,11 @@ function initWebSocketServer(server) {
     kubicLog.debug(`[GameEventService]::initWebSocketServer: Total connections for session ${sessionId}: ${connectionsBySession.get(sessionId).length}`);
     
     // Handle incoming messages (including heartbeats)
-    ws.on('message', (data) => {
+    ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
         
-        if (message.type === 'heartbeat') {
+        if (message.type === "heartbeat") {
           handleHeartbeat(sessionId, participantId, ws);
         }
       } catch (error) {
@@ -59,7 +59,7 @@ function initWebSocketServer(server) {
       }
     });
     
-    ws.on('close', () => {
+    ws.on("close", () => {
       const conns = connectionsBySession.get(sessionId) || [];
       connectionsBySession.set(sessionId, conns.filter(conn => conn !== ws));
       
@@ -76,7 +76,7 @@ function initWebSocketServer(server) {
       }
     });
     
-    ws.on('error', (error) => {
+    ws.on("error", (error) => {
       kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
     });
   });
@@ -88,7 +88,7 @@ function handleHeartbeat(sessionId, participantId, ws) {
     
     // Send heartbeat response
     ws.send(JSON.stringify({
-      type: 'heartbeatResponse',
+      type: "heartbeatResponse",
       payload: { timestamp: Date.now() }
     }));
   }
@@ -136,7 +136,7 @@ function handleParticipantDisconnection(sessionId, participantId) {
   kubicLog.warn(`[GameEventService]::handleParticipantDisconnection: Participant ${participantId} in session ${sessionId} is considered disconnected`);
   
   // Import session manager here to avoid circular dependency
-  import('./session-manager.js').then(({ sessionManager }) => {
+  import("./session-manager.js").then(({ sessionManager }) => {
     const session = sessionManager.getSession(sessionId);
     
     if (session) {
@@ -149,7 +149,7 @@ function handleParticipantDisconnection(sessionId, participantId) {
         
         // Broadcast disconnection event
         broadcastToSession(session, {
-          type: 'participantDisconnected',
+          type: "participantDisconnected",
           payload: { 
             participantId: participantId,
             participantName: participant.name,
@@ -170,7 +170,7 @@ function handleSessionTermination(sessionId, participantId) {
   kubicLog.warn(`[GameEventService]::handleSessionTermination: Participant ${participantId} in session ${sessionId} failed to reconnect within reconnection window`);
   
   // Import session manager here to avoid circular dependency
-  import('./session-manager.js').then(({ sessionManager }) => {
+  import("./session-manager.js").then(({ sessionManager }) => {
     const session = sessionManager.getSession(sessionId);
     
     if (session) {
@@ -182,11 +182,11 @@ function handleSessionTermination(sessionId, participantId) {
         
         // Broadcast participant removal
         broadcastToSession(session, {
-          type: 'participantRemoved',
+          type: "participantRemoved",
           payload: { 
             participantId: participantId,
             participantName: participant.name,
-            reason: 'reconnection_timeout'
+            reason: "reconnection_timeout"
           }
         });
         
@@ -218,7 +218,7 @@ function checkSessionViability(session) {
     
     // Clean up session immediately since no one can receive the broadcast
     setTimeout(() => {
-      import('./session-manager.js').then(({ sessionManager }) => {
+      import("./session-manager.js").then(({ sessionManager }) => {
         sessionManager.removeSession(sessionId);
       }).catch(error => {
         kubicLog.error(`[GameEventService]::checkSessionViability: Error removing orphaned session ${sessionId}:`, error);
@@ -236,10 +236,10 @@ function checkSessionViability(session) {
     
     // Broadcast session ended due to disconnection
     broadcastToSession(session, {
-      type: 'sessionEnded',
+      type: "sessionEnded",
       payload: { 
-        reason: 'insufficient_players',
-        message: 'Session ended due to insufficient connected players',
+        reason: "insufficient_players",
+        message: "Session ended due to insufficient connected players",
         connectedParticipants: connectedParticipants.length,
         requiredParticipants: requiredPlayers
       }
@@ -247,7 +247,7 @@ function checkSessionViability(session) {
     
     // Clean up session after a delay
     setTimeout(() => {
-      import('./session-manager.js').then(({ sessionManager }) => {
+      import("./session-manager.js").then(({ sessionManager }) => {
         sessionManager.removeSession(sessionId);
       }).catch(error => {
         kubicLog.error(`[GameEventService]::checkSessionViability: Error removing session:`, error);
@@ -266,7 +266,7 @@ function startHeartbeatForSession(sessionId) {
     conns.forEach(ws => {
       if (ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({
-          type: 'heartbeat',
+          type: "heartbeat",
           payload: { timestamp: Date.now() }
         }));
       }
@@ -327,7 +327,7 @@ function broadcastToSession(gameSession, messageObj) {
     // Trigger session cleanup only if no participants are connected and no game is active
     // This prevents orphaned sessions from consuming resources while allowing HTTP-only usage
     setTimeout(() => {
-      import('./session-manager.js').then(({ sessionManager }) => {
+      import("./session-manager.js").then(({ sessionManager }) => {
         const session = sessionManager.getSession(sessionId);
         if (session) {
           const participants = session.getParticipants();

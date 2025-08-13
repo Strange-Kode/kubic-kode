@@ -1,4 +1,4 @@
-import { TileMap } from './tile-map.js';
+import { TileMap } from "./tile-map.js";
 
 export class ScrollableTileMap extends TileMap {
   constructor(width, height) {
@@ -70,7 +70,7 @@ export class ScrollableTileMap extends TileMap {
   /**
    * Scroll a player's viewport in a specific direction
    * @param {string} playerId - The player's ID
-   * @param {string} direction - 'up', 'down', 'left', 'right'
+   * @param {string} direction - "up", "down", "left", "right"
    * @param {number} amount - Number of tiles to scroll (default: 1)
    * @returns {boolean} True if scroll was successful, false if out of bounds
    */
@@ -83,16 +83,16 @@ export class ScrollableTileMap extends TileMap {
     const newViewport = { ...viewport };
 
     switch (direction) {
-      case 'up':
+      case "up":
         newViewport.y = Math.max(0, viewport.y - amount);
         break;
-      case 'down':
+      case "down":
         newViewport.y = Math.min(this._height - viewport.height, viewport.y + amount);
         break;
-      case 'left':
+      case "left":
         newViewport.x = Math.max(0, viewport.x - amount);
         break;
-      case 'right':
+      case "right":
         newViewport.x = Math.min(this._width - viewport.width, viewport.x + amount);
         break;
       default:

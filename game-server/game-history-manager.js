@@ -1,5 +1,5 @@
-import { GameHistory } from './game-history.js';
-import { GameEventService } from './game-event-service.js';
+import { GameHistory } from "./game-history.js";
+import { GameEventService } from "./game-event-service.js";
 
 import { kubicLog } from "../kubic-log.js";
 
@@ -29,7 +29,7 @@ class GameHistoryManager {
    */
   subscribe(sessionId, eventTypes) {
     if (!Array.isArray(eventTypes)) {
-      throw new Error('eventTypes must be an array');
+      throw new Error("eventTypes must be an array");
     }
 
     if (!this._subscriptions.has(sessionId)) {
@@ -41,14 +41,14 @@ class GameHistoryManager {
     const invalidEventTypes = eventTypes.filter(type => !GameHistory.isValidEventType(type));
 
     if (invalidEventTypes.length > 0) {
-      kubicLog.warn(`[GameHistoryManager]::subscribe: Cannot subscribe to non-game-history events: ${invalidEventTypes.join(', ')}`);
+      kubicLog.warn(`[GameHistoryManager]::subscribe: Cannot subscribe to non-game-history events: ${invalidEventTypes.join(", ")}`);
     }
 
     validEventTypes.forEach(eventType => {
       sessionSubscriptions.add(eventType);
     });
 
-    kubicLog.debug(`[GameHistoryManager]::subscribe: Session ${sessionId} subscribed to game history event types: ${Array.from(sessionSubscriptions).join(', ')}`);
+    kubicLog.debug(`[GameHistoryManager]::subscribe: Session ${sessionId} subscribed to game history event types: ${Array.from(sessionSubscriptions).join(", ")}`);
   }
 
   /**
@@ -58,7 +58,7 @@ class GameHistoryManager {
    */
   unsubscribe(sessionId, eventTypes) {
     if (!Array.isArray(eventTypes)) {
-      throw new Error('eventTypes must be an array');
+      throw new Error("eventTypes must be an array");
     }
 
     if (!this._subscriptions.has(sessionId)) {
@@ -71,15 +71,15 @@ class GameHistoryManager {
     const invalidEventTypes = eventTypes.filter(type => !GameHistory.isValidEventType(type));
 
     if (invalidEventTypes.length > 0) {
-      kubicLog.warn(`[GameHistoryManager]::unsubscribe: Warning - Cannot unsubscribe from non-game-history events: ${invalidEventTypes.join(', ')}`);
+      kubicLog.warn(`[GameHistoryManager]::unsubscribe: Warning - Cannot unsubscribe from non-game-history events: ${invalidEventTypes.join(", ")}`);
     }
 
     validEventTypes.forEach(eventType => {
       sessionSubscriptions.delete(eventType);
     });
 
-    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} unsubscribed from game history event types: ${validEventTypes.join(', ')}`);
-    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} remaining subscriptions: ${Array.from(sessionSubscriptions).join(', ')}`);
+    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} unsubscribed from game history event types: ${validEventTypes.join(", ")}`);
+    kubicLog.debug(`[GameHistoryManager]::unsubscribe: Session ${sessionId} remaining subscriptions: ${Array.from(sessionSubscriptions).join(", ")}`);
   }
 
   /**
@@ -134,12 +134,12 @@ class GameHistoryManager {
       get: (target, prop) => {
         const method = target[prop];
 
-        // If it's not a method or doesn't start with 'add', just return it
-        if (typeof method !== 'function' || !prop.startsWith('add')) {
+        // If it's not a method or doesn't start with "add", just return it
+        if (typeof method !== "function" || !prop.startsWith("add")) {
           return method;
         }
 
-        // For 'add' methods, wrap them to handle broadcasting
+        // For "add" methods, wrap them to handle broadcasting
         return (...args) => {
           // Call the original method
           const result = method.apply(target, args);
@@ -163,19 +163,19 @@ class GameHistoryManager {
    */
   _broadcast(sessionId, historyEvent) {
     // Always broadcast critical game events regardless of subscription
-    const criticalEvents = ['playerWon', 'gameStarted', 'gameEnded', 'gameTied', 'winCount'];
+    const criticalEvents = ["playerWon", "gameStarted", "gameEnded", "gameTied", "winCount"];
     const shouldAlwaysBroadcast = criticalEvents.includes(historyEvent.type);
     
     if (!this.isSubscribed(sessionId, historyEvent.type) && !shouldAlwaysBroadcast) {
-      kubicLog.warn(`[GameHistoryManager] Session ${sessionId} not subscribed to game history event type '${historyEvent.type}', skipping broadcast`);
+      kubicLog.warn(`[GameHistoryManager] Session ${sessionId} not subscribed to game history event type "${historyEvent.type}", skipping broadcast`);
       return;
     }
     
     if (shouldAlwaysBroadcast && !this.isSubscribed(sessionId, historyEvent.type)) {
-      kubicLog.debug(`[GameHistoryManager] Broadcasting critical event '${historyEvent.type}' to session ${sessionId} (not subscribed but critical)`);
+      kubicLog.debug(`[GameHistoryManager] Broadcasting critical event "${historyEvent.type}" to session ${sessionId} (not subscribed but critical)`);
     }
 
-    kubicLog.debug(`[GameHistoryManager] Broadcasting game history event '${historyEvent.type}' to session ${sessionId}`);
+    kubicLog.debug(`[GameHistoryManager] Broadcasting game history event "${historyEvent.type}" to session ${sessionId}`);
 
     // Create a session-like object for broadcasting
     const sessionLike = {

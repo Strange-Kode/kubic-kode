@@ -33,7 +33,7 @@ class KubicKodeGame extends GameInterface {
     const proxy = new Proxy(this, {
       get(target, prop) {
         // Special handling for getOptionValue - always use the wrapper's implementation
-        if (prop === 'getOptionValue') {
+        if (prop === "getOptionValue") {
           return target.getOptionValue.bind(target);
         }
         
@@ -53,7 +53,7 @@ class KubicKodeGame extends GameInterface {
     });
 
     // Initialize game options after the proxy is created
-    if (typeof this.__gameInstance.initializeGameOptions === 'function') {
+    if (typeof this.__gameInstance.initializeGameOptions === "function") {
       // Call initializeGameOptions on the proxy so getGameOptions() is available
       proxy.initializeGameOptions();
     }
@@ -152,22 +152,22 @@ class KubicKodeGame extends GameInterface {
 
       // Debug: Log the playStatus object to see what it contains
       console.log(`[KubicKodeGame] playStatus object:`, playStatus);
-      console.log(`[KubicKodeGame] playStatus.access('playerHasWon'):`, playStatus.access('playerHasWon'));
-      console.log(`[KubicKodeGame] playStatus.access('playerId'):`, playStatus.access('playerId'));
+      console.log(`[KubicKodeGame] playStatus.access("playerHasWon"):`, playStatus.access("playerHasWon"));
+      console.log(`[KubicKodeGame] playStatus.access("playerId"):`, playStatus.access("playerId"));
       
       // Record win if it occurred and stop the game
-      if (playStatus.access('playerHasWon')) {
-        console.log(`[KubicKodeGame] Recording win for player ${playStatus.access('playerId')}`);
+      if (playStatus.access("playerHasWon")) {
+        console.log(`[KubicKodeGame] Recording win for player ${playStatus.access("playerId")}`);
         const participantId = this.getParticipantIdForPlayer(playerId);
         console.log(`[KubicKodeGame] Participant ID for player ${playerId}: ${participantId}`);
         
         try {
           this.__gameSession.getGameHistory().addPlayerWonEvent(
-            playStatus.access('playerId'),
+            playStatus.access("playerId"),
             participantId,
             {
               winCondition:
-                playStatus.access('winCondition') || this.getWinConditionDescription(x, y),
+                playStatus.access("winCondition") || this.getWinConditionDescription(x, y),
               finalPosition: { x, y },
               gameState: "completed",
             }
@@ -178,19 +178,19 @@ class KubicKodeGame extends GameInterface {
         }
 
         // Stop the game and clear inactivity timer when someone wins
-        this.__gameOptions.setGameState('ended');
+        this.__gameOptions.setGameState("ended");
         this.__gameSession.markEnded();
       }
 
       // Record tie if it occurred and stop the game
-      if (playStatus.access('gameIsTied')) {
+      if (playStatus.access("gameIsTied")) {
         this.__gameSession.getGameHistory().addGameTiedEvent({
           finalPosition: { x, y },
           gameState: "tied",
         });
 
         // Stop the game and clear inactivity timer when game is tied
-        this.__gameOptions.setGameState('ended');
+        this.__gameOptions.setGameState("ended");
         this.__gameSession.markEnded();
       }
     } else {
@@ -236,8 +236,8 @@ class KubicKodeGame extends GameInterface {
       throw new Error(`At least ${requiredPlayers} players are required to start the game.`);
     }
 
-    // Transition game options to 'started' state - this locks pre-start options
-    this.__gameOptions.setGameState('started');
+    // Transition game options to "started" state - this locks pre-start options
+    this.__gameOptions.setGameState("started");
 
     const result = this.__gameInstance.startGame
       ? this.__gameInstance.startGame()
@@ -291,7 +291,7 @@ class KubicKodeGame extends GameInterface {
   resetForRestart() {
     // Clear all player entities to prevent duplicates during restart
     const gameEngine = this.__gameInstance.getGameEngine();
-    if (gameEngine && typeof gameEngine.clearPlayerEntities === 'function') {
+    if (gameEngine && typeof gameEngine.clearPlayerEntities === "function") {
       gameEngine.clearPlayerEntities();
     }
 
@@ -378,7 +378,7 @@ class KubicKodeGame extends GameInterface {
     });
 
     // Clear inactivity timer when game stops
-    this.__gameOptions.setGameState('ended');
+    this.__gameOptions.setGameState("ended");
     this.__gameSession.markEnded();
 
     return result;
@@ -391,7 +391,7 @@ class KubicKodeGame extends GameInterface {
 
   getTileMap() {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.getTileMap === 'function') {
+    if (typeof this.__gameInstance.getTileMap === "function") {
       return this.__gameInstance.getTileMap();
     }
     return this.__gameInstance.getGameEngine().getTileMap();
@@ -399,7 +399,7 @@ class KubicKodeGame extends GameInterface {
 
   getCurrentTurnPlayers() {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.getCurrentTurnPlayers === 'function') {
+    if (typeof this.__gameInstance.getCurrentTurnPlayers === "function") {
       return this.__gameInstance.getCurrentTurnPlayers();
     }
     return this.__gameInstance.getGameEngine().getCurrentTurnPlayers();
@@ -407,7 +407,7 @@ class KubicKodeGame extends GameInterface {
 
   getWinner() {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.getWinner === 'function') {
+    if (typeof this.__gameInstance.getWinner === "function") {
       return this.__gameInstance.getWinner();
     }
     return null; // Default: no winner
@@ -415,18 +415,18 @@ class KubicKodeGame extends GameInterface {
 
   getInactivityTimeout() {
     // Only provide inactivity timeout if game instance implements handleInactivity
-    if (typeof this.__gameInstance.handleInactivity !== 'function') {
+    if (typeof this.__gameInstance.handleInactivity !== "function") {
       return null; // No inactivity timeout if game doesn't handle inactivity
     }
 
     // Check system option first
-    const systemTimeout = this.__gameOptions.getCurrentSystemValue('inactivityTimeout');
+    const systemTimeout = this.__gameOptions.getCurrentSystemValue("inactivityTimeout");
     if (systemTimeout !== null && systemTimeout !== undefined) {
       return systemTimeout;
     }
 
     // Fall back to game instance implementation
-    if (typeof this.__gameInstance.getInactivityTimeout === 'function') {
+    if (typeof this.__gameInstance.getInactivityTimeout === "function") {
       return this.__gameInstance.getInactivityTimeout();
     }
     
@@ -435,7 +435,7 @@ class KubicKodeGame extends GameInterface {
 
   requiredPlayers() {
     // Delegate to the game instance to determine required players
-    if (typeof this.__gameInstance.requiredPlayers === 'function') {
+    if (typeof this.__gameInstance.requiredPlayers === "function") {
       return this.__gameInstance.requiredPlayers();
     }
     
@@ -445,7 +445,7 @@ class KubicKodeGame extends GameInterface {
 
   calculateComputerMove(playerId, computerPlayer) {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.calculateComputerMove === 'function') {
+    if (typeof this.__gameInstance.calculateComputerMove === "function") {
       return this.__gameInstance.calculateComputerMove(playerId, computerPlayer);
     }
     return null; // Default: no computer move calculation
@@ -453,7 +453,7 @@ class KubicKodeGame extends GameInterface {
 
   isGameActive() {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.isGameActive === 'function') {
+    if (typeof this.__gameInstance.isGameActive === "function") {
       return this.__gameInstance.isGameActive();
     }
     return this.__gameInstance.getGameEngine().isGameStarted();
@@ -461,7 +461,7 @@ class KubicKodeGame extends GameInterface {
 
   getGameStats() {
     // Default implementation if game instance doesn't provide it
-    if (typeof this.__gameInstance.getGameStats === 'function') {
+    if (typeof this.__gameInstance.getGameStats === "function") {
       return this.__gameInstance.getGameStats();
     }
     return {
@@ -481,7 +481,7 @@ class KubicKodeGame extends GameInterface {
 
   establishFirstPlayers(sessionContext = null) {
     // Check system option for specific participant preference
-    const participantId = this.__gameOptions.getCurrentSystemValue('participantPlaysFirst');
+    const participantId = this.__gameOptions.getCurrentSystemValue("participantPlaysFirst");
     
     // If a specific participant is configured via system options
     if (participantId) {
@@ -496,7 +496,7 @@ class KubicKodeGame extends GameInterface {
     }
 
     // Check if game instance has its own implementation
-    if (typeof this.__gameInstance.establishFirstPlayers === 'function') {
+    if (typeof this.__gameInstance.establishFirstPlayers === "function") {
       const result = this.__gameInstance.establishFirstPlayers(sessionContext);
       if (result) {
         // If game returned a player ID, set it as first
@@ -590,8 +590,8 @@ class KubicKodeGame extends GameInterface {
    * Game Options Pattern for Game Implementations:
    * 
    * 1. In initializeGameOptions(), register your options:
-   *    this.getGameOptions().addOption('gridSize', 5, 'runtime', (value) => {
-   *      if (value < 3 || value > 10) return 'Grid size must be 3-10';
+   *    this.getGameOptions().addOption("gridSize", 5, "runtime", (value) => {
+   *      if (value < 3 || value > 10) return "Grid size must be 3-10";
    *      return true;
    *    });
    * 
@@ -608,7 +608,7 @@ class KubicKodeGame extends GameInterface {
    *    }
    * 
    * 4. Access current values via getOptionValue():
-   *    const currentGridSize = this.getOptionValue('gridSize');
+   *    const currentGridSize = this.getOptionValue("gridSize");
    * 
    * 5. The GameOptions system automatically:
    *    - Validates options when applied
@@ -619,7 +619,7 @@ class KubicKodeGame extends GameInterface {
    * 
    * IMPORTANT: Game options are stored exclusively in this.getGameOptions().
    * Do NOT store option values as instance properties (this.gridSize, etc.).
-   * Always use this.getOptionValue('gridSize') to access current values.
+   * Always use this.getOptionValue("gridSize") to access current values.
    * 
    * Example - Simple Configurable Game:
    * 
@@ -629,8 +629,8 @@ class KubicKodeGame extends GameInterface {
    *   }
    * 
    *   initializeGameOptions() {
-   *     this.getGameOptions().addOption('gridSize', 5, 'runtime', (value) => {
-   *       if (value < 3 || value > 10) return 'Grid size must be 3-10';
+   *     this.getGameOptions().addOption("gridSize", 5, "runtime", (value) => {
+   *       if (value < 3 || value > 10) return "Grid size must be 3-10";
    *       return true;
    *     });
    *   }
@@ -639,7 +639,7 @@ class KubicKodeGame extends GameInterface {
    *   
    *   getGameStats() {
    *     return {
-   *       gridSize: this.getOptionValue('gridSize'), // Use GameOptions
+   *       gridSize: this.getOptionValue("gridSize"), // Use GameOptions
    *       // ... other stats
    *     };
    *   }
@@ -649,7 +649,7 @@ class KubicKodeGame extends GameInterface {
   resetGameOptions() {
     this.__gameOptions = new GameOptions();
     // Game options start in pre-start state
-    this.__gameOptions.setGameState('pre-start');
+    this.__gameOptions.setGameState("pre-start");
   }
 
   applyGameOptions(options) {
@@ -662,7 +662,7 @@ class KubicKodeGame extends GameInterface {
       
       // Call the game instance's applyGameOptions method if it exists
       // This allows games to handle custom option logic that can't be automated
-      if (typeof this.__gameInstance.applyGameOptions === 'function') {
+      if (typeof this.__gameInstance.applyGameOptions === "function") {
         this.__gameInstance.applyGameOptions(validation.applied);
       }
     }
@@ -674,7 +674,7 @@ class KubicKodeGame extends GameInterface {
     // Handle gridSize changes automatically
     if (appliedOptions.gridSize) {
       const gameEngine = this.__gameInstance.getGameEngine();
-      if (gameEngine && typeof gameEngine.updateTileMapDimensions === 'function') {
+      if (gameEngine && typeof gameEngine.updateTileMapDimensions === "function") {
         gameEngine.updateTileMapDimensions(appliedOptions.gridSize, appliedOptions.gridSize);
       }
     }
@@ -685,25 +685,25 @@ class KubicKodeGame extends GameInterface {
 
   _handleSystemOptions(appliedOptions) {
     // Handle participantPlaysFirst: Set up turn order with specified participant first
-    if ('system::participantPlaysFirst' in appliedOptions) {
-      this._applyParticipantPlaysFirst(appliedOptions['system::participantPlaysFirst']);
+    if ("system::participantPlaysFirst" in appliedOptions) {
+      this._applyParticipantPlaysFirst(appliedOptions["system::participantPlaysFirst"]);
     }
 
     // Handle turnOrderType: Control how turn order is determined
-    if ('system::turnOrderType' in appliedOptions) {
-      this._applyTurnOrderType(appliedOptions['system::turnOrderType']);
+    if ("system::turnOrderType" in appliedOptions) {
+      this._applyTurnOrderType(appliedOptions["system::turnOrderType"]);
     }
 
     // Handle allowSpectatorVoting: Configure spectator voting behavior
-    if ('system::allowSpectatorVoting' in appliedOptions) {
+    if ("system::allowSpectatorVoting" in appliedOptions) {
       // This would be implemented in session management
       // For now, just log that it's been set
-      kubicLog.debug(`[KubicKodeGame] Spectator voting ${appliedOptions['system::allowSpectatorVoting'] ? 'enabled' : 'disabled'}`);
+      kubicLog.debug(`[KubicKodeGame] Spectator voting ${appliedOptions["system::allowSpectatorVoting"] ? "enabled" : "disabled"}`);
     }
 
     // Handle inactivityTimeout: Player inactivity timeout is automatically handled via getInactivityTimeout()
-    if ('system::inactivityTimeout' in appliedOptions) {
-      kubicLog.debug(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions['system::inactivityTimeout']}ms`);
+    if ("system::inactivityTimeout" in appliedOptions) {
+      kubicLog.debug(`[KubicKodeGame] Player inactivity timeout set to: ${appliedOptions["system::inactivityTimeout"]}ms`);
     }
   }
 
@@ -741,79 +741,79 @@ class KubicKodeGame extends GameInterface {
   _registerSystemOptions() {
     // participantPlaysFirst: Allows specifying which participant should go first
     this.__gameOptions.addSystemOption(
-      'participantPlaysFirst', 
+      "participantPlaysFirst", 
       null, 
-      'pre-start',
+      "pre-start",
       (value) => {
         if (value === null || value === undefined) {
           return true; // Allow null/undefined (no preference)
         }
-        if (typeof value !== 'string') {
-          return 'participantPlaysFirst must be a participant ID string or null';
+        if (typeof value !== "string") {
+          return "participantPlaysFirst must be a participant ID string or null";
         }
         return true;
       },
-      'Specifies which participant should go first. Use participant ID or null for default order.'
+      "Specifies which participant should go first. Use participant ID or null for default order."
     );
 
     // turnOrderType: Controls how turn order is determined
     this.__gameOptions.addSystemOption(
-      'turnOrderType',
-      'join-order',
-      'pre-start',
+      "turnOrderType",
+      "join-order",
+      "pre-start",
       (value) => {
-        const validTypes = ['join-order', 'random', 'participant-order'];
+        const validTypes = ["join-order", "random", "participant-order"];
         if (!validTypes.includes(value)) {
-          return `turnOrderType must be one of: ${validTypes.join(', ')}`;
+          return `turnOrderType must be one of: ${validTypes.join(", ")}`;
         }
         return true;
       },
-      'Controls how turn order is determined: join-order (default), random, or participant-order'
+      "Controls how turn order is determined: join-order (default), random, or participant-order"
     );
 
     // allowSpectatorVoting: Whether spectators can participate in restart voting
     this.__gameOptions.addSystemOption(
-      'allowSpectatorVoting',
+      "allowSpectatorVoting",
       false,
-      'runtime',
+      "runtime",
       (value) => {
-        if (typeof value !== 'boolean') {
-          return 'allowSpectatorVoting must be a boolean';
+        if (typeof value !== "boolean") {
+          return "allowSpectatorVoting must be a boolean";
         }
         return true;
       },
-      'Whether spectators can participate in restart voting'
+      "Whether spectators can participate in restart voting"
     );
 
     // inactivityTimeout: Player inactivity timeout in milliseconds
     this.__gameOptions.addSystemOption(
-      'inactivityTimeout',
+      "inactivityTimeout",
       null,
-      'runtime',
+      "runtime",
       (value) => {
         if (value === null || value === undefined) {
           return true; // Allow null (no timeout)
         }
-        if (typeof value !== 'number' || value < 1000) {
-          return 'inactivityTimeout must be a number >= 1000 (milliseconds) or null';
+        if (typeof value !== "number" || value < 1000) {
+          return "inactivityTimeout must be a number >= 1000 (milliseconds) or null";
         }
         return true;
       },
-      'Player inactivity timeout in milliseconds (how long a player has to make a move), or null for no timeout'
+      "Player inactivity timeout in milliseconds (how long a player has to make a move), or null for no timeout"
     );
 
     // returnSinglePlayerId: Allows game routes to send player IDs as a single int value
     this.__gameOptions.addSystemOption(
-      'returnSinglePlayerId',
+      "returnSinglePlayerId",
       false,
-      'frozen',
+      "frozen",
       (value) => {
-        if (typeof value !== 'boolean') {
-          return 'returnSinglePlayerId must be a boolean';
+        if (typeof value !== "boolean") {
+          return "returnSinglePlayerId must be a boolean";
         }
         return true;
       },
-      'When true, game routes return player IDs as a single int value instead of arrays of ints (requires single-set play style)'
+      "When true, game routes return player IDs as a single int value instead of arrays of ints (requires single-set play style)"
     );
   }
 

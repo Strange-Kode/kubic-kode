@@ -7,10 +7,10 @@
  * It creates all necessary server-side files for a new game.
  */
 
-import readline from 'readline';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import readline from "readline";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +24,7 @@ const rl = readline.createInterface({
 class GameSetupWizard {
   constructor() {
     this._config = {};
-    this._templateDir = path.join(__dirname, 'template');
+    this._templateDir = path.join(__dirname, "template");
     this._conflicts = [];
   }
 
@@ -40,7 +40,7 @@ class GameSetupWizard {
   // Helper to ask yes/no questions
   async askYesNo(question) {
     const answer = await this.askQuestion(`${question} (y/n): `);
-    return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
   }
 
   // Helper to ask choice questions
@@ -65,20 +65,20 @@ class GameSetupWizard {
   toCamelCase(str) {
     return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
       return index === 0 ? word.toLowerCase() : word.toUpperCase();
-    }).replace(/\s+/g, '');
+    }).replace(/\s+/g, "");
   }
 
   // Convert to PascalCase (removes spaces and capitalizes each word)
   toPascalCase(str) {
     return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word) => {
       return word.toUpperCase();
-    }).replace(/\s+/g, '');
+    }).replace(/\s+/g, "");
   }
 
   // Validate if a string would make a valid JavaScript identifier
   isValidJavaScriptIdentifier(str) {
     // Check if it's empty
-    if (!str || str.trim() === '') return false;
+    if (!str || str.trim() === "") return false;
     
     // Check if it matches JavaScript identifier rules
     // Must start with letter, underscore, or dollar sign
@@ -89,11 +89,11 @@ class GameSetupWizard {
     
     // Check against JavaScript reserved words
     const reservedWords = [
-      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
-      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
-      'if', 'import', 'in', 'instanceof', 'let', 'new', 'return', 'super', 'switch',
-      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
-      'enum', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static'
+      "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+      "delete", "do", "else", "export", "extends", "finally", "for", "function",
+      "if", "import", "in", "instanceof", "let", "new", "return", "super", "switch",
+      "this", "throw", "try", "typeof", "var", "void", "while", "with", "yield",
+      "enum", "implements", "interface", "package", "private", "protected", "public", "static"
     ];
     
     return !reservedWords.includes(str.toLowerCase());
@@ -104,29 +104,29 @@ class GameSetupWizard {
     let suggestion = str.trim();
     
     // Remove or replace invalid characters
-    suggestion = suggestion.replace(/[^a-zA-Z0-9_$]/g, '');
+    suggestion = suggestion.replace(/[^a-zA-Z0-9_$]/g, "");
     
-    // If it starts with a number, prefix with 'Game'
+    // If it starts with a number, prefix with "Game"
     if (/^[0-9]/.test(suggestion)) {
-      suggestion = 'Game' + suggestion;
+      suggestion = "Game" + suggestion;
     }
     
     // If it's empty after cleaning, use a default
     if (!suggestion) {
-      suggestion = 'MyGame';
+      suggestion = "MyGame";
     }
     
-    // If it's a reserved word, append 'Game'
+    // If it's a reserved word, append "Game"
     const reservedWords = [
-      'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
-      'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
-      'if', 'import', 'in', 'instanceof', 'let', 'new', 'return', 'super', 'switch',
-      'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
-      'enum', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static'
+      "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+      "delete", "do", "else", "export", "extends", "finally", "for", "function",
+      "if", "import", "in", "instanceof", "let", "new", "return", "super", "switch",
+      "this", "throw", "try", "typeof", "var", "void", "while", "with", "yield",
+      "enum", "implements", "interface", "package", "private", "protected", "public", "static"
     ];
     
     if (reservedWords.includes(suggestion.toLowerCase())) {
-      suggestion = suggestion + 'Game';
+      suggestion = suggestion + "Game";
     }
     
     return suggestion;
@@ -134,7 +134,7 @@ class GameSetupWizard {
 
   // Convert to kebab-case (spaces become hyphens, lowercase)
   toKebabCase(str) {
-    return str.trim().replace(/\s+/g, '-').toLowerCase();
+    return str.trim().replace(/\s+/g, "-").toLowerCase();
   }
 
   // Check for file conflicts
@@ -148,16 +148,16 @@ class GameSetupWizard {
     }
 
     // Check if .env files exist
-    if (!fs.existsSync('.env')) {
+    if (!fs.existsSync(".env")) {
       // No conflict for .env - we'll create it
     } else {
-      this._conflicts.push('File: .env (will be updated, not overwritten)');
+      this._conflicts.push("File: .env (will be updated, not overwritten)");
     }
 
-    if (!fs.existsSync('.env.example')) {
+    if (!fs.existsSync(".env.example")) {
       // No conflict for .env.example - we'll create it
     } else {
-      this._conflicts.push('File: .env.example (will be updated, not overwritten)');
+      this._conflicts.push("File: .env.example (will be updated, not overwritten)");
     }
 
     return this._conflicts;
@@ -174,7 +174,7 @@ class GameSetupWizard {
     let gameCamelName;
     
     do {
-      gameName = await this.askQuestion("What is the name of your game? (e.g., 'Chess', 'Connect Four'): ");
+      gameName = await this.askQuestion(`What is the name of your game? (e.g., "Chess", "Connect Four"): `);
       gameClassName = this.toPascalCase(gameName);
       gameCamelName = this.toCamelCase(gameName);
       
@@ -234,7 +234,7 @@ class GameSetupWizard {
       "non-blocking (continuous action, game implementation decides how to handle turns, e.g. advanced Dungeon Crawler like game)"
     ];
     const playStyleChoice = await this.askChoice("What play style will your game use?", playStyles);
-    this._config.PLAY_STYLE = playStyleChoice.split(' ')[0];
+    this._config.PLAY_STYLE = playStyleChoice.split(" ")[0];
     this._config.PLAY_STYLE_SINGLE_SET = this._config.PLAY_STYLE === "single-set";
     
     // Multiplayer support
@@ -371,9 +371,9 @@ class GameSetupWizard {
     console.log("  • Faster development for simple games");
     
     const defaultGSMChoice = recommendGSM ? "y" : "n";
-    const gsmAnswer = await this.askQuestion(`Would you like to use the Game State Machine? ${recommendGSM ? '(RECOMMENDED) ' : ''}(y/n) [${defaultGSMChoice}]: `);
-    this._config.USE_STATE_MACHINE = (gsmAnswer.toLowerCase() === 'y' || gsmAnswer.toLowerCase() === 'yes') || 
-                                   (gsmAnswer.trim() === '' && recommendGSM);
+    const gsmAnswer = await this.askQuestion(`Would you like to use the Game State Machine? ${recommendGSM ? "(RECOMMENDED) " : ""}(y/n) [${defaultGSMChoice}]: `);
+    this._config.USE_STATE_MACHINE = (gsmAnswer.toLowerCase() === "y" || gsmAnswer.toLowerCase() === "yes") || 
+                                   (gsmAnswer.trim() === "" && recommendGSM);
     
     if (this._config.USE_STATE_MACHINE) {
       console.log("✅ Game State Machine will be enabled in your GameEngine configuration.");
@@ -388,15 +388,15 @@ class GameSetupWizard {
       "other (custom interaction model)"
     ];
     const gameTypeChoice = await this.askChoice("What type of game interaction does your game use?", gameTypes);
-    this._config.GAME_INTERACTION_TYPE = gameTypeChoice.split(' ')[0];
+    this._config.GAME_INTERACTION_TYPE = gameTypeChoice.split(" ")[0];
     this._config.USES_PIECES = this._config.GAME_INTERACTION_TYPE === "piece-placement";
     
     if (this._config.USES_PIECES) {
-      this._config.GAME_PIECE_TYPE = await this.askQuestion("What type of game pieces will players place? (e.g., 'stone', 'piece', 'card'): ");
+      this._config.GAME_PIECE_TYPE = await this.askQuestion(`What type of game pieces will players place? (e.g., "stone", "piece", "card"): `);
     } else if (this._config.GAME_INTERACTION_TYPE === "character-movement") {
       this._config.GAME_PIECE_TYPE = "character";
     } else {
-      this._config.GAME_PIECE_TYPE = await this.askQuestion("What will players interact with in your game? (e.g., 'units', 'tokens', 'cards'): ");
+      this._config.GAME_PIECE_TYPE = await this.askQuestion(`What will players interact with in your game? (e.g., "units", "tokens", "cards"): `);
     }
     
     // Additional features
@@ -430,17 +430,17 @@ class GameSetupWizard {
     console.log(`Directory: backend-${this._config.GAME_SHORT_NAME}`);
     console.log(`Indentation: ${this._config.INDENT_STYLE}`);
     console.log(`Play Style: ${this._config.PLAY_STYLE}`);
-    console.log(`Multiplayer: ${this._config.IS_MULTIPLAYER ? 'Yes' : 'No'}`);
+    console.log(`Multiplayer: ${this._config.IS_MULTIPLAYER ? "Yes" : "No"}`);
     if (this._config.IS_MULTIPLAYER) {
       console.log(`Max Players: ${this._config.MAX_PLAYERS}`);
     }
-    console.log(`Scrollable Grid: ${this._config.IS_SCROLLABLE ? 'Yes' : 'No'}`);
+    console.log(`Scrollable Grid: ${this._config.IS_SCROLLABLE ? "Yes" : "No"}`);
     if (this._config.IS_SCROLLABLE) {
       console.log(`Grid Size: ${this._config.DEFAULT_GRID_WIDTH} x ${this._config.DEFAULT_GRID_HEIGHT}`);
-      console.log(`Tilemap Type: ${this._config.USE_VIEWPORTS ? 'Viewport-based' : 'Basic scrollable'}`);
+      console.log(`Tilemap Type: ${this._config.USE_VIEWPORTS ? "Viewport-based" : "Basic scrollable"}`);
       if (this._config.USE_VIEWPORTS) {
         console.log(`Viewport Size: ${this._config.DEFAULT_VIEWPORT_WIDTH} x ${this._config.DEFAULT_VIEWPORT_HEIGHT}`);
-        console.log(`Auto-follow: ${this._config.VIEWPORT_AUTO_FOLLOW ? 'Yes' : 'No'}`);
+        console.log(`Auto-follow: ${this._config.VIEWPORT_AUTO_FOLLOW ? "Yes" : "No"}`);
       }
     } else {
       console.log(`Grid Size: ${this._config.DEFAULT_GRID_WIDTH} x ${this._config.DEFAULT_GRID_WIDTH}`);
@@ -452,15 +452,15 @@ class GameSetupWizard {
       console.log(`Player Interaction: ${this._config.GAME_PIECE_TYPE}`);
     }
     console.log(`Features:`);
-    console.log(`  - Player Scores: ${this._config.HAS_PLAYER_SCORE ? 'Yes' : 'No'}`);
-    console.log(`  - Player Resources: ${this._config.HAS_PLAYER_RESOURCES ? 'Yes' : 'No'}`);
-    console.log(`  - Piece Values: ${this._config.HAS_PIECE_VALUE ? 'Yes' : 'No'}`);
-    console.log(`  - Special Actions: ${this._config.HAS_SPECIAL_ACTIONS ? 'Yes' : 'No'}`);
-    console.log(`  - Inactivity Handling: ${this._config.HAS_INACTIVITY ? 'Yes' : 'No'}`);
-    console.log(`  - Computer Opponents (AI): ${this._config.SUPPORTS_AI ? 'Yes' : 'No'}`);
-    console.log(`  - Spectator Support: ${this._config.SUPPORTS_SPECTATORS ? 'Yes' : 'No'}`);
-    console.log(`  - Database: ${this._config.HAS_DATABASE ? 'Yes' : 'No'}`);
-    console.log(`  - External API: ${this._config.HAS_EXTERNAL_API ? 'Yes' : 'No'}`);
+    console.log(`  - Player Scores: ${this._config.HAS_PLAYER_SCORE ? "Yes" : "No"}`);
+    console.log(`  - Player Resources: ${this._config.HAS_PLAYER_RESOURCES ? "Yes" : "No"}`);
+    console.log(`  - Piece Values: ${this._config.HAS_PIECE_VALUE ? "Yes" : "No"}`);
+    console.log(`  - Special Actions: ${this._config.HAS_SPECIAL_ACTIONS ? "Yes" : "No"}`);
+    console.log(`  - Inactivity Handling: ${this._config.HAS_INACTIVITY ? "Yes" : "No"}`);
+    console.log(`  - Computer Opponents (AI): ${this._config.SUPPORTS_AI ? "Yes" : "No"}`);
+    console.log(`  - Spectator Support: ${this._config.SUPPORTS_SPECTATORS ? "Yes" : "No"}`);
+    console.log(`  - Database: ${this._config.HAS_DATABASE ? "Yes" : "No"}`);
+    console.log(`  - External API: ${this._config.HAS_EXTERNAL_API ? "Yes" : "No"}`);
   }
 
   // Process template file with mustache-like syntax
@@ -470,7 +470,7 @@ class GameSetupWizard {
     // Replace simple variables
     Object.keys(config).forEach(key => {
       const value = config[key];
-      const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
       result = result.replace(regex, value);
     });
     
@@ -479,19 +479,19 @@ class GameSetupWizard {
       const value = config[key];
       
       // Positive conditionals {{#KEY}}...{{/KEY}}
-      const positiveRegex = new RegExp(`{{#\\s*${key}\\s*}}([\\s\\S]*?){{/\\s*${key}\\s*}}`, 'g');
+      const positiveRegex = new RegExp(`{{#\\s*${key}\\s*}}([\\s\\S]*?){{/\\s*${key}\\s*}}`, "g");
       if (value) {
-        result = result.replace(positiveRegex, '$1');
+        result = result.replace(positiveRegex, "$1");
       } else {
-        result = result.replace(positiveRegex, '');
+        result = result.replace(positiveRegex, "");
       }
       
       // Negative conditionals {{^KEY}}...{{/KEY}}
-      const negativeRegex = new RegExp(`{{\\^\\s*${key}\\s*}}([\\s\\S]*?){{/\\s*${key}\\s*}}`, 'g');
+      const negativeRegex = new RegExp(`{{\\^\\s*${key}\\s*}}([\\s\\S]*?){{/\\s*${key}\\s*}}`, "g");
       if (!value) {
-        result = result.replace(negativeRegex, '$1');
+        result = result.replace(negativeRegex, "$1");
       } else {
-        result = result.replace(negativeRegex, '');
+        result = result.replace(negativeRegex, "");
       }
     });
     
@@ -499,12 +499,12 @@ class GameSetupWizard {
     
     // Step 1: Clean up conditional block artifacts and fix indentation
     // Remove empty lines that result from removed conditional blocks
-    result = result.replace(/\n\s*\n\s*\n/g, '\n\n'); // Triple newlines → double
-    result = result.replace(/^\s*$\n/gm, ''); // Remove whitespace-only lines
+    result = result.replace(/\n\s*\n\s*\n/g, "\n\n"); // Triple newlines → double
+    result = result.replace(/^\s*$\n/gm, ""); // Remove whitespace-only lines
     
     // Step 2: Fix indentation issues from conditional processing
     // Normalize indentation by removing leading/trailing whitespace from each line and re-indenting
-    const lines = result.split('\n');
+    const lines = result.split("\n");
     const processedLines = [];
     let indentLevel = 0;
     
@@ -513,39 +513,39 @@ class GameSetupWizard {
       const trimmedLine = line.trim();
       
       // Skip empty lines for now, we'll handle spacing later
-      if (trimmedLine === '') {
-        processedLines.push('');
+      if (trimmedLine === "") {
+        processedLines.push("");
         continue;
       }
       
       // Adjust indent level based on braces
-      if (trimmedLine.includes('}') && !trimmedLine.includes('{')) {
+      if (trimmedLine.includes("}") && !trimmedLine.includes("{")) {
         indentLevel = Math.max(0, indentLevel - 1);
       }
       
       // Apply proper indentation (2 spaces per level)
-      const indent = '  '.repeat(indentLevel);
+      const indent = "  ".repeat(indentLevel);
       processedLines.push(indent + trimmedLine);
       
       // Increase indent level after opening braces
-      if (trimmedLine.includes('{') && !trimmedLine.includes('}')) {
+      if (trimmedLine.includes("{") && !trimmedLine.includes("}")) {
         indentLevel++;
       }
     }
     
-    result = processedLines.join('\n');
+    result = processedLines.join("\n");
     
     // Step 3: Replace {{NEWLINE}} placeholders with actual empty lines
-    result = result.replace(/\{\{NEWLINE\}\}/g, '\n');
+    result = result.replace(/\{\{NEWLINE\}\}/g, "\n");
     
     // Step 4: Replace {{INDENT}} placeholders with chosen indentation
     result = result.replace(/\{\{INDENT\}\}/g, config.INDENT);
     
     // Step 5: Final cleanup
     // Remove excessive blank lines (more than 2 consecutive)
-    result = result.replace(/(\n\s*){3,}/g, '\n\n');
+    result = result.replace(/(\n\s*){3,}/g, "\n\n");
     // Ensure file ends with single newline
-    result = result.replace(/\n*$/, '\n');
+    result = result.replace(/\n*$/, "\n");
     
     return result;
   }
@@ -553,8 +553,8 @@ class GameSetupWizard {
   // Generate files from templates
   async generateFiles() {
     const gameDir = `backend-${this._config.GAME_SHORT_NAME}`;
-    const routeDir = path.join(gameDir, 'route');
-    const entityDir = path.join(gameDir, 'game-entity');
+    const routeDir = path.join(gameDir, "route");
+    const entityDir = path.join(gameDir, "game-entity");
     
     try {
       // Create directories
@@ -565,51 +565,51 @@ class GameSetupWizard {
       
       // Generate game.js (main game file)
       console.log(`📄 Generating: ${gameDir}/${this._config.GAME_SHORT_NAME}.js`);
-      const gameTemplate = fs.readFileSync(path.join(this._templateDir, 'game.js.template'), 'utf8');
+      const gameTemplate = fs.readFileSync(path.join(this._templateDir, "game.js.template"), "utf8");
       const gameContent = this.processTemplate(gameTemplate, this._config);
       fs.writeFileSync(path.join(gameDir, `${this._config.GAME_SHORT_NAME}.js`), gameContent);
       
       // Generate player-entity.js
       console.log(`📄 Generating: ${entityDir}/player-entity.js`);
-      const playerTemplate = fs.readFileSync(path.join(this._templateDir, 'player-entity.js.template'), 'utf8');
+      const playerTemplate = fs.readFileSync(path.join(this._templateDir, "player-entity.js.template"), "utf8");
       const playerContent = this.processTemplate(playerTemplate, this._config);
-      fs.writeFileSync(path.join(entityDir, 'player-entity.js'), playerContent);
+      fs.writeFileSync(path.join(entityDir, "player-entity.js"), playerContent);
       
       // Generate routes.js
       console.log(`📄 Generating: ${routeDir}/${this._config.GAME_SHORT_NAME}-routes.js`);
-      const routesTemplate = fs.readFileSync(path.join(this._templateDir, 'routes.js.template'), 'utf8');
+      const routesTemplate = fs.readFileSync(path.join(this._templateDir, "routes.js.template"), "utf8");
       const routesContent = this.processTemplate(routesTemplate, this._config);
       fs.writeFileSync(path.join(routeDir, `${this._config.GAME_SHORT_NAME}-routes.js`), routesContent);
       
       // Generate game-server.js (complete server file)
       console.log(`📄 Generating: ${gameDir}/game-server.js`);
-      const gameServerTemplate = fs.readFileSync(path.join(this._templateDir, 'game-server.js.template'), 'utf8');
+      const gameServerTemplate = fs.readFileSync(path.join(this._templateDir, "game-server.js.template"), "utf8");
       const gameServerContent = this.processTemplate(gameServerTemplate, this._config);
-      fs.writeFileSync(path.join(gameDir, 'game-server.js'), gameServerContent);
+      fs.writeFileSync(path.join(gameDir, "game-server.js"), gameServerContent);
       
       // Generate .env file if it doesn't exist
-      if (!fs.existsSync('.env')) {
-        console.log('📄 Generating: .env');
-        const envTemplate = fs.readFileSync(path.join(this._templateDir, 'env.template'), 'utf8');
+      if (!fs.existsSync(".env")) {
+        console.log("📄 Generating: .env");
+        const envTemplate = fs.readFileSync(path.join(this._templateDir, "env.template"), "utf8");
         const envContent = this.processTemplate(envTemplate, this._config);
-        fs.writeFileSync('.env', envContent);
+        fs.writeFileSync(".env", envContent);
       } else {
-        console.log('⚠️  .env already exists - skipping (use .env.example as reference)');
+        console.log("⚠️  .env already exists - skipping (use .env.example as reference)");
       }
       
       // Generate .env.example file if it doesn't exist
-      if (!fs.existsSync('.env.example')) {
-        console.log('📄 Generating: .env.example');
-        const envExampleTemplate = fs.readFileSync(path.join(this._templateDir, 'env.example.template'), 'utf8');
+      if (!fs.existsSync(".env.example")) {
+        console.log("📄 Generating: .env.example");
+        const envExampleTemplate = fs.readFileSync(path.join(this._templateDir, "env.example.template"), "utf8");
         const envExampleContent = this.processTemplate(envExampleTemplate, this._config);
-        fs.writeFileSync('.env.example', envExampleContent);
+        fs.writeFileSync(".env.example", envExampleContent);
       } else {
-        console.log('⚠️  .env.example already exists - skipping');
+        console.log("⚠️  .env.example already exists - skipping");
       }
       
       return true;
     } catch (error) {
-      console.error('❌ Error generating files:', error.message);
+      console.error("❌ Error generating files:", error.message);
       return false;
     }
   }
@@ -655,10 +655,10 @@ class GameSetupWizard {
         console.log(`│   └── ${this._config.GAME_SHORT_NAME}-routes.js   # API routes (${this._config.GAME_CAMEL_NAME}Router)`);
         console.log(`└── game-entity/`);
         console.log(`    └── player-entity.js             # Player entity class`);
-        if (!fs.existsSync('.env')) {
+        if (!fs.existsSync(".env")) {
           console.log(`\n.env                                 # Environment configuration`);
         }
-        if (!fs.existsSync('.env.example')) {
+        if (!fs.existsSync(".env.example")) {
           console.log(`.env.example                         # Environment template`);
         }
         
@@ -686,7 +686,7 @@ class GameSetupWizard {
       }
       
     } catch (error) {
-      console.error('❌ Setup failed:', error.message);
+      console.error("❌ Setup failed:", error.message);
     } finally {
       rl.close();
     }

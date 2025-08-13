@@ -135,7 +135,7 @@ export function useRestartVoting(session, game, refreshData) {
 
         // AI auto-voting: Check if there are any AI participants that need to auto-vote
         // Only include playable participants (users and computers) in voting
-        const aiParticipants = session.participants.filter(p => p.type === 'computer');
+        const aiParticipants = session.participants.filter(p => p.type === "computer");
         aiParticipants.forEach(aiParticipant => {
           // Add a small delay to make it feel more realistic
           setTimeout(() => {

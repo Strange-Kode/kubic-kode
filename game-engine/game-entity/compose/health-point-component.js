@@ -13,4 +13,4 @@ export function HealthPointComponent(entity, initialHP = 100) {
   };
 }
 
-HealthPointComponent.componentName = 'hp';
+HealthPointComponent.componentName = "hp";

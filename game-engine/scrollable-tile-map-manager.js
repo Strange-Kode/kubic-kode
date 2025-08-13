@@ -1,4 +1,4 @@
-import { ScrollableTileMap } from './scrollable-tile-map.js';
+import { ScrollableTileMap } from "./scrollable-tile-map.js";
 
 /**
 * ScrollableTileMapManager encapsulates viewport-specific functionality.
@@ -10,14 +10,14 @@ import { ScrollableTileMap } from './scrollable-tile-map.js';
 * const manager = new ScrollableTileMapManager(100, 100);
 * 
 * // Register a player's viewport
-* manager.registerPlayerViewport('player1', viewport);
+* manager.registerPlayerViewport("player1", viewport);
 * 
 * // Get visible tiles for a player
-* const visibleTiles = manager.getVisibleTilesForPlayer('player1');
+* const visibleTiles = manager.getVisibleTilesForPlayer("player1");
 * 
 * // For tile operations, use getTileMap()
 * const tileMap = manager.getTileMap();
-* tileMap.setTile(10, 10, 'treasure');
+* tileMap.setTile(10, 10, "treasure");
 * ```
 */
 export class ScrollableTileMapManager {
@@ -89,7 +89,7 @@ export class ScrollableTileMapManager {
   /**
   * Scroll a player's viewport
   * @param {string} playerId - The player's ID
-  * @param {string} direction - 'up', 'down', 'left', 'right'
+  * @param {string} direction - "up", "down", "left", "right"
   * @param {number} amount - Number of tiles to scroll
   * @returns {boolean} True if scroll was successful
   */

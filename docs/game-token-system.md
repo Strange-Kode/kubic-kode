@@ -136,32 +136,32 @@ Content-Type: application/json
 
 ```javascript
 // Join a session
-const joinResponse = await fetch('/api/session/abc-123/join', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+const joinResponse = await fetch("/api/session/abc-123/join", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    participantName: 'Player1',
-    participantType: 'user'
+    participantName: "Player1",
+    participantType: "user"
   })
 });
 
 const { participant_id, game_token } = await joinResponse.json();
 
 // Store the token securely
-localStorage.setItem('gameToken', game_token);
-localStorage.setItem('participantId', participant_id);
+localStorage.setItem("gameToken", game_token);
+localStorage.setItem("participantId", participant_id);
 ```
 
 ### 2. Make a Game Move
 
 ```javascript
 // Use the participant's token for game actions
-const moveResponse = await fetch('/api/game/play-turn/abc-123', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+const moveResponse = await fetch("/api/game/play-turn/abc-123", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    gameToken: localStorage.getItem('gameToken'),
-    participantId: localStorage.getItem('participantId'),
+    gameToken: localStorage.getItem("gameToken"),
+    participantId: localStorage.getItem("participantId"),
     xPos: 1,
     yPos: 1
   })

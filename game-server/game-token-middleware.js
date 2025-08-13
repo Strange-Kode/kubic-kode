@@ -1,5 +1,5 @@
-import { gameTokenService } from './game-token-service.js';
-import { kubicLog } from '../kubic-log.js';
+import { gameTokenService } from "./game-token-service.js";
+import { kubicLog } from "../kubic-log.js";
 
 /**
  * Middleware to validate game tokens
@@ -10,10 +10,10 @@ import { kubicLog } from '../kubic-log.js';
 export function validateGameToken(sessionManager) {
   return (req, res, next) => {
     // Only allow POST requests for game token validation
-    if (req.method !== 'POST') {
+    if (req.method !== "POST") {
       return res.status(405).json({
         error: true,
-        message: 'Game token validation only allowed via POST requests',
+        message: "Game token validation only allowed via POST requests",
         method: req.method
       });
     }
@@ -25,8 +25,8 @@ export function validateGameToken(sessionManager) {
     if (!gameToken) {
       return res.status(401).json({
         error: true,
-        message: 'Game token is required',
-        code: 'MISSING_GAME_TOKEN'
+        message: "Game token is required",
+        code: "MISSING_GAME_TOKEN"
       });
     }
 
@@ -35,8 +35,8 @@ export function validateGameToken(sessionManager) {
     if (!tokenData) {
       return res.status(401).json({
         error: true,
-        message: 'Invalid or expired game token',
-        code: 'INVALID_GAME_TOKEN'
+        message: "Invalid or expired game token",
+        code: "INVALID_GAME_TOKEN"
       });
     }
 
@@ -44,8 +44,8 @@ export function validateGameToken(sessionManager) {
     if (tokenData.sessionId !== sessionId) {
       return res.status(403).json({
         error: true,
-        message: 'Game token is not valid for this session',
-        code: 'TOKEN_SESSION_MISMATCH',
+        message: "Game token is not valid for this session",
+        code: "TOKEN_SESSION_MISMATCH",
         tokenSessionId: tokenData.sessionId,
         requestSessionId: sessionId
       });
@@ -56,7 +56,7 @@ export function validateGameToken(sessionManager) {
     if (!gameSession) {
       return res.status(404).json({
         error: true,
-        message: 'Game session not found',
+        message: "Game session not found",
         sessionId: sessionId
       });
     }
@@ -65,7 +65,7 @@ export function validateGameToken(sessionManager) {
     req.gameTokenData = tokenData;
     req.gameSession = gameSession;
 
-    kubicLog.debug(`[GameTokenMiddleware] Validated game token for session: ${sessionId}, participant: ${tokenData.participantId || 'none'}`);
+    kubicLog.debug(`[GameTokenMiddleware] Validated game token for session: ${sessionId}, participant: ${tokenData.participantId || "none"}`);
     next();
   };
 }
@@ -93,8 +93,8 @@ export function validateGameTokenWithParticipant(sessionManager) {
       if (participantId && gameTokenData.participantId && gameTokenData.participantId !== participantId) {
         return res.status(403).json({
           error: true,
-          message: 'Game token is not valid for this participant',
-          code: 'TOKEN_PARTICIPANT_MISMATCH',
+          message: "Game token is not valid for this participant",
+          code: "TOKEN_PARTICIPANT_MISMATCH",
           tokenParticipantId: gameTokenData.participantId,
           requestParticipantId: participantId
         });
@@ -106,7 +106,7 @@ export function validateGameTokenWithParticipant(sessionManager) {
         if (!participant) {
           return res.status(404).json({
             error: true,
-            message: 'Participant not found',
+            message: "Participant not found",
             participantId: gameTokenData.participantId
           });
         }
@@ -114,7 +114,7 @@ export function validateGameTokenWithParticipant(sessionManager) {
         if (!req.gameSession.isParticipantPlayable(participant)) {
           return res.status(403).json({
             error: true,
-            message: 'This participant cannot perform game actions',
+            message: "This participant cannot perform game actions",
             participantId: gameTokenData.participantId
           });
         }
@@ -135,13 +135,13 @@ export function requirePostForGameToken() {
   return (req, res, next) => {
     // Check if this route might contain game token validation
     const hasGameToken = req.body && req.body.gameToken;
-    const isGameRoute = req.path.includes('/game/') || req.path.includes('/play-turn/');
+    const isGameRoute = req.path.includes("/game/") || req.path.includes("/play-turn/");
     
     if (hasGameToken || isGameRoute) {
-      if (req.method !== 'POST') {
+      if (req.method !== "POST") {
         return res.status(405).json({
           error: true,
-          message: 'Game token operations only allowed via POST requests',
+          message: "Game token operations only allowed via POST requests",
           method: req.method,
           path: req.path
         });

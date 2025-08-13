@@ -91,13 +91,13 @@ The **GameOptions** system provides a centralized way to manage configurable gam
 
 ```javascript
 // In initializeGameOptions()
-this.getGameOptions().addOption('maxRounds', 10, 'runtime', (value) => {
-  if (value < 1 || value > 50) return 'Max rounds must be 1-50';
+this.getGameOptions().addOption("maxRounds", 10, "runtime", (value) => {
+  if (value < 1 || value > 50) return "Max rounds must be 1-50";
   return true;
 });
 
 // Access values anywhere in your game
-const maxRounds = this.getOptionValue('maxRounds');
+const maxRounds = this.getOptionValue("maxRounds");
 ```
 
 **Key Features:**
@@ -196,7 +196,7 @@ class PlayerEntity extends GameEntity {
     
     // Custom properties for our heads or tails game
     this.score = 0; // Track correct guesses
-    this.guesses = []; // Array of { round: number, guess: 'heads'|'tails', correct: boolean }
+    this.guesses = []; // Array of { round: number, guess: "heads"|"tails", correct: boolean }
   }
 
   // Static counter for generating unique player IDs
@@ -239,7 +239,7 @@ Create `game/backend-hot/game-entity/coin-entity.js`:
 ```javascript
 export class CoinEntity {
   constructor() {
-    this.sides = ['heads', 'tails'];
+    this.sides = ["heads", "tails"];
     this.currentSide = null; // Tracks the result of the last flip
   }
 
@@ -345,8 +345,8 @@ class HeadsOrTailsGame {
     console.log(`[HeadsOrTailsGame] playTurn called - playerId: ${playerId}, guess: ${guess}`);
     console.log(`[HeadsOrTailsGame] Current player:`, currentPlayer);
 
-    // Validate the guess - must be either 'heads' or 'tails'
-    if (guess !== 'heads' && guess !== 'tails') {
+    // Validate the guess - must be either "heads" or "tails"
+    if (guess !== "heads" && guess !== "tails") {
       return {
         status: "invalid",
         type: "invalid_guess",
@@ -463,13 +463,13 @@ class HeadsOrTailsGame {
   // This allows the game to be configurable via the game options system
   initializeGameOptions() {
     // Register configurable options (runtime lifecycle - can be changed during game)
-    this.getGameOptions().addOption('maxRounds', 10, 'runtime', (value) => {
-      if (value < 1 || value > 50) return 'Max rounds must be 1-50';
+    this.getGameOptions().addOption("maxRounds", 10, "runtime", (value) => {
+      if (value < 1 || value > 50) return "Max rounds must be 1-50";
       return true;
     });
 
     // Register frozen options (frozen lifecycle - cannot be changed after game starts)
-    this.getGameOptions().addOption('gameType', 'heads-or-tails', 'frozen');
+    this.getGameOptions().addOption("gameType", "heads-or-tails", "frozen");
   }
 
   // Custom option handling (optional)
@@ -548,8 +548,8 @@ This is the main entry point that sets up the Express server, registers our game
 Create `game.js`:
 
 ```javascript
-import express from 'express';
-import path from 'path';
+import express from "express";
+import path from "path";
 
 // Import the core kubic-kode components
 import { sessionRoutes, gameRoutes } from "kubic-kode";
@@ -557,7 +557,7 @@ import { gameEventService } from "kubic-kode";
 import { gameRegistry } from "kubic-kode";
 
 import { fileURLToPath } from "url";
-import 'dotenv/config';
+import "dotenv/config";
 
 import {
   HeadsOrTailsGame,
@@ -569,14 +569,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-// Serve static files from the 'public' directory
+// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
 
 // Add game routes
-app.use('/api', sessionRoutes);
-app.use('/api', gameRoutes);
+app.use("/api", sessionRoutes);
+app.use("/api", gameRoutes);
 
 // Factory function that creates new game instances
 // This is required by the game registry system
@@ -1008,10 +1008,10 @@ Create `public/app.js`:
 function headsOrTailsGame() {
     return {
         // Game state - Alpine.js will make these reactive
-        gamePhase: 'loading', // 'loading', 'playing', 'error'
+        gamePhase: "loading", // "loading", "playing", "error"
         showNameModal: true,
         showGameOverModal: false,
-        playerName: '',
+        playerName: "",
         sessionId: null,
         participantId: null,
         
@@ -1037,57 +1037,57 @@ function headsOrTailsGame() {
         
         async checkSession() {
             try {
-                const response = await fetch('/api/session/check');
+                const response = await fetch("/api/session/check");
                 const data = await response.json();
                 
                 if (data.available) {
                     this.sessionId = data.sessionId;
-                    this.gamePhase = 'playing';
+                    this.gamePhase = "playing";
                     this.showNameModal = true;
                 } else {
                     // Create a new session
                     await this.createSession();
                 }
             } catch (error) {
-                console.error('Error checking session:', error);
-                this.gamePhase = 'error';
+                console.error("Error checking session:", error);
+                this.gamePhase = "error";
             }
         },
         
         async createSession() {
             try {
-                const response = await fetch('/api/session/create', {
-                    method: 'POST',
+                const response = await fetch("/api/session/create", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        gameVariantId: 'hot',
+                        gameVariantId: "hot",
                         maxParticipants: 2
                     })
                 });
                 
                 const data = await response.json();
                 this.sessionId = data.sessionId;
-                this.gamePhase = 'playing';
+                this.gamePhase = "playing";
                 this.showNameModal = true;
             } catch (error) {
-                console.error('Error creating session:', error);
-                this.gamePhase = 'error';
+                console.error("Error creating session:", error);
+                this.gamePhase = "error";
             }
         },
         
         async handleNameSubmit() {
             if (!this.playerName.trim()) {
-                alert('Please enter your name');
+                alert("Please enter your name");
                 return;
             }
             
             try {
                 const response = await fetch(`/api/session/join/${this.sessionId}`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         name: this.playerName
@@ -1105,8 +1105,8 @@ function headsOrTailsGame() {
                 
                 this.fetchGameState();
             } catch (error) {
-                console.error('Error joining session:', error);
-                alert('Failed to join the game');
+                console.error("Error joining session:", error);
+                alert("Failed to join the game");
             }
         },
         
@@ -1120,7 +1120,7 @@ function headsOrTailsGame() {
                     this.fetchGameState();
                 }
             } catch (error) {
-                console.error('Error starting game:', error);
+                console.error("Error starting game:", error);
             }
         },
         
@@ -1133,7 +1133,7 @@ function headsOrTailsGame() {
                     this.updateGameState(data.data);
                 }
             } catch (error) {
-                console.error('Error fetching game state:', error);
+                console.error("Error fetching game state:", error);
             }
         },
         
@@ -1166,7 +1166,7 @@ function headsOrTailsGame() {
                 const history = await response.json();
                 this.gameHistory = history;
             } catch (error) {
-                console.error('Error fetching game history:', error);
+                console.error("Error fetching game history:", error);
             }
         },
         
@@ -1179,9 +1179,9 @@ function headsOrTailsGame() {
                 this.isFlipping = true;
                 
                 const response = await fetch(`/api/hot/play-turn/${this.sessionId}`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({ guess })
                 });
@@ -1201,7 +1201,7 @@ function headsOrTailsGame() {
                 }, 1000);
                 
             } catch (error) {
-                console.error('Error making guess:', error);
+                console.error("Error making guess:", error);
                 this.isFlipping = false;
             }
         },
@@ -1219,23 +1219,23 @@ function headsOrTailsGame() {
                     this.fetchGameState();
                 }
             } catch (error) {
-                console.error('Error restarting game:', error);
+                console.error("Error restarting game:", error);
             }
         },
         
         initializeWebSocket() {
             // Determine WebSocket protocol based on current page protocol
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${protocol}//${window.location.host}`;
             
             // Create WebSocket connection for real-time updates
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
-                console.log('WebSocket connected');
+                console.log("WebSocket connected");
                 if (this.sessionId) {
                     this.ws.send(JSON.stringify({
-                        type: 'join',
+                        type: "join",
                         sessionId: this.sessionId,
                         participantId: this.participantId
                     }));
@@ -1246,14 +1246,14 @@ function headsOrTailsGame() {
                 const data = JSON.parse(event.data);
                 
                 switch (data.type) {
-                    case 'turnPlayed':
+                    case "turnPlayed":
                         this.fetchGameState();
                         break;
-                    case 'gameStarted':
+                    case "gameStarted":
                         this.gameActive = true;
                         this.fetchGameState();
                         break;
-                    case 'playerJoined':
+                    case "playerJoined":
                         if (data.payload.participants.length === 2) {
                             this.startGame();
                         }
@@ -1262,7 +1262,7 @@ function headsOrTailsGame() {
             };
             
             this.ws.onclose = () => {
-                console.log('WebSocket disconnected');
+                console.log("WebSocket disconnected");
                 // Attempt to reconnect after a delay
                 setTimeout(() => {
                     this.initializeWebSocket();
@@ -1346,7 +1346,7 @@ You can easily extend this game by:
 ## Best Practices
 
 1. **Use Game Options**: Always use the game options system for configurable settings
-2. **Access via getOptionValue()**: Use `this.getOptionValue('optionName')` to access current values
+2. **Access via getOptionValue()**: Use `this.getOptionValue("optionName")` to access current values
 3. **No Instance Properties**: Don't store option values as instance properties
 4. **Implement Required Methods**: Always implement the required contract methods
 5. **Leverage Defaults**: Don't implement optional methods unless you need custom behavior

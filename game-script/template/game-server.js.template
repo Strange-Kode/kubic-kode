@@ -1,5 +1,5 @@
-import express from 'express';
-import path from 'path';
+import express from "express";
+import path from "path";
 
 // Kubic Kode imports
 import { sessionRoutes, gameRoutes } from "kubic-kode";
@@ -10,21 +10,21 @@ import { gameRegistry } from "kubic-kode";
 const { GameEventService } = gameEventService;
 
 import { fileURLToPath } from "url";
-import 'dotenv/config';
+import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-// Serve static files from the 'public' directory
+// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
 
 // Add game routes
-app.use('/api', sessionRoutes);
-app.use('/api', gameRoutes);
+app.use("/api", sessionRoutes);
+app.use("/api", gameRoutes);
 
 import {
 {{INDENT}}{{GAME_CLASS_NAME}}Game,

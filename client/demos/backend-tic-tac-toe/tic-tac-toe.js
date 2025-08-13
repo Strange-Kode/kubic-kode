@@ -42,7 +42,7 @@ class TicTacToeGame {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:
     // console.log(this.getGameOptions().getSystemOptions());
-    // To read a system option: this.getGameOptions().readSystemOption('participantPlaysFirst')
+    // To read a system option: this.getGameOptions().readSystemOption("participantPlaysFirst")
     // Available system options include:
     // - participantPlaysFirst: Which participant goes first (pre-start)
     // - turnOrderType: How turn order is determined (pre-start) 
@@ -53,14 +53,14 @@ class TicTacToeGame {
     //   (true only allowed if game play style is set to single-set)
 
     // Example: Read a system option
-    // const firstParticipant = this.getGameOptions().readSystemOption('participantPlaysFirst');
+    // const firstParticipant = this.getGameOptions().readSystemOption("participantPlaysFirst");
 
     // Game-specific options (userspace namespace - default)
-    this.getGameOptions().addOption("gridSize", 3, 'frozen'); // TicTacToe (classic) is always 3x3
-    this.getGameOptions().addOption("winCondition", 3, 'frozen'); // TicTacToe (classic) always requires 3 in a row
+    this.getGameOptions().addOption("gridSize", 3, "frozen"); // TicTacToe (classic) is always 3x3
+    this.getGameOptions().addOption("winCondition", 3, "frozen"); // TicTacToe (classic) always requires 3 in a row
     
     // Add difficulty configuration for AI behavior
-    this.getGameOptions().addOption("difficulty", "medium", 'runtime', (value) => {
+    this.getGameOptions().addOption("difficulty", "medium", "runtime", (value) => {
       const validDifficulties = ["easy", "medium", "hard"];
       if (!validDifficulties.includes(value)) {
         return `Difficulty must be one of: ${validDifficulties.join(", ")}`;
@@ -85,10 +85,10 @@ class TicTacToeGame {
     const players = this._engine.getPlayerEntities();
     
     // If we have session context, alternate first player based on restart count
-    if (sessionContext && typeof sessionContext.restartCount === 'number') {
+    if (sessionContext && typeof sessionContext.restartCount === "number") {
       const restartCount = sessionContext.restartCount;
-      const xPlayer = players.find(player => player.getMarkType() === 'X');
-      const oPlayer = players.find(player => player.getMarkType() === 'O');
+      const xPlayer = players.find(player => player.getMarkType() === "X");
+      const oPlayer = players.find(player => player.getMarkType() === "O");
       
       if (xPlayer && oPlayer) {
         // Alternate first player: odd restart count = X first, even = O first
@@ -99,7 +99,7 @@ class TicTacToeGame {
     }
     
     // Fallback to traditional behavior: X always goes first
-    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    const xPlayer = players.find(player => player.getMarkType() === "X");
     if (xPlayer) {
       return xPlayer.getPlayerId();
     }
@@ -175,7 +175,7 @@ class TicTacToeGame {
     // Check for tie condition - all tiles filled but no winner
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
-      console.log('Game is tied!');
+      console.log("Game is tied!");
       return PlayStatus.tie(playerId, {
         mark: mark
       });
