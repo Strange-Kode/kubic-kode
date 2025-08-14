@@ -1,4 +1,4 @@
-import { GameSession } from "./game-session.js";
+import { GameSession } from "./session/game-session.js";
 import { gameRegistry } from "./game-registry.js";
 import { validateGameInstance } from "../game-engine/interface-compliance-checker.js";
 import { KubicKodeGame } from "../game-engine/kubic-kode-game.js";

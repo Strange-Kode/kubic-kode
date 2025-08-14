@@ -185,11 +185,11 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMid
   const gameSession = req.gameSession;
 
   // Check if a restart vote is already in progress
-  if (gameSession.isRestartVoteInProgress()) {
+  if (gameSession.getVoteManager().isRestartVoteInProgress()) {
     return res.json({ vote_inited: true, message: "Restart vote already in progress" });
   }
 
-  gameSession.startRestartVote();
+  gameSession.getVoteManager().startRestartVote(gameSession.getPlayableParticipants());
 
   res.json({ vote_inited: true });
 
@@ -222,7 +222,7 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
   }
 
   try {
-    gameSession.registerRestartVote(participantId, voteYes === true);
+    gameSession.getVoteManager().registerRestartVote(participantId, voteYes === true);
 
     res.json({ success: true });
 
@@ -236,18 +236,18 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
         },
       });
 
-      if (gameSession.isRestartVoteComplete()) {
-        const allAgreed = gameSession.getRestartVoteResult();
+      if (gameSession.getVoteManager().isRestartVoteComplete()) {
+        const allAgreed = gameSession.getVoteManager().getRestartVoteResult();
 
         GameEventService.broadcastToSession(gameSession, {
           type: "restartVoteResult",
           payload: {
             allAgreed,
-            votes: gameSession.getRestartVote().votes,
+            votes: gameSession.getVoteManager().getRestartVote().votes,
           },
         });
 
-        gameSession.clearRestartVote();
+        gameSession.getVoteManager().clearRestartVote();
       }
     } catch (broadcastError) {
       kubicLog.error("session-routes.js::Broadcast error (non-blocking):", broadcastError);
@@ -316,7 +316,7 @@ sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (
       });
     }
 
-    gameSession.subscribeToGameHistoryEvents(eventTypes);
+    gameSession.getHistoryManager().subscribeToGameHistoryEvents(eventTypes);
 
     res.json({
       success: true,
@@ -359,7 +359,7 @@ sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware,
       });
     }
 
-    gameSession.unsubscribeFromGameHistoryEvents(eventTypes);
+    gameSession.getHistoryManager().unsubscribeFromGameHistoryEvents(eventTypes);
 
     res.json({
       success: true,
@@ -380,7 +380,7 @@ sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware
   const gameSession = req.gameSession;
 
   try {
-    const currentSubscriptions = gameSession.getGameHistorySubscriptions();
+    const currentSubscriptions = gameSession.getHistoryManager().getGameHistorySubscriptions();
 
     res.json({
       success: true,
@@ -481,15 +481,15 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
 
   try {
     // Validate that participant is the host
-    if (!session.isHost(participantId)) {
+    if (!session.getParticipantManager().isHost(participantId)) {
       return res.status(403).json({ error: "Only the host can configure lobby settings." });
     }
 
     // Apply configuration changes
     const configChanges = [];
     for (const [key, value] of Object.entries(config)) {
-      const oldValue = session.getLobbyConfig(key);
-      session.setLobbyConfig(key, value, participantId);
+      const oldValue = session.getLobbyManager().getLobbyConfig(key);
+      session.getLobbyManager().setLobbyConfig(key, value, participantId);
       configChanges.push({ key, oldValue, newValue: value });
     }
 
@@ -497,24 +497,24 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
       success: true,
       applied_config: config,
       changes: configChanges,
-      full_config: session.getAllLobbyConfig()
+      full_config: session.getLobbyManager().getAllLobbyConfig()
     });
 
-    // Broadcast configuration changes
+          // Broadcast configuration changes
     try {
       GameEventService.broadcastToSession(session, {
         type: "lobbyConfigUpdated",
         payload: {
           hostId: participantId,
-          hostName: session.getHost().name,
+          hostName: session.getParticipantManager().getHost().name,
           changes: configChanges,
-          fullConfig: session.getAllLobbyConfig()
+          fullConfig: session.getLobbyManager().getAllLobbyConfig()
         }
       });
 
       // Add system message about config changes
       const changesList = configChanges.map(c => `${c.key}: ${c.newValue}`).join(", ");
-      const systemMessage = session.addSystemMessage(`Host updated game settings: ${changesList}`);
+      const systemMessage = session.getChatManager().addSystemMessage(`Host updated game settings: ${changesList}`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -537,8 +537,8 @@ sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req,
     res.json({
       success: true,
       session_id: req.params.sessionId,
-      config: session.getAllLobbyConfig(),
-      host: session.getHost()
+      config: session.getLobbyManager().getAllLobbyConfig(),
+      host: session.getParticipantManager().getHost()
     });
   } catch (err) {
     kubicLog.error("session-routes.js::Get lobby config error:", err);
@@ -558,8 +558,8 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
   const session = req.gameSession;
 
   try {
-    const oldValue = session.getLobbyConfig(configKey);
-    const deleted = session.deleteLobbyConfig(configKey, participantId);
+    const oldValue = session.getLobbyManager().getLobbyConfig(configKey);
+    const deleted = session.getLobbyManager().deleteLobbyConfig(configKey, participantId);
 
     if (!deleted) {
       return res.status(404).json({ error: `Configuration key "${configKey}" not found.` });
@@ -569,7 +569,7 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
       success: true,
       deleted_key: configKey,
       old_value: oldValue,
-      remaining_config: session.getAllLobbyConfig()
+      remaining_config: session.getLobbyManager().getAllLobbyConfig()
     });
 
     // Broadcast configuration deletion
@@ -577,16 +577,16 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
       GameEventService.broadcastToSession(session, {
         type: "lobbyConfigDeleted",
         payload: {
-          hostId: participantId,
-          hostName: session.getHost().name,
-          deletedKey: configKey,
-          oldValue: oldValue,
-          remainingConfig: session.getAllLobbyConfig()
+        hostId: participantId,
+        hostName: session.getParticipantManager().getHost().name,
+        deletedKey: configKey,
+        oldValue: oldValue,
+        remainingConfig: session.getLobbyManager().getAllLobbyConfig()
         }
       });
 
       // Add system message
-      const systemMessage = session.addSystemMessage(`Host removed setting: ${configKey}`);
+      const systemMessage = session.getChatManager().addSystemMessage(`Host removed setting: ${configKey}`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -678,7 +678,7 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
 
       // If this was auto-join, add system message
       if (!sessionCreated) {
-        const systemMessage = targetSession.addSystemMessage(`${participantName} joined via auto-match`);
+        const systemMessage = targetSession.getChatManager().addSystemMessage(`${participantName} joined via auto-match`);
         GameEventService.broadcastToSession(targetSession, {
           type: "lobbyChatMessage",
           payload: { message: systemMessage },
@@ -708,11 +708,11 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
   const session = req.gameSession;
 
   try {
-    if (!session.isHost(participantId)) {
+    if (!session.getParticipantManager().isHost(participantId)) {
       return res.status(403).json({ error: "Only the host can start sync phase." });
     }
 
-    if (session.started) {
+    if (session.isStarted()) {
       return res.status(400).json({ error: "Game has already started." });
     }
 
@@ -721,12 +721,12 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
       return res.status(400).json({ error: "Need at least 2 players to start sync phase." });
     }
 
-    session.startSyncPhase();
+    session.getLobbyManager().startSyncPhase();
 
     res.json({
       success: true,
       sync_phase: true,
-      ready_states: session.getAllReadyStates(),
+      ready_states: session.getLobbyManager().getAllReadyStates(),
       participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
     });
 
@@ -737,12 +737,12 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
         payload: {
           hostId: participantId,
           hostName: session.getHost().name,
-          readyStates: session.getAllReadyStates(),
+          readyStates: session.getLobbyManager().getAllReadyStates(),
           participants: session.getPlayableParticipants()
         }
       });
 
-      const systemMessage = session.addSystemMessage("Synchronization phase started. Please indicate when you're ready!");
+      const systemMessage = session.getChatManager().addSystemMessage("Synchronization phase started. Please indicate when you're ready!");
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -782,16 +782,16 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
   }
 
   try {
-    session.setParticipantReady(participantId, ready);
+    session.getLobbyManager().setParticipantReady(participantId, ready);
     const participant = session.getParticipantById(participantId);
-    const allReady = session.areAllParticipantsReady();
+    const allReady = session.getLobbyManager().areAllParticipantsReady();
 
     res.json({
       success: true,
       participant_id: participantId,
       ready: ready,
       all_ready: allReady,
-      ready_states: session.getAllReadyStates()
+      ready_states: session.getLobbyManager().getAllReadyStates()
     });
 
     // Broadcast ready state change
@@ -803,13 +803,13 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
           participantName: participant.name,
           ready: ready,
           allReady: allReady,
-          readyStates: session.getAllReadyStates()
+          readyStates: session.getLobbyManager().getAllReadyStates()
         }
       });
 
       // Add chat message about ready state change
       const readyText = ready ? "ready" : "not ready";
-      const systemMessage = session.addSystemMessage(`${participant.name} is ${readyText}`);
+      const systemMessage = session.getChatManager().addSystemMessage(`${participant.name} is ${readyText}`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -817,7 +817,7 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req,
 
       // If all participants are ready, notify
       if (allReady) {
-        const allReadyMessage = session.addSystemMessage("All players are ready! Host can now start the game.");
+        const allReadyMessage = session.getChatManager().addSystemMessage("All players are ready! Host can now start the game.");
         GameEventService.broadcastToSession(session, {
           type: "lobbyChatMessage",
           payload: { message: allReadyMessage }
@@ -841,9 +841,9 @@ sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, 
     res.json({
       success: true,
       session_id: req.params.sessionId,
-      in_sync_phase: session.isInSyncPhase(),
-      all_ready: session.areAllParticipantsReady(),
-      ready_states: session.getAllReadyStates(),
+      in_sync_phase: session.getLobbyManager().isInSyncPhase(),
+      all_ready: session.getLobbyManager().areAllParticipantsReady(),
+      ready_states: session.getLobbyManager().getAllReadyStates(),
       playable_participants: session.getPlayableParticipants().map(p => ({ id: p.id, name: p.name }))
     });
   } catch (err) {
@@ -868,7 +868,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
       return res.status(404).json({ error: "Participant to kick not found." });
     }
 
-    session.kickParticipant(participantIdToKick, hostId);
+    session.getLobbyManager().kickParticipant(participantIdToKick, hostId);
 
     res.json({
       success: true,
@@ -885,7 +885,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
         type: "participantKicked",
         payload: {
           hostId: hostId,
-          hostName: session.getHost().name,
+          hostName: session.getParticipantManager().getHost().name,
           kickedParticipant: {
             id: participantToKick.id,
             name: participantToKick.name
@@ -893,7 +893,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
         }
       });
 
-      const systemMessage = session.addSystemMessage(`${participantToKick.name} was removed from the session by the host`);
+      const systemMessage = session.getChatManager().addSystemMessage(`${participantToKick.name} was removed from the session by the host`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -919,13 +919,13 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
   const session = req.gameSession;
 
   try {
-    if (!session.isHost(currentHostId)) {
+    if (!session.getParticipantManager().isHost(currentHostId)) {
       return res.status(403).json({ error: "Only the current host can transfer host privileges." });
     }
 
-    const oldHost = session.getHost();
-    session.transferHost(newHostId);
-    const newHost = session.getHost();
+    const oldHost = session.getParticipantManager().getHost();
+    session.getParticipantManager().transferHost(newHostId);
+    const newHost = session.getParticipantManager().getHost();
 
     res.json({
       success: true,
@@ -943,7 +943,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
         }
       });
 
-      const systemMessage = session.addSystemMessage(`${newHost.name} is now the host`);
+      const systemMessage = session.getChatManager().addSystemMessage(`${newHost.name} is now the host`);
       GameEventService.broadcastToSession(session, {
         type: "lobbyChatMessage",
         payload: { message: systemMessage }
@@ -986,8 +986,8 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, 
     }
 
     // Determine message type based on participant
-    const messageType = session.isHost(participantId) ? "host" : "user";
-    const chatMessage = session.addChatMessage(participantId, message, messageType);
+    const messageType = session.getParticipantManager().isHost(participantId) ? "host" : "user";
+    const chatMessage = session.getChatManager().addChatMessage(participantId, message, messageType);
 
     res.json({
       success: true,
@@ -1016,7 +1016,7 @@ sessionRouter.get("/session/:sessionId/chat", validateSessionMiddleware, (req, r
   const session = req.gameSession;
 
   try {
-    const messages = session.getChatMessages(parseInt(limit, 10));
+    const messages = session.getChatManager().getChatMessages(parseInt(limit, 10));
     
     res.json({
       success: true,
