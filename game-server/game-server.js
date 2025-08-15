@@ -19,6 +19,7 @@ Object.keys(process.env)
 console.log("=====================================");
 
 import express from "express";
+import helmet from "helmet";
 import { kubicLog } from "../kubic-log.js";
 
 const app = express();
@@ -100,6 +101,9 @@ const gameRouters = [{ path: "/api/tic-tac-toe", router: ticTacToeRouter }];
 // List of known games
 gameRegistry.register("tic-tac-toe-classic", TicTacToeClassicFactory);
 gameRegistry.register("tic-tac-toe-configurable", ConfigurableTicTacToeFactory);
+
+// Security middleware - helmet.js for security headers
+app.use(helmet());
 
 // Middleware to parse JSON bodies
 app.use(express.json());
