@@ -425,17 +425,17 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   let playStatus;
   try {
     // Debug: Log the game instance type and method call
-    console.log(`[game-routes] Game instance type:`, gameInstance.constructor.name);
-    console.log(`[game-routes] Calling playTurn on game instance with playerId: ${playerId}, moveData:`, moveData);
+    kubicLog.debug(`[game-routes] Game instance type:`, gameInstance.constructor.name);
+    kubicLog.debug(`[game-routes] Calling playTurn on game instance with playerId: ${playerId}, moveData:`, moveData);
     
     // All games receive: playTurn(playerId, turnData)
     // turnData contains all move information (xPos, yPos, action, etc.)
     playStatus = gameInstance.playTurn(playerId, moveData);
     
-    console.log(`[game-routes] playTurn returned:`, playStatus);
-    console.log(`[game-routes] playStatus.playerHasWon:`, playStatus.access("playerHasWon"));
+    kubicLog.debug(`[game-routes] playTurn returned:`, playStatus);
+    kubicLog.debug(`[game-routes] playStatus.playerHasWon:`, playStatus.access("playerHasWon"));
   } catch (error) {
-    console.error(`[game-routes] Error in playTurn:`, error);
+    kubicLog.error(`[game-routes] Error in playTurn:`, error);
     return res.status(400).json({ 
       error: "Invalid move.", 
       details: error.message 
@@ -444,11 +444,11 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   
   // Handle win condition
   if (playStatus.access("playerHasWon")) {
-    console.log(`[game-routes] Win condition detected! Player ${playStatus.access("playerId")} won`);
+    kubicLog.debug(`[game-routes] Win condition detected! Player ${playStatus.access("playerId")} won`);
     
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
-    console.log(`[game-routes] Win counter increased to: ${winCount}`);
+    kubicLog.debug(`[game-routes] Win counter increased to: ${winCount}`);
     GameEventService.broadcastToSession(gameSession, {
       type: "winCount",
       payload: { winCount },
@@ -558,7 +558,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
               }
             }
             
-            console.log(`[game-routes] Recording computer win for player ${compPlayStatus.access("playerId")} -> participant ${participantId}`);
+            kubicLog.debug(`[game-routes] Recording computer win for player ${compPlayStatus.access("playerId")} -> participant ${participantId}`);
             
             gameSession.getGameHistory().addPlayerWonEvent(
               compPlayStatus.access("playerId"),
@@ -569,9 +569,9 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
                 gameState: "completed",
               }
             );
-            console.log(`[game-routes] Successfully recorded computer win event in history`);
+            kubicLog.debug(`[game-routes] Successfully recorded computer win event in history`);
           } catch (error) {
-            console.error(`[game-routes] Error recording computer win event:`, error);
+            kubicLog.error(`[game-routes] Error recording computer win event:`, error);
           }
           
           gameSession.increaseWinCounter();

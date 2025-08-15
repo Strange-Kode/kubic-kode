@@ -500,7 +500,7 @@ export class GameOptions {
         locked: option.locked,
         namespace: option.namespace,
         description: option.description || null,
-        validator: option.validator ? option.validator.toString() : null,
+        validator: option.validator ? "[FUNCTION]" : null,
         canModify: !option.locked,
         // Legacy fields for backwards compatibility
         type: option.lifecycle === "frozen" ? "frozen" : "configurable",
@@ -526,7 +526,7 @@ export class GameOptions {
           locked: option.locked,
           namespace: option.namespace,
           description: option.description || null,
-          validator: option.validator ? option.validator.toString() : null,
+          validator: option.validator ? "[FUNCTION]" : null,
           canModify: !option.locked,
           gameState: this._gameState,
           // Legacy fields for backwards compatibility
