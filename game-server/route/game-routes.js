@@ -283,7 +283,7 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
 
 
 // Use the POST method if you want to start the game with custom options (such as gridSize), otherwise use GET.
-gameRouter.post("/game/start/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/start", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const { participantId, ...options } = req.body || {}; // Extract participantId and options from request body
   const gameSession = req.gameSession;
   
@@ -292,7 +292,7 @@ gameRouter.post("/game/start/:sessionId", validateGameTokenWithParticipant(sessi
   res.json(result);
 });
 
-gameRouter.post("/game/stop/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const { participantId } = req.query;
   const gameSession = req.gameSession;
 
@@ -337,7 +337,7 @@ gameRouter.post("/game/stop/:sessionId", validateGameTokenWithParticipant(sessio
 });
 
 // Used to get current turn (=> current player id)
-gameRouter.post("/game/get-current-player/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/get-current-player", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -364,7 +364,7 @@ gameRouter.post("/game/get-current-player/:sessionId", validateGameTokenWithPart
   }
 });
 
-gameRouter.post("/game/is-active/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/is-active", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -373,7 +373,7 @@ gameRouter.post("/game/is-active/:sessionId", validateGameTokenWithParticipant(s
   });
 });
 
-gameRouter.post("/game/get-tilemap/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -388,7 +388,7 @@ gameRouter.post("/game/get-tilemap/:sessionId", validateGameTokenWithParticipant
 });
 
 // Generic play turn endpoint for all games
-gameRouter.post("/game/play-turn/:sessionId", validateGameTokenWithParticipant(sessionManager), checkPlayableAccessMiddleware, (req, res) => {
+gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(sessionManager), checkPlayableAccessMiddleware, (req, res) => {
   const { sessionId } = req.params;
   const { participantId, ...moveData } = req.body;
 
@@ -646,7 +646,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
 };
 
 // Get game options information
-gameRouter.post("/game/options/:sessionId", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/options", validateGameTokenWithParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 

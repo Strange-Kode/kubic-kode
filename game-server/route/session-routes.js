@@ -156,14 +156,14 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
 
 
 // List participants
-sessionRouter.get("/session/participants/list/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.get("/session/:sessionId/participants/list", validateSessionMiddleware, (req, res) => {
   const session = req.gameSession;
 
   res.json(session.listParticipants());
 });
 
 // Get participant statistics
-sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.get("/session/:sessionId/participants/stats", validateSessionMiddleware, (req, res) => {
   const gameSession = req.gameSession;
 
   const allParticipants = gameSession.listParticipants();
@@ -181,7 +181,7 @@ sessionRouter.get("/session/participants/stats/:sessionId", validateSessionMiddl
   });
 });
 
-sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMiddleware, (req, res) => {
   const gameSession = req.gameSession;
 
   // Check if a restart vote is already in progress
@@ -207,7 +207,7 @@ sessionRouter.get("/session/request-restart-vote/:sessionId", validateSessionMid
   }
 });
 
-sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMiddleware, (req, res) => {
   const { participantId, voteYes } = req.body;
   const gameSession = req.gameSession;
 
@@ -259,7 +259,7 @@ sessionRouter.post("/session/submit-restart-vote/:sessionId", validateSessionMid
 });
 
 // Get session game history with optional filters
-sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/history", validateSessionMiddleware, (req, res) => {
   const filters = req.body || {};
   const gameSession = req.gameSession;
 
@@ -289,7 +289,7 @@ sessionRouter.post("/session/history/:sessionId", validateSessionMiddleware, (re
 });
 
 // Subscribe to game history event types
-sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/subscribe", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
   const gameSession = req.gameSession;
 
@@ -333,7 +333,7 @@ sessionRouter.post("/session/subscribe/:sessionId", validateSessionMiddleware, (
 });
 
 // Unsubscribe from game history event types
-sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/unsubscribe", validateSessionMiddleware, (req, res) => {
   const { eventTypes } = req.body;
   const gameSession = req.gameSession;
 
@@ -376,7 +376,7 @@ sessionRouter.post("/session/unsubscribe/:sessionId", validateSessionMiddleware,
 });
 
 // Get current subscriptions for a session
-sessionRouter.get("/session/subscriptions/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.get("/session/:sessionId/subscriptions", validateSessionMiddleware, (req, res) => {
   const gameSession = req.gameSession;
 
   try {
@@ -413,7 +413,7 @@ sessionRouter.get("/sessions/list", (req, res) => {
 });
 
 // Get detailed lobby information for a specific session
-sessionRouter.get("/session/lobby/:sessionId", validateSessionMiddleware, (req, res) => {
+sessionRouter.get("/session/:sessionId/lobby", validateSessionMiddleware, (req, res) => {
   const session = req.gameSession;
   
   try {
@@ -436,7 +436,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
   try {
     const allSessions = sessionManager.getSessions();
     let filteredSessions = allSessions.filter(session => 
-      session.gameVariantId === gameVariantId
+      session.getGameVariantId() === gameVariantId
     );
     
     // If onlyJoinable flag is set, filter to only sessions that need players
@@ -619,14 +619,14 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
     // 3. Need more players
     // 4. Participant name not already in use
     const availableSessions = allSessions.filter(session => {
-      if (session.gameVariantId !== gameVariantId) return false;
-      if (session.started) return false;
+      if (session.getGameVariantId() !== gameVariantId) return false;
+      if (session.isStarted()) return false;
       
       const status = session.getLobbyStatus();
       if (!status.needsMorePlayers) return false;
       
       // Check if participant name is already in use in this session
-      const nameInUse = session.participants.some(p => p.name === participantName.trim());
+      const nameInUse = session.getParticipants().some(p => p.name === participantName.trim());
       if (nameInUse) return false;
       
       return true;
@@ -662,7 +662,7 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
 
     res.json({
       success: true,
-      session_id: targetSession.sessionId,
+      session_id: targetSession.getSessionId(),
       participant_id: participantId,
       session_created: sessionCreated,
       lobby_status: targetSession.getLobbyStatus()

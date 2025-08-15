@@ -243,7 +243,7 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/participants/stats/${sessionId}`);
+      const result = await get(`/api/session/${sessionId}/participants/stats`);
       console.log("[useSession] Session stats result:", result);
 
       if (result.success) {
@@ -268,7 +268,7 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/participants/list/${sessionId}`);
+      const result = await get(`/api/session/${sessionId}/participants/list`);
 
       if (result.success) {
         const participantsList = result.data;
@@ -295,7 +295,7 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/participants/stats/${sessionId}`);
+      const result = await get(`/api/session/${sessionId}/participants/stats`);
 
       if (result.success) {
         const { players, maxParticipants: maxParts, started } = result.data;

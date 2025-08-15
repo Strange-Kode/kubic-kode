@@ -213,7 +213,7 @@ export function useKubicKode(gameId = null) {
   const fetchParticipants = useCallback(async () => {
     if (!sessionId) return;
     
-    const result = await apiCall(get, `/api/session/participants/list/${sessionId}`);
+    const result = await apiCall(get, `/api/session/${sessionId}/participants/list`);
     if (result.success) {
       setParticipants(result.data);
     }
@@ -231,7 +231,7 @@ export function useKubicKode(gameId = null) {
       throw new Error("No game token available to start game");
     }
 
-    const result = await apiCall(post, `/api/game/start/${sessionId}`, {
+    const result = await apiCall(post, `/api/game/${sessionId}/start`, {
       participantId: participantId,
       gameToken: gameToken,
       ...options
@@ -253,7 +253,7 @@ export function useKubicKode(gameId = null) {
       throw new Error("No game token available to stop game");
     }
 
-    const result = await apiCall(post, `/api/game/stop/${sessionId}`, {
+    const result = await apiCall(post, `/api/game/${sessionId}/stop`, {
       participantId: participantId,
       gameToken: gameToken
     });
@@ -273,7 +273,7 @@ export function useKubicKode(gameId = null) {
       return;
     }
 
-    const result = await apiCall(post, `/api/game/get-tilemap/${sessionId}`, {
+    const result = await apiCall(post, `/api/game/${sessionId}/get-tilemap`, {
       gameToken: gameToken
     });
 
@@ -294,7 +294,7 @@ export function useKubicKode(gameId = null) {
       return;
     }
 
-    const result = await apiCall(post, `/api/game/get-current-player/${sessionId}`, {
+    const result = await apiCall(post, `/api/game/${sessionId}/get-current-player`, {
       gameToken: gameToken
     });
 
@@ -314,7 +314,7 @@ export function useKubicKode(gameId = null) {
       return false;
     }
 
-    const result = await apiCall(post, `/api/game/is-active/${sessionId}`, {
+      const result = await apiCall(post, `/api/game/${sessionId}/is-active`, {
       gameToken: gameToken
     });
 
@@ -336,7 +336,7 @@ export function useKubicKode(gameId = null) {
       throw new Error("No game token available to play turn");
     }
 
-    const result = await apiCall(post, `/api/game/play-turn/${sessionId}`, {
+    const result = await apiCall(post, `/api/game/${sessionId}/play-turn`, {
       participantId: participantId,
       gameToken: gameToken,
       xPos: x,
@@ -349,14 +349,14 @@ export function useKubicKode(gameId = null) {
 
   // Voting
   const requestRestartVote = useCallback(async () => {
-    return await apiCall(get, `/api/session/request-restart-vote/${sessionId}`);
+    return await apiCall(get, `/api/session/${sessionId}/request-restart-vote`);
   }, [sessionId, apiCall, get]);
 
   const submitRestartVote = useCallback(async (voteYes) => {
     if (!participantId) {
       throw new Error("No participant ID. Join session first.");
     }
-    return await apiCall(post, `/api/session/submit-restart-vote/${sessionId}`, {
+    return await apiCall(post, `/api/session/${sessionId}/submit-restart-vote`, {
       participantId,
       voteYes
     });

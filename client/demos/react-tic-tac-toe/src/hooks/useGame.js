@@ -43,7 +43,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     }
 
     try {
-      const result = await post(`/api/game/get-tilemap/${sessionId}`, {
+      const result = await post(`/api/game/${sessionId}/get-tilemap`, {
         gameToken: gameToken
       });
 
@@ -73,7 +73,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     }
 
     try {
-      const result = await post(`/api/game/get-current-player/${sessionId}`, {
+      const result = await post(`/api/game/${sessionId}/get-current-player`, {
         gameToken: gameToken
       });
 
@@ -116,7 +116,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     setGameError(null);
 
     try {
-      const result = await post(`/api/game/start/${sessionId}`, {
+      const result = await post(`/api/game/${sessionId}/start`, {
         participantId: participantId,
         gameToken: gameToken
       });
@@ -159,7 +159,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     }
 
     try {
-      const result = await post(`/api/game/is-active/${sessionId}`, {
+      const result = await post(`/api/game/${sessionId}/is-active`, {
         gameToken: gameToken
       });
 
@@ -203,7 +203,7 @@ export function useGame(sessionId, participantId, getGameToken) {
 
       try {
         const result = await post(
-          `/api/game/play-turn/${sessionId}`,
+          `/api/game/${sessionId}/play-turn`,
           {
             participantId: participantId,
             gameToken: gameToken,

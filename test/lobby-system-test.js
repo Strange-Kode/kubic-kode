@@ -50,7 +50,8 @@ class LobbySystemTest extends E2ETestRunner {
       console.log(`  ✅ Host joined: ${hostId}`);
 
       // Verify host information
-      const lobbyStatus1 = await this.makeRequest(`/api/session/lobby/${sessionId}`);
+      const lobbyStatus1 = await this.makeRequest(`/api/session/${sessionId}/lobby`);
+      console.log(`  🔍 Lobby status response:`, JSON.stringify(lobbyStatus1.data, null, 2));
       if (!lobbyStatus1.data.lobby.host || lobbyStatus1.data.lobby.host.id !== hostId) {
         throw new Error("Host assignment failed");
       }
@@ -133,7 +134,7 @@ class LobbySystemTest extends E2ETestRunner {
         })
       });
       
-      console.log(`  ✅ Chat messages sent: ${hostMessage.data.message.type}, ${participant2Message.data.message.type}`);
+      console.log(`  ✅ Chat messages sent: ${hostMessage.data.message?.type || 'unknown'}, ${participant2Message.data.message?.type || 'unknown'}`);
       
       // Wait for chat events with longer timeout
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -261,7 +262,7 @@ class LobbySystemTest extends E2ETestRunner {
 
       // Step 12: Test final lobby status
       console.log("  📊 Step 12: Verifying final lobby status...");
-      const finalLobbyStatus = await this.makeRequest(`/api/session/lobby/${sessionId}`);
+      const finalLobbyStatus = await this.makeRequest(`/api/session/${sessionId}/lobby`);
       const finalStatus = finalLobbyStatus.data.lobby;
       
       console.log(`  ✅ Final participants: ${finalStatus.participantCount.total}`);
@@ -304,6 +305,8 @@ class LobbySystemTest extends E2ETestRunner {
         })
       });
       
+      console.log(`  🔍 Auto-join response:`, JSON.stringify(autoJoinResponse.data, null, 2));
+      
       const newSessionId = autoJoinResponse.data.session_id;
       const participantId = autoJoinResponse.data.participant_id;
       const sessionCreated = autoJoinResponse.data.session_created;
@@ -314,6 +317,9 @@ class LobbySystemTest extends E2ETestRunner {
       
       // Verify host assignment only if session was created
       const lobbyStatus = autoJoinResponse.data.lobby_status;
+      if (!lobbyStatus) {
+        throw new Error("Auto-join response missing lobby_status");
+      }
       if (sessionCreated) {
         if (!lobbyStatus.host || lobbyStatus.host.id !== participantId) {
           throw new Error("Auto-join host assignment failed");

@@ -293,19 +293,6 @@ export class GameSession {
     return this._participantManager.generateParticipantToken(participantId);
   }
 
-  // Additional convenience methods for session-routes.js
-  getMaxParticipants() {
-    return this._maxParticipants;
-  }
-
-  isStarted() {
-    return this._started;
-  }
-
-  getGameVariantId() {
-    return this._gameVariantId;
-  }
-
   handleParticipantReconnection(participantId) {
     const result = this._connectionManager.handleParticipantReconnection(participantId);
     

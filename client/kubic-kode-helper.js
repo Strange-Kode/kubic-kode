@@ -154,15 +154,15 @@ class KubicKodeHelper {
           }
           return leaveResult;
         case "participants":
-          return await helper._makeRequest("GET", `/session/participants/list/${helper.sessionId}`);
+          return await helper._makeRequest("GET", `/session/${helper.sessionId}/participants/list`);
         case "participant-stats":
-          return await helper._makeRequest("GET", `/session/participants/stats/${helper.sessionId}`);
+          return await helper._makeRequest("GET", `/session/${helper.sessionId}/participants/stats`);
         case "restart-vote":
-          return await helper._makeRequest("GET", `/session/request-restart-vote/${helper.sessionId}`);
+          return await helper._makeRequest("GET", `/session/${helper.sessionId}/request-restart-vote`);
         case "submit-vote":
-          return await helper._makeRequest("POST", `/session/submit-restart-vote/${helper.sessionId}`, data);
+          return await helper._makeRequest("POST", `/session/${helper.sessionId}/submit-restart-vote`, data);
         case "history":
-          return await helper._makeRequest("POST", `/session/history/${helper.sessionId}`, data);
+          return await helper._makeRequest("POST", `/session/${helper.sessionId}/history`, data);
         default:
           throw new Error(`Unknown session action: ${action}`);
       }
@@ -188,30 +188,30 @@ class KubicKodeHelper {
 
       switch (action) {
         case "start":
-          return await helper._makeRequest("POST", `/game/start/${helper.sessionId}`, { 
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/start`, { 
             ...data, 
             participantId: helper.participantId,
             gameToken: helper.gameToken 
           });
         case "stop":
-          return await helper._makeRequest("POST", `/game/stop/${helper.sessionId}`, { 
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/stop`, { 
             participantId: helper.participantId,
             gameToken: helper.gameToken 
           });
         case "get-current-player":
-          return await helper._makeRequest("POST", `/game/get-current-player/${helper.sessionId}`, {
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/get-current-player`, {
             gameToken: helper.gameToken
           });
         case "is-active":
-          return await helper._makeRequest("POST", `/game/is-active/${helper.sessionId}`, {
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/is-active`, {
             gameToken: helper.gameToken
           });
         case "get-tilemap":
-          return await helper._makeRequest("POST", `/game/get-tilemap/${helper.sessionId}`, {
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/get-tilemap`, {
             gameToken: helper.gameToken
           });
         case "options":
-          return await helper._makeRequest("POST", `/game/options/${helper.sessionId}`, {
+          return await helper._makeRequest("POST", `/game/${helper.sessionId}/options`, {
             gameToken: helper.gameToken
           });
         default:

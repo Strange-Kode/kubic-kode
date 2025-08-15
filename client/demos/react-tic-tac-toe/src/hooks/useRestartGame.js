@@ -19,7 +19,7 @@ export function useRestartVoting(session, game, refreshData) {
       setRestartVotes({});
 
       const response = await fetch(
-        `/api/session/request-restart-vote/${session.sessionId}`
+        `/api/session/${session.sessionId}/request-restart-vote`
       );
       const result = await response.json();
 
@@ -29,7 +29,7 @@ export function useRestartVoting(session, game, refreshData) {
 
       // Automatically submit "Yes" vote for the initiator
       const voteResponse = await fetch(
-        `/api/session/submit-restart-vote/${session.sessionId}`,
+        `/api/session/${session.sessionId}/submit-restart-vote`,
         {
           method: "POST",
           headers: {
@@ -64,7 +64,7 @@ export function useRestartVoting(session, game, refreshData) {
 
       try {
         const response = await fetch(
-          `/api/session/submit-restart-vote/${session.sessionId}`,
+          `/api/session/${session.sessionId}/submit-restart-vote`,
           {
             method: "POST",
             headers: {
@@ -142,7 +142,7 @@ export function useRestartVoting(session, game, refreshData) {
             console.log(`[AI Auto-Vote] AI participant ${aiParticipant.name} (ID: ${aiParticipant.id}) automatically voting Yes`);
             
             // Submit AI vote directly via API call
-            fetch(`/api/session/submit-restart-vote/${session.sessionId}`, {
+            fetch(`/api/session/${session.sessionId}/submit-restart-vote`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

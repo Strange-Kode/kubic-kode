@@ -203,8 +203,9 @@ class E2ETestRunner {
 
       // Step 7: Start the game
       console.log("  🎮 Step 7: Starting the game...");
-      const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
-        method: "POST"
+      const startResponse = await this.makeRequest(`/api/game/${sessionId}/start`, {
+        participantId: player1Id,
+        gameToken: join1Response.data.game_token,
       });
       
       if (startResponse.status !== 200) {
@@ -219,20 +220,23 @@ class E2ETestRunner {
 
       // Step 9: Get current player and game state
       console.log("  📊 Step 9: Getting game state...");
-      const currentPlayerResponse = await this.makeRequest(`/api/game/get-current-player/${sessionId}`);
-      const tileMapResponse = await this.makeRequest(`/api/game/get-tilemap/${sessionId}`);
+      const currentPlayerResponse = await this.makeRequest(`/api/game/${sessionId}/get-current-player`, {
+        gameToken: join1Response.data.game_token,
+      });
+      const tileMapResponse = await this.makeRequest(`/api/game/${sessionId}/get-tilemap`, {
+        gameToken: join1Response.data.game_token,
+      });
       
       console.log(`  ✅ Current player: ${currentPlayerResponse.data.current_player_ids?.[0] || "none"}`);
       console.log(`  ✅ Tile map retrieved: ${tileMapResponse.data.tiles.length} tiles`);
 
       // Step 10: Play a turn (assuming it's Player 1's turn)
       console.log("  🎯 Step 10: Playing a turn...");
-      const playTurnResponse = await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
-        method: "POST",
-        body: JSON.stringify({
-          xPos: 0,
-          yPos: 0
-        })
+      const playTurnResponse = await this.makeRequest(`/api/game/${sessionId}/play-turn`, {
+        participantId: player1Id,
+        gameToken: join1Response.data.game_token,
+        xPos: 0,
+        yPos: 0,
       });
       
       if (playTurnResponse.status !== 200) {
@@ -247,12 +251,17 @@ class E2ETestRunner {
 
       // Step 12: Check if game is still active
       console.log("  🔍 Step 12: Checking game status...");
-      const isActiveResponse = await this.makeRequest(`/api/game/is-active/${sessionId}`);
+      const isActiveResponse = await this.makeRequest(`/api/game/${sessionId}/is-active`, {
+        gameToken: join1Response.data.game_token,
+      });
       console.log(`  ✅ Game active: ${isActiveResponse.data.is_active}`);
 
       // Step 13: Stop the game
       console.log("  🛑 Step 13: Stopping the game...");
-      const stopResponse = await this.makeRequest(`/api/game/stop/${sessionId}`);
+      const stopResponse = await this.makeRequest(`/api/game/${sessionId}/stop`, {
+        participantId: player1Id,
+        gameToken: join1Response.data.game_token,
+      });
       
       if (stopResponse.status !== 200) {
         throw new Error(`Game stop failed: ${stopResponse.data.error}`);
@@ -266,8 +275,9 @@ class E2ETestRunner {
 
       // Step 15: Restart the game
       console.log("  🔄 Step 15: Restarting the game...");
-      const restartResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
-        method: "POST"
+      const restartResponse = await this.makeRequest(`/api/game/${sessionId}/start`, {
+        participantId: player1Id,
+        gameToken: join1Response.data.game_token,
       });
       
       if (restartResponse.status !== 200) {
@@ -336,8 +346,9 @@ class E2ETestRunner {
 
       // Start game
       console.log("  🎮 Starting game...");
-      const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
-        method: "POST"
+      await this.makeRequest(`/api/game/${sessionId}/start`, {
+        participantId: playerIds[0],
+        gameToken: joinResponse.data.game_token,
       });
       
       console.log(`  ✅ Game started with ${players.length} players`);
@@ -399,7 +410,7 @@ class E2ETestRunner {
       const sessionId = initResponse.data.session_id;
       
       // Join players and start game
-      await this.makeRequest(`/api/session/${sessionId}/join`, {
+      const join1Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
         method: "POST",
         body: JSON.stringify({
           participantName: "Alice",
@@ -407,7 +418,7 @@ class E2ETestRunner {
         })
       });
       
-      await this.makeRequest(`/api/session/${sessionId}/join`, {
+      const join2Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
         method: "POST",
         body: JSON.stringify({
           participantName: "Bob",
@@ -415,18 +426,18 @@ class E2ETestRunner {
         })
       });
       
-      await this.makeRequest(`/api/game/start/${sessionId}`, {
-        method: "POST"
+      await this.makeRequest(`/api/game/${sessionId}/start`, {
+        participantId: join1Response.data.participant_id,
+        gameToken: join1Response.data.game_token,
       });
 
       // Try invalid move (out of bounds)
       try {
-        await this.makeRequest(`/api/game/play-turn/${sessionId}`, {
-          method: "POST",
-          body: JSON.stringify({
-            xPos: 10,
-            yPos: 10
-          })
+        await this.makeRequest(`/api/game/${sessionId}/play-turn`, {
+          participantId: join1Response.data.participant_id,
+          gameToken: join1Response.data.game_token,
+          xPos: 10,
+          yPos: 10
         });
         results.push({ test: "Invalid move", success: false, expected: "Should fail" });
       } catch (error) {
