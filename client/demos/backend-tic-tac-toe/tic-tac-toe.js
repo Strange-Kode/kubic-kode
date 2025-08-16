@@ -60,7 +60,7 @@ class TicTacToeGame {
     this.getGameOptions().addOption("winCondition", 3, "frozen"); // TicTacToe (classic) always requires 3 in a row
     
     // Add difficulty configuration for AI behavior
-    this.getGameOptions().addOption("difficulty", "medium", "runtime", (value) => {
+    this.getGameOptions().addOption("difficulty", "medium", "pre-start", (value) => {
       const validDifficulties = ["easy", "medium", "hard"];
       if (!validDifficulties.includes(value)) {
         return `Difficulty must be one of: ${validDifficulties.join(", ")}`;
