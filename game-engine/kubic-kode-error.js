@@ -287,6 +287,20 @@ export class KubicGameOptionsError extends KubicKodeError {
 }
 
 /**
+ * Contract compliance errors for game interface validation
+ */
+export class KubicContractError extends KubicKodeError {
+  constructor(message, component = null, className = null, options = {}) {
+    super(message, {
+      code: "CONTRACT_ERROR",
+      context: { component, className, ...options.context },
+      severity: "error",
+      ...options
+    });
+  }
+}
+
+/**
  * Error factory for creating specific error types
  */
 export class ErrorFactory {
@@ -373,6 +387,13 @@ export class ErrorFactory {
   static gameOptions(message, option = null, namespace = null, value = null, context = {}) {
     return new KubicGameOptionsError(message, option, namespace, value, { context });
   }
+
+  /**
+   * Create a contract error
+   */
+  static contract(message, component = null, className = null, context = {}) {
+    return new KubicContractError(message, component, className, { context });
+  }
 }
 
 /**
@@ -454,7 +475,12 @@ export const ErrorCodes = {
   GAME_OPTIONS_ERROR: "GAME_OPTIONS_ERROR",
   OPTION_NOT_FOUND: "OPTION_NOT_FOUND",
   OPTION_LOCKED: "OPTION_LOCKED",
-  INVALID_OPTION_VALUE: "INVALID_OPTION_VALUE"
+  INVALID_OPTION_VALUE: "INVALID_OPTION_VALUE",
+  
+  // Contract errors
+  CONTRACT_ERROR: "CONTRACT_ERROR",
+  MISSING_REQUIRED_METHOD: "MISSING_REQUIRED_METHOD",
+  INVALID_INTERFACE: "INVALID_INTERFACE"
 };
 
 /**
