@@ -446,6 +446,34 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   if (playStatus.access("playerHasWon")) {
     kubicLog.debug(`[game-routes] Win condition detected! Player ${playStatus.access("playerId")} won`);
     
+    // Record the win in game history
+    try {
+      const playerMappings = gameInstance.getPlayerMappings();
+      let participantId = null;
+      
+      for (const [pid, playerId] of Object.entries(playerMappings)) {
+        if (playerId === playStatus.access("playerId")) {
+          participantId = pid;
+          break;
+        }
+      }
+      
+      kubicLog.debug(`[game-routes] Recording human win for player ${playStatus.access("playerId")} -> participant ${participantId}`);
+      
+      gameSession.getGameHistory().addPlayerWonEvent(
+        playStatus.access("playerId"),
+        participantId,
+        {
+          winCondition: playStatus.access("winCondition") || "unknown",
+          finalPosition: { x: moveData.xPos, y: moveData.yPos },
+          gameState: "completed",
+        }
+      );
+      kubicLog.debug(`[game-routes] Successfully recorded human win event in history`);
+    } catch (error) {
+      kubicLog.error(`[game-routes] Error recording human win event:`, error);
+    }
+    
     gameSession.increaseWinCounter();
     let winCount = gameSession.getWinCounter();
     kubicLog.debug(`[game-routes] Win counter increased to: ${winCount}`);

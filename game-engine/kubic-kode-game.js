@@ -157,26 +157,8 @@ class KubicKodeGame extends GameInterface {
       
       // Record win if it occurred and stop the game
       if (playStatus.access("playerHasWon")) {
-        console.log(`[KubicKodeGame] Recording win for player ${playStatus.access("playerId")}`);
-        const participantId = this.getParticipantIdForPlayer(playerId);
-        console.log(`[KubicKodeGame] Participant ID for player ${playerId}: ${participantId}`);
+        console.log(`[KubicKodeGame] Win detected for player ${playStatus.access("playerId")}`);
         
-        try {
-          this.__gameSession.getGameHistory().addPlayerWonEvent(
-            playStatus.access("playerId"),
-            participantId,
-            {
-              winCondition:
-                playStatus.access("winCondition") || this.getWinConditionDescription(x, y),
-              finalPosition: { x, y },
-              gameState: "completed",
-            }
-          );
-          console.log(`[KubicKodeGame] Successfully recorded win event`);
-        } catch (error) {
-          console.error(`[KubicKodeGame] Error recording win event:`, error);
-        }
-
         // Stop the game and clear inactivity timer when someone wins
         this.__gameOptions.setGameState("ended");
         this.__gameSession.markEnded();
