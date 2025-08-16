@@ -32,12 +32,12 @@ export class SessionParticipantManager {
    * Add a participant to the session
    * @param {string} name - The participant's name (must be unique)
    * @param {string} participant_type - The type of participant ("user", "computer", or "spectator")
-   * @param {number} maxParticipants - Maximum number of participants allowed
+   * @param {number} maxPlayers - Maximum number of players allowed
    * @param {boolean} started - Whether the session has started
    * @returns {number} The allocated participant ID
    * @throws {Error} If name is already in use, session is full, or invalid participant type
    */
-  addParticipant(name, participant_type = "user", maxParticipants = 2, started = false) {
+  addParticipant(name, participant_type = "user", maxPlayers = 2, started = false) {
     // Validate unique names within session
     const existingName = this._participants.find(p => p.name === name);
     if (existingName) {
@@ -49,14 +49,14 @@ export class SessionParticipantManager {
       );
     }
 
-    // Only count playable participants (user, computer) against maxParticipants limit
+    // Only count playable participants (user, computer) against maxPlayers limit
     // Spectators can join even when the game is "full"
     const playableParticipants = this._participants.filter(p => this.isParticipantPlayable(p));
-    if (participant_type !== "spectator" && playableParticipants.length >= maxParticipants) {
+    if (participant_type !== "spectator" && playableParticipants.length >= maxPlayers) {
       throw ErrorFactory.validation(
         "Game session is full",
-        "maxParticipants",
-        maxParticipants,
+        "maxPlayers",
+        maxPlayers,
         { context: { method: "SessionParticipantManager.addParticipant", currentCount: playableParticipants.length, participantType: participant_type, suggestion: "Join as spectator or wait for a slot to open" } }
       );
     }

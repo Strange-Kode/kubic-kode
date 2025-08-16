@@ -11,7 +11,7 @@ export function useSession() {
   const [sessionId, setSessionId] = useState(null);
   const [participantId, setParticipantId] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [maxParticipants, setMaxParticipants] = useState(2); // default fallback
+  const [maxPlayers, setMaxPlayers] = useState(2); // default fallback
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState(null);
 
@@ -236,7 +236,7 @@ export function useSession() {
     }
   }, [sessionId, participantId, post, clearGameToken]);
 
-  // Fetch session stats including participants and maxParticipants
+  // Fetch session stats including participants and maxPlayers
   const fetchSessionStats = useCallback(async () => {
     if (!sessionId) {
       return;
@@ -247,9 +247,9 @@ export function useSession() {
       console.log("[useSession] Session stats result:", result);
 
       if (result.success) {
-        const { maxParticipants: maxParts } = result.data;
-        console.log("[useSession] Setting maxParticipants to:", maxParts);
-        setMaxParticipants(maxParts);
+        const { maxPlayers: maxPlayers } = result.data;
+        console.log("[useSession] Setting maxPlayers to:", maxPlayers);
+        setMaxPlayers(maxPlayers);
       } else {
         console.error(
           "[useSession] Failed to fetch session stats:",
@@ -298,7 +298,7 @@ export function useSession() {
       const result = await get(`/api/session/${sessionId}/participants/stats`);
 
       if (result.success) {
-        const { players, maxParticipants: maxParts, started } = result.data;
+        const { players, maxPlayers: maxParts, started } = result.data;
         const isFull = players >= maxParts;
 
         return {
@@ -309,7 +309,7 @@ export function useSession() {
             ? "Session is full"
             : "Available",
           participantCount: players,
-          maxParticipants: maxParts,
+          maxPlayers: maxParts,
           started,
         };
       } else {
@@ -344,7 +344,7 @@ export function useSession() {
     sessionId,
     participantId,
     participants,
-    maxParticipants,
+    maxPlayers,
     isSessionLoading,
     sessionError,
     isHost,

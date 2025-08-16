@@ -16,12 +16,12 @@ export class GameSession {
   /**
    * Create a new game session
    * @param {string} sessionId - Unique identifier for the session
-   * @param {number} maxParticipants - Maximum number of participants allowed (default: 2)
+   * @param {number} maxPlayers - Maximum number of players allowed (default: 2)
    * @param {string|null} gameVariantId - Optional game variant identifier
    */
-  constructor(sessionId, maxParticipants = 2, gameVariantId = null) {
+  constructor(sessionId, maxPlayers = 2, gameVariantId = null) {
     this._sessionId = sessionId;
-    this._maxParticipants = maxParticipants;
+    this._maxPlayers = maxPlayers;
     this._gameVariantId = gameVariantId;
     this._started = false;
     this._winCounter = 0;
@@ -63,11 +63,11 @@ export class GameSession {
     );
   }
 
-  get maxParticipants() {
+  get maxPlayers() {
     throw ErrorFactory.system(
-      "Attempting to access maxParticipants property on GameSession. Not allowed, maxParticipants is a protected property. Use getMaxParticipants() instead.",
+      "Attempting to access maxPlayers property on GameSession. Not allowed, maxPlayers is a protected property. Use getMaxPlayers() instead.",
       "GameSession",
-      { context: { suggestion: "Use getMaxParticipants() method instead", property: "maxParticipants" } }
+      { context: { suggestion: "Use getMaxPlayers() method instead", property: "maxPlayers" } }
     );
   }
 
@@ -186,7 +186,7 @@ export class GameSession {
   }
 
   addParticipant(name, participant_type = "user") {
-    const participantId = this._participantManager.addParticipant(name, participant_type, this._maxParticipants, this._started);
+    const participantId = this._participantManager.addParticipant(name, participant_type, this._maxPlayers, this._started);
 
     // Initialize ready state for playable participants
     if (this._participantManager.isParticipantPlayable(this._participantManager.getParticipantById(participantId))) {
@@ -272,8 +272,8 @@ export class GameSession {
     return this._sessionId;
   }
 
-  getMaxParticipants() {
-    return this._maxParticipants;
+  getMaxPlayers() {
+    return this._maxPlayers;
   }
 
   isStarted() {
@@ -326,7 +326,7 @@ export class GameSession {
     const lobbyStatus = this._lobbyManager.getLobbyStatus();
     lobbyStatus.started = this._started;
     lobbyStatus.gameVariantId = this._gameVariantId;
-    lobbyStatus.maxPlayers = this._maxParticipants;
+    lobbyStatus.maxPlayers = this._maxPlayers;
     lobbyStatus.recentChat = this._chatManager.getRecentChat(10);
     return lobbyStatus;
   }

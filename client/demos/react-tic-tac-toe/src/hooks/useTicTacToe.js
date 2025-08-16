@@ -69,11 +69,11 @@ export function useTicTacToe() {
   );
 
   // Check if session is full and should show spectator modal instead
-  const sessionIsFull = playableParticipants.length >= session.maxParticipants;
+  const sessionIsFull = playableParticipants.length >= session.maxPlayers;
   const shouldShowSpectator = needsName && sessionIsFull;
 
   const shouldAutoStart =
-    playableParticipants.length === session.maxParticipants &&
+    playableParticipants.length === session.maxPlayers &&
     !game.gameStarted;
 
   // Overall loading state
@@ -412,7 +412,7 @@ export function useTicTacToe() {
     // Player info
     playerName,
     participants: session.participants,
-    maxParticipants: session.maxParticipants,
+    maxPlayers: session.maxPlayers,
     currentPlayer: getCurrentPlayerInfo(),
     opponent: getOpponentInfo(),
     isMyTurn: isMyTurn(),

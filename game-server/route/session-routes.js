@@ -172,11 +172,11 @@ sessionRouter.get("/session/:sessionId/participants/stats", validateSessionMiddl
 
   res.json({
     sessionId: gameSession.getSessionId(),
-    maxParticipants: gameSession.getMaxParticipants(),
+    maxPlayers: gameSession.getMaxPlayers(),
     total: allParticipants.length,
     players: playableParticipants.length,
     spectators: spectatorParticipants.length,
-    canStart: playableParticipants.length >= gameSession.getMaxParticipants(),
+    canStart: playableParticipants.length >= gameSession.getMaxPlayers(),
     started: gameSession.isStarted(),
   });
 });

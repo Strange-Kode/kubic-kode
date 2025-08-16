@@ -1063,7 +1063,7 @@ function headsOrTailsGame() {
                     },
                     body: JSON.stringify({
                         gameVariantId: "hot",
-                        maxParticipants: 2
+                        maxPlayers: 2
                     })
                 });
                 
