@@ -96,7 +96,7 @@ export class InactivityManager {
     this._stopBroadcastInterval();
     
     // Get all current players that should be acting
-    const currentPlayers = this._gameInstance.getGameEngine().getCurrentTurnPlayers();
+    const currentPlayers = this._gameInstance.getCurrentTurnPlayers();
     const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
     
     // Identify which players haven't acted (are inactive)

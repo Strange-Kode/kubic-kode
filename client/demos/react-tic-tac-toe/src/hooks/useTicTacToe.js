@@ -299,26 +299,32 @@ export function useTicTacToe() {
         setGameDisabledByInactivity(true);
 
         // Handle the win condition from inactivity
-        const inactivityStatus = data.payload?.inactivityStatus;
-        if (inactivityStatus?.winnerPlayerId) {
-          // Find the winner participant
-          const winnerParticipant = session.participants.find(
-            (p) => p.id === inactivityStatus.winnerPlayerId
-          );
-
-          if (winnerParticipant) {
-            console.log(
-              "[useTicTacToe] Game won by inactivity:",
-              winnerParticipant.name
+        const inactivePlayers = data.payload?.inactivePlayers;
+        if (inactivePlayers && inactivePlayers.length > 0) {
+          // Find the first inactive player's status
+          const firstInactiveResult = inactivePlayers[0];
+          const inactivityStatus = firstInactiveResult.inactivityStatus;
+          
+          if (inactivityStatus?.winnerPlayerId) {
+            // Find the winner participant
+            const winnerParticipant = session.participants.find(
+              (p) => p.id === inactivityStatus.winnerPlayerId
             );
-            setWinner(winnerParticipant);
-            setShowWinModal(true);
 
-            // Refresh data and win counts after inactivity win
-            refreshData();
-            setTimeout(() => {
-              playerWins.fetchPlayerWins();
-            }, 100);
+            if (winnerParticipant) {
+              console.log(
+                "[useTicTacToe] Game won by inactivity:",
+                winnerParticipant.name
+              );
+              setWinner(winnerParticipant);
+              setShowWinModal(true);
+
+              // Refresh data and win counts after inactivity win
+              refreshData();
+              setTimeout(() => {
+                playerWins.fetchPlayerWins();
+              }, 100);
+            }
           }
         }
       }
