@@ -181,7 +181,6 @@ class TicTacToeGame {
       });
     }
 
-    this._engine.nextTurn();
     return PlayStatus.success(playerId, {
       mark: mark
     });

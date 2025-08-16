@@ -123,16 +123,16 @@ class KubicKodeGame extends GameInterface {
     }
 
     // Add the playerId to the result
-    playStatus.playerId = playerId;
+    playStatus.set('playerId', playerId);
 
     // Only record history if the turn was valid
-    if (playStatus.status === "ok" || playStatus.status === "valid") {
+    if (playStatus.access("status") === "ok" || playStatus.access("status") === "valid") {
       // Mark player as having acted and reset inactivity timer
       const inactivityManager = this.__gameSession.getInactivityManager();
       if (inactivityManager) {
         inactivityManager.markPlayerActed(playerId);
         inactivityManager.resetTimer();
-        playStatus.timeLeft = inactivityManager.getTimeRemaining();
+        playStatus.set("timeLeft", inactivityManager.getTimeRemaining());
       }
 
       // Check if turn should be advanced based on play style
@@ -169,14 +169,14 @@ class KubicKodeGame extends GameInterface {
       const player = this.__gameInstance.getGameEngine().getPlayerById(playerId);
       
       this.__gameSession.getGameHistory().addTurnPlayedEvent(
-        playStatus.playerId,
+        playStatus.access("playerId"),
         this.getParticipantIdForPlayer(playerId),
         {
           x,
           y,
           turnData, // Include full turn data for future extensibility
           player: player ? player.toJSON() : null, // Save player object
-          status: playStatus.status,
+          status: playStatus.access("status"),
         }
       );
 
@@ -215,8 +215,8 @@ class KubicKodeGame extends GameInterface {
           x,
           y,
           turnData, // Include full turn data for future extensibility
-          reason: playStatus.type || "invalid_move",
-          status: playStatus.status,
+          reason: playStatus.access("type") || "invalid_move",
+          status: playStatus.access("status"),
         }
       );
     }

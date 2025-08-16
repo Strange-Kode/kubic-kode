@@ -68,6 +68,21 @@ export class PlayStatus {
     return this._properties.get(propertyName);
   }
 
+  // Generic setter method for safe property setting
+  // Throws an error if the property doesn't exist, preventing silent typos
+  set(propertyName, value) {
+    if (!this._properties.has(propertyName)) {
+      const availableProperties = Array.from(this._properties.keys()).join(", ");
+      throw ErrorFactory.validation(
+        `PlayStatus does not have property "${propertyName}". Available properties: ${availableProperties}`,
+        "propertyName",
+        propertyName,
+        { context: { availableProperties: Array.from(this._properties.keys()), method: "PlayStatus.set" } }
+      );
+    }
+    this._properties.set(propertyName, value);
+  }
+
   // Convert to snake_case object for API responses
   toSnakeCase() {
     const result = {};
