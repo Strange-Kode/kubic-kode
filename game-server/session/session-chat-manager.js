@@ -1,3 +1,10 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../game-engine/kubic-kode-error.js";
+
 export class SessionChatManager {
   constructor(participantManager) {
     this._participantManager = participantManager;
@@ -17,7 +24,12 @@ export class SessionChatManager {
   addChatMessage(participantId, message, messageType = "user") {
     const participant = this._participantManager.getParticipantById(participantId);
     if (!participant) {
-      throw new Error("Participant not found.");
+      throw ErrorFactory.validation(
+        "Participant not found",
+        "participantId",
+        participantId,
+        { context: { method: "SessionChatManager.addChatMessage", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
 
     const chatMessage = {

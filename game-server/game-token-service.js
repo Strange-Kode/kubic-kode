@@ -1,5 +1,11 @@
 import crypto from "crypto";
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../game-engine/kubic-kode-error.js";
 
 class GameTokenService {
   /**
@@ -14,24 +20,49 @@ class GameTokenService {
     
     // Validate secret key length
     if (this.__secretKey.length < 32) {
-        throw new Error("Secret key length is too short. It must be at least 32 characters.");
+        throw ErrorFactory.validation(
+          "Secret key length is too short. It must be at least 32 characters.",
+          "KUBIC_GAME_TOKEN_SECRET_KEY",
+          this.__secretKey,
+          { context: { 
+            currentLength: this.__secretKey.length,
+            requiredLength: 32,
+            suggestion: "Set KUBIC_GAME_TOKEN_SECRET_KEY environment variable with at least 32 characters"
+          } }
+        );
     }
   }
 
   get secretKey() {
-    throw new Error("Attempting to access secretKey property on GameTokenService. Not allowed, secretKey is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access secretKey property on GameTokenService. Not allowed, secretKey is a private property.",
+      "GameTokenService",
+      { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "secretKey" } }
+    );
   }
 
   get algorithm() {
-    throw new Error("Attempting to access algorithm property on GameTokenService. Not allowed, algorithm is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access algorithm property on GameTokenService. Not allowed, algorithm is a private property.",
+      "GameTokenService",
+      { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "algorithm" } }
+    );
   }
 
   get ivLength() {
-    throw new Error("Attempting to access ivLength property on GameTokenService. Not allowed, ivLength is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access ivLength property on GameTokenService. Not allowed, ivLength is a private property.",
+      "GameTokenService",
+      { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "ivLength" } }
+    );
   }
 
   get saltLength() {
-    throw new Error("Attempting to access saltLength property on GameTokenService. Not allowed, saltLength is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access saltLength property on GameTokenService. Not allowed, saltLength is a private property.",
+      "GameTokenService",
+      { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "saltLength" } }
+    );
   }
 
   /**
@@ -57,7 +88,11 @@ class GameTokenService {
       return encryptedToken;
     } catch (error) {
       kubicLog.error("[GameTokenService]::generateToken - Error generating token:", error);
-      throw new Error("Failed to generate game token");
+      throw ErrorFactory.system(
+        "Failed to generate game token",
+        "GameTokenService",
+        { context: { method: "generateToken", sessionId, participantId, originalError: error.message } }
+      );
     }
   }
 

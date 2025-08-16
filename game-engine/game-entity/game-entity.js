@@ -1,3 +1,9 @@
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../kubic-kode-error.js";
+
 /**
 * Base class for all game entities.
 * 
@@ -22,7 +28,11 @@ export class GameEntity {
   }
   
   get id() {
-    throw new Error("Attempting to access id property on GameEntity. Use getEntityId() or getPlayerId() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access id property on GameEntity. Use getEntityId() or getPlayerId() instead.",
+      "GameEntity",
+      { context: { suggestion: "Use getEntityId() or getPlayerId() method instead", property: "id" } }
+    );
   }
   
   /**
@@ -42,7 +52,11 @@ export class GameEntity {
   }
   
   get name() {
-    throw new Error("Attempting to access name property on GameEntity. Use getEntityName() or getPlayerName() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access name property on GameEntity. Use getEntityName() or getPlayerName() instead.",
+      "GameEntity",
+      { context: { suggestion: "Use getEntityName() or getPlayerName() method instead", property: "name" } }
+    );
   }
   
   /**
@@ -56,7 +70,11 @@ export class GameEntity {
   }
   
   get position() {
-    throw new Error("Attempting to access position property on GameEntity. Use getEntityPosition() or getPlayerPosition() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access position property on GameEntity. Use getEntityPosition() or getPlayerPosition() instead.",
+      "GameEntity",
+      { context: { suggestion: "Use getEntityPosition() or getPlayerPosition() method instead", property: "position" } }
+    );
   }
   
   /**
@@ -67,7 +85,11 @@ export class GameEntity {
    */
   update() {
     // Override in subclasses
-    throw new Error("Implement update() in subclass.");
+    throw ErrorFactory.system(
+      "Implement update() in subclass.",
+      "GameEntity",
+      { context: { method: "update", suggestion: "Override update() method in your entity subclass" } }
+    );
   }
   
   /**
@@ -78,6 +100,10 @@ export class GameEntity {
    */
   toJSON() {
     // Override in subclasses
-    throw new Error("Implement toJSON() in subclass.");
+    throw ErrorFactory.system(
+      "Implement toJSON() in subclass.",
+      "GameEntity",
+      { context: { method: "toJSON", suggestion: "Override toJSON() method in your entity subclass" } }
+    );
   }
 }

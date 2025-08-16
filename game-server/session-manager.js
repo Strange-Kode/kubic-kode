@@ -6,6 +6,11 @@ import { gameHistoryManager } from "./game-history-manager.js";
 import { GameEventService } from "./game-event-service.js";
 import { kubicLog } from "../kubic-log.js";
 import { v4 as uuidv4 } from "uuid";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../game-engine/kubic-kode-error.js";
 
 class SessionManager {
   constructor() {
@@ -17,7 +22,11 @@ class SessionManager {
   }
 
   get sessions() {
-    throw new Error("Attempting to access sessions property on SessionManager. Not allowed, sessions is a protected property. Use getSessions() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access sessions property on SessionManager. Not allowed, sessions is a protected property. Use getSessions() instead.",
+      "SessionManager",
+      { context: { suggestion: "Use getSessions() method instead", property: "sessions" } }
+    );
   }
 
   getSessions() {

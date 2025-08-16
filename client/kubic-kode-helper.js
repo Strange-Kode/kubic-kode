@@ -8,6 +8,17 @@
  * - Browser global: window.KubicKode, window.KubicKodeHelper
  */
 
+// Import error classes for client-side error handling
+const KubicClientError = class extends Error {
+  constructor(message, code, context = {}) {
+    super(message);
+    this.name = "KubicClientError";
+    this.code = code;
+    this.context = context;
+    this.timestamp = new Date().toISOString();
+  }
+};
+
 (function (global, factory) {
   // UMD pattern to support multiple module systems
   if (typeof module === "object" && typeof module.exports === "object") {
@@ -164,7 +175,7 @@ class KubicKodeHelper {
         case "history":
           return await helper._makeRequest("POST", `/session/${helper.sessionId}/history`, data);
         default:
-          throw new Error(`Unknown session action: ${action}`);
+          throw new KubicClientError(`Unknown session action: ${action}`, "UNKNOWN_SESSION_ACTION", { action, availableActions: ["init", "join", "spectate", "leave", "participants", "participant-stats", "restart-vote", "submit-vote", "history"] });
       }
     },
 
@@ -175,14 +186,14 @@ class KubicKodeHelper {
       const helper = this;
 
       if (!helper.sessionId) {
-        throw new Error("No active session. Call session.init() first.");
+        throw new KubicClientError("No active session. Call session.init() first.", "NO_ACTIVE_SESSION", { suggestion: "Call KubicKode.session.init() to create a session" });
       }
 
       // Ensure we have a game token
       if (!helper.gameToken) {
         helper.gameToken = helper._getGameToken(helper.sessionId);
         if (!helper.gameToken) {
-          throw new Error("No game token available. Join or spectate session first.");
+          throw new KubicClientError("No game token available. Join or spectate session first.", "NO_GAME_TOKEN", { sessionId: helper.sessionId, suggestion: "Call KubicKode.session.join() or KubicKode.session.spectate() first" });
         }
       }
 
@@ -215,7 +226,7 @@ class KubicKodeHelper {
             gameToken: helper.gameToken
           });
         default:
-          throw new Error(`Unknown game action: ${action}`);
+          throw new KubicClientError(`Unknown game action: ${action}`, "UNKNOWN_GAME_ACTION", { action, availableActions: ["start", "stop", "get-current-player", "is-active", "get-tilemap", "options"] });
       }
     }
   };
@@ -567,7 +578,7 @@ class KubicKodeHelper {
         const response = await fetch(url, options);
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new KubicClientError(`HTTP ${response.status}: ${response.statusText}`, "HTTP_ERROR", { status: response.status, statusText: response.statusText, url, method });
         }
 
         const result = await response.json();
@@ -624,7 +635,7 @@ class KubicKodeHelper {
 
   async leaveSession() {
     if (!this.participantId || !this.sessionId) {
-      throw new Error("No active session or participant to leave");
+      throw new KubicClientError("No active session or participant to leave", "NO_SESSION_TO_LEAVE", { participantId: this.participantId, sessionId: this.sessionId });
     }
     
     const result = await this.route.session("leave", { participantId: this.participantId });
@@ -643,14 +654,14 @@ class KubicKodeHelper {
 
   async playTurn(x, y, additionalData = {}) {
     if (!this.currentGame) {
-      throw new Error("No game selected. Call game.use() first.");
+      throw new KubicClientError("No game selected. Call game.use() first.", "NO_GAME_SELECTED", { suggestion: "Call KubicKode.game.use(gameId) to select a game" });
     }
 
     const gameRoute = this.currentGame.replace(/-/g, "_");
     if (this.route[gameRoute] && this.route[gameRoute].playTurn) {
       return await this.route[gameRoute].playTurn(x, y, additionalData);
     } else {
-      throw new Error(`Game '${this.currentGame}' not registered. Call game.register("${this.currentGame}") first.`);
+      throw new KubicClientError(`Game '${this.currentGame}' not registered. Call game.register("${this.currentGame}") first.`, "GAME_NOT_REGISTERED", { gameId: this.currentGame, suggestion: `Call KubicKode.game.register("${this.currentGame}") first` });
     }
   }
 

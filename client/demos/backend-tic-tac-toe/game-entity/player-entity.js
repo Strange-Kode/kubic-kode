@@ -1,5 +1,10 @@
 import { GameEntity } from "../../../../game-engine/game-entity/game-entity.js";
 import MarkEntity from "./mark-entity.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../../../game-engine/kubic-kode-error.js";
 
 class PlayerEntity extends GameEntity {
   constructor(name, markType, isComputer=false) {
@@ -12,7 +17,11 @@ class PlayerEntity extends GameEntity {
   }
 
   get marks() {
-    throw new Error("Attempting to access marks property on PlayerEntity. Use getMarks() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access marks property on PlayerEntity. Use getMarks() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use getMarks() method instead", property: "marks" } }
+    );
   }
 
   getMarks() {
@@ -20,7 +29,11 @@ class PlayerEntity extends GameEntity {
   }
 
   get isComputer() {
-    throw new Error("Attempting to access isComputer property on PlayerEntity. Use isComputer() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access isComputer property on PlayerEntity. Use isComputer() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use isComputer() method instead", property: "isComputer" } }
+    );
   }
 
   isComputer() {
@@ -28,7 +41,11 @@ class PlayerEntity extends GameEntity {
   }
 
   get markType() {
-    throw new Error("Attempting to access markType property on PlayerEntity. Use getMarkType() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access markType property on PlayerEntity. Use getMarkType() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use getMarkType() method instead", property: "markType" } }
+    );
   }
 
   getMarkType() {

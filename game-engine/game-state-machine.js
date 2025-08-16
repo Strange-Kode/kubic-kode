@@ -1,4 +1,10 @@
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicStateError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 /**
  * Game State Machine Implementation
@@ -199,7 +205,11 @@ export class GameStateMachine {
    */
   addState(state) {
     if (!(state instanceof GameState)) {
-      throw new Error("State must be an instance of GameState");
+      throw ErrorFactory.system(
+        "State must be an instance of GameState",
+        "GameStateMachine",
+        { context: { providedType: state?.constructor?.name, expectedType: "GameState" } }
+      );
     }
     
     this._states.set(state.getName(), state);
@@ -231,7 +241,11 @@ export class GameStateMachine {
    */
   addTransition(transition) {
     if (!(transition instanceof StateTransition)) {
-      throw new Error("Transition must be an instance of StateTransition");
+      throw ErrorFactory.system(
+        "Transition must be an instance of StateTransition",
+        "GameStateMachine",
+        { context: { providedType: transition?.constructor?.name, expectedType: "StateTransition" } }
+      );
     }
     
     this._transitions.push(transition);
@@ -278,7 +292,12 @@ export class GameStateMachine {
   setInitialState(stateName) {
     const state = this._states.get(stateName);
     if (!state) {
-      throw new Error(`State "${stateName}" not found`);
+      throw ErrorFactory.state(
+        `State "${stateName}" not found`,
+        "GameStateMachine",
+        stateName,
+        { context: { availableStates: Array.from(this._states.keys()) } }
+      );
     }
     
     this._currentState = state;
@@ -297,7 +316,12 @@ export class GameStateMachine {
   async transitionTo(stateName, data = {}) {
     const newState = this._states.get(stateName);
     if (!newState) {
-      throw new Error(`State "${stateName}" not found`);
+      throw ErrorFactory.state(
+        `State "${stateName}" not found`,
+        "GameStateMachine",
+        stateName,
+        { context: { availableStates: Array.from(this._states.keys()), currentState: this._currentState?.getName() } }
+      );
     }
 
     if (this._currentState === newState) {

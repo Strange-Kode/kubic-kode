@@ -1,3 +1,10 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../game-engine/kubic-kode-error.js";
+
 export class GameHistory {
   // Define all possible game history event types
   static GAME_HISTORY_EVENT_TYPES = {
@@ -24,7 +31,11 @@ export class GameHistory {
   }
 
   get sessionId() {
-    throw new Error("Attempting to access sessionId property on GameHistory. Not allowed, sessionId is a protected property.");
+    throw ErrorFactory.system(
+      "Attempting to access sessionId property on GameHistory. Not allowed, sessionId is a protected property.",
+      "GameHistory",
+      { context: { suggestion: "Use getSessionId() method instead", property: "sessionId" } }
+    );
   }
 
   // Get all valid game history event type strings
@@ -55,7 +66,15 @@ export class GameHistory {
   addEvent(event) {
     // Validate that the event type is a valid game history event type
     if (!GameHistory.isValidEventType(event.type)) {
-      throw new Error(`Invalid game history event type: ${event.type}. Valid types are: ${GameHistory.getValidEventTypes().join(", ")}`);
+      throw ErrorFactory.validation(
+        `Invalid game history event type: ${event.type}`,
+        "event.type",
+        event.type,
+        { context: { 
+          validTypes: GameHistory.getValidEventTypes(),
+          method: "GameHistory.addEvent"
+        } }
+      );
     }
 
     const historyEvent = {

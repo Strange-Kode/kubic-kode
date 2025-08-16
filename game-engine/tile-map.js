@@ -1,3 +1,9 @@
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
+
 export class TileMap {
   constructor(width, height) {
     this._width = width;
@@ -8,7 +14,11 @@ export class TileMap {
   }
 
   get width() {
-    throw new Error("Attempting to access width property on TileMap. Not allowed, width is a protected property. Use getWidth() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access width property on TileMap. Not allowed, width is a protected property. Use getWidth() instead.",
+      "TileMap",
+      { context: { suggestion: "Use getWidth() method instead", property: "width" } }
+    );
   }
 
   getWidth() {
@@ -16,7 +26,11 @@ export class TileMap {
   }
 
   get height() {
-    throw new Error("Attempting to access height property on TileMap. Not allowed, height is a protected property. Use getHeight() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access height property on TileMap. Not allowed, height is a protected property. Use getHeight() instead.",
+      "TileMap",
+      { context: { suggestion: "Use getHeight() method instead", property: "height" } }
+    );
   }
 
   getHeight() {
@@ -24,7 +38,11 @@ export class TileMap {
   }
 
   get tiles() {
-    throw new Error("Attempting to access tiles property on TileMap. Not allowed, tiles is a protected property. Use getTiles() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access tiles property on TileMap. Not allowed, tiles is a protected property. Use getTiles() instead.",
+      "TileMap",
+      { context: { suggestion: "Use getTiles() method instead", property: "tiles" } }
+    );
   }
 
   getTiles() {

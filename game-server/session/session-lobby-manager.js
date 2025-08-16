@@ -1,3 +1,10 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../game-engine/kubic-kode-error.js";
+
 export class SessionLobbyManager {
   constructor(participantManager) {
     this._participantManager = participantManager;
@@ -17,7 +24,12 @@ export class SessionLobbyManager {
    */
   setLobbyConfig(key, value, hostId) {
     if (!this._participantManager.isHost(hostId)) {
-      throw new Error("Only the host can configure lobby settings.");
+      throw ErrorFactory.validation(
+        "Only the host can configure lobby settings",
+        "hostId",
+        hostId,
+        { context: { method: "SessionLobbyManager.setLobbyConfig", suggestion: "Only the session host can modify lobby configuration" } }
+      );
     }
     
     this._lobbyConfig.set(key, value);
@@ -48,7 +60,12 @@ export class SessionLobbyManager {
    */
   deleteLobbyConfig(key, hostId) {
     if (!this._participantManager.isHost(hostId)) {
-      throw new Error("Only the host can delete lobby settings.");
+      throw ErrorFactory.validation(
+        "Only the host can delete lobby settings",
+        "hostId",
+        hostId,
+        { context: { method: "SessionLobbyManager.deleteLobbyConfig", suggestion: "Only the session host can delete lobby configuration" } }
+      );
     }
     
     return this._lobbyConfig.delete(key);
@@ -76,11 +93,21 @@ export class SessionLobbyManager {
   setParticipantReady(participantId, ready) {
     const participant = this._participantManager.getParticipantById(participantId);
     if (!participant) {
-      throw new Error("Participant not found.");
+      throw ErrorFactory.validation(
+        "Participant not found",
+        "participantId",
+        participantId,
+        { context: { method: "SessionLobbyManager.setParticipantReady", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
     
     if (!this._participantManager.isParticipantPlayable(participant)) {
-      throw new Error("Only playable participants can have ready states.");
+      throw ErrorFactory.validation(
+        "Only playable participants can have ready states",
+        "participantId",
+        participantId,
+        { context: { method: "SessionLobbyManager.setParticipantReady", participantType: participant.type, suggestion: "Only playable participants (not spectators) can set ready states" } }
+      );
     }
     
     this._readyStates.set(participantId, ready === true);
@@ -163,11 +190,21 @@ export class SessionLobbyManager {
    */
   kickParticipant(participantIdToKick, hostId) {
     if (!this._participantManager.isHost(hostId)) {
-      throw new Error("Only the host can kick participants.");
+      throw ErrorFactory.validation(
+        "Only the host can kick participants",
+        "hostId",
+        hostId,
+        { context: { method: "SessionLobbyManager.kickParticipant", suggestion: "Only the session host can kick participants" } }
+      );
     }
     
     if (participantIdToKick === hostId) {
-      throw new Error("Host cannot kick themselves.");
+      throw ErrorFactory.validation(
+        "Host cannot kick themselves",
+        "participantIdToKick",
+        participantIdToKick,
+        { context: { method: "SessionLobbyManager.kickParticipant", hostId, suggestion: "The host cannot kick themselves from the session" } }
+      );
     }
     
     this._participantManager.removeParticipant(participantIdToKick);

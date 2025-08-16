@@ -1,4 +1,9 @@
 import { GameEntity } from "../../../../game-engine/game-entity/game-entity.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../../../game-engine/kubic-kode-error.js";
 
 class MarkEntity extends GameEntity {
   constructor({ type, owner, position }) {
@@ -9,7 +14,11 @@ class MarkEntity extends GameEntity {
   }
 
   get type() {
-    throw new Error("Attempting to access type property on MarkEntity. Use getMarkType() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access type property on MarkEntity. Use getMarkType() instead.",
+      "MarkEntity",
+      { context: { suggestion: "Use getMarkType() method instead", property: "type" } }
+    );
   }
 
   getMarkType() {
@@ -17,7 +26,11 @@ class MarkEntity extends GameEntity {
   }
 
   get owner() {
-    throw new Error("Attempting to access owner property on MarkEntity. Use getOwner() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access owner property on MarkEntity. Use getOwner() instead.",
+      "MarkEntity",
+      { context: { suggestion: "Use getOwner() method instead", property: "owner" } }
+    );
   }
 
   getOwner() {

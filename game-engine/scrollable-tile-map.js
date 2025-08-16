@@ -1,4 +1,9 @@
 import { TileMap } from "./tile-map.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 export class ScrollableTileMap extends TileMap {
   constructor(width, height) {
@@ -7,7 +12,11 @@ export class ScrollableTileMap extends TileMap {
   }
 
   get viewports() {
-    throw new Error("Attempting to access viewports property on ScrollableTileMap. Not allowed, viewports is a protected property.");
+    throw ErrorFactory.system(
+      "Attempting to access viewports property on ScrollableTileMap. Not allowed, viewports is a protected property.",
+      "ScrollableTileMap",
+      { context: { suggestion: "Use getViewport(playerId) method instead", property: "viewports" } }
+    );
   }
 
   /**

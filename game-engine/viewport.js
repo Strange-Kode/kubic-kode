@@ -1,4 +1,9 @@
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 /**
  * Viewport represents a rectangular subset of a TileMap that a player can see.
@@ -41,7 +46,11 @@ export class Viewport {
   }
 
   get x() {
-    throw new Error("Attempting to access x property on Viewport. Not allowed, x is a protected property. Use getX() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access x property on Viewport. Not allowed, x is a protected property. Use getX() instead.",
+      "Viewport",
+      { context: { suggestion: "Use getX() method instead", property: "x" } }
+    );
   }
 
   getX() {
@@ -49,7 +58,11 @@ export class Viewport {
   }
 
   get y() {
-    throw new Error("Attempting to access y property on Viewport. Not allowed, y is a protected property. Use getY() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access y property on Viewport. Not allowed, y is a protected property. Use getY() instead.",
+      "Viewport",
+      { context: { suggestion: "Use getY() method instead", property: "y" } }
+    );
   }
 
   getY() {
@@ -57,7 +70,11 @@ export class Viewport {
   }
 
   get width() {
-    throw new Error("Attempting to access width property on Viewport. Not allowed, width is a protected property. Use getWidth() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access width property on Viewport. Not allowed, width is a protected property. Use getWidth() instead.",
+      "Viewport",
+      { context: { suggestion: "Use getWidth() method instead", property: "width" } }
+    );
   }
 
   getWidth() {
@@ -65,7 +82,11 @@ export class Viewport {
   }
 
   get height() {
-    throw new Error("Attempting to access height property on Viewport. Not allowed, height is a protected property. Use getHeight() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access height property on Viewport. Not allowed, height is a protected property. Use getHeight() instead.",
+      "Viewport",
+      { context: { suggestion: "Use getHeight() method instead", property: "height" } }
+    );
   }
 
   getHeight() {

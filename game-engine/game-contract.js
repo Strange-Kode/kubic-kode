@@ -1,4 +1,10 @@
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicContractError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 // Game Contract - defines what methods game implementations must provide
 export class GameContract {
@@ -97,10 +103,15 @@ export class GameContract {
     }
 
     if (missingMethods.length > 0) {
-      throw new Error(
-        `${className} is missing required methods: ${missingMethods.join(", ")}\n` +
-        `Required methods: ${Array.from(this._requiredMethods).join(", ")}\n` +
-        `Optional methods: ${Array.from(this._optionalMethods).join(", ")}`
+      throw ErrorFactory.contract(
+        `${className} is missing required methods: ${missingMethods.join(", ")}`,
+        "GameContract",
+        className,
+        { context: { 
+          missingMethods, 
+          requiredMethods: Array.from(this._requiredMethods), 
+          optionalMethods: Array.from(this._optionalMethods) 
+        } }
       );
     }
 

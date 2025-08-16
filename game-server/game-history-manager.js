@@ -2,6 +2,12 @@ import { GameHistory } from "./game-history.js";
 import { GameEventService } from "./game-event-service.js";
 
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../game-engine/kubic-kode-error.js";
 
 /**
  * GameHistoryManager is a singleton that manages game history subscriptions
@@ -15,11 +21,19 @@ class GameHistoryManager {
   }
 
   get subscriptions() {
-    throw new Error("Attempting to access subscriptions property on GameHistoryManager. Not allowed, subscriptions is a protected property.");
+    throw ErrorFactory.system(
+      "Attempting to access subscriptions property on GameHistoryManager. Not allowed, subscriptions is a protected property.",
+      "GameHistoryManager",
+      { context: { suggestion: "Use getSubscriptions(sessionId) method instead", property: "subscriptions" } }
+    );
   }
 
   get gameHistories() {
-    throw new Error("Attempting to access gameHistories property on GameHistoryManager. Not allowed, gameHistories is a protected property.");
+    throw ErrorFactory.system(
+      "Attempting to access gameHistories property on GameHistoryManager. Not allowed, gameHistories is a protected property.",
+      "GameHistoryManager",
+      { context: { suggestion: "Use getGameHistory(sessionId) method instead", property: "gameHistories" } }
+    );
   }
 
   /**
@@ -29,7 +43,12 @@ class GameHistoryManager {
    */
   subscribe(sessionId, eventTypes) {
     if (!Array.isArray(eventTypes)) {
-      throw new Error("eventTypes must be an array");
+      throw ErrorFactory.validation(
+        "eventTypes must be an array",
+        "eventTypes",
+        eventTypes,
+        { context: { method: "GameHistoryManager.subscribe", expectedType: "array" } }
+      );
     }
 
     if (!this._subscriptions.has(sessionId)) {
@@ -58,7 +77,12 @@ class GameHistoryManager {
    */
   unsubscribe(sessionId, eventTypes) {
     if (!Array.isArray(eventTypes)) {
-      throw new Error("eventTypes must be an array");
+      throw ErrorFactory.validation(
+        "eventTypes must be an array",
+        "eventTypes",
+        eventTypes,
+        { context: { method: "GameHistoryManager.unsubscribe", expectedType: "array" } }
+      );
     }
 
     if (!this._subscriptions.has(sessionId)) {

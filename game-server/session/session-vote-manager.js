@@ -1,3 +1,10 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../game-engine/kubic-kode-error.js";
+
 export class SessionVoteManager {
   constructor(sessionId) {
     this._sessionId = sessionId;
@@ -27,7 +34,12 @@ export class SessionVoteManager {
    */
   registerRestartVote(participantId, voteYes) {
     if (!this._restartVote) {
-      throw new Error("No active restart vote.");
+      throw ErrorFactory.validation(
+        "No active restart vote",
+        "restartVote",
+        this._restartVote,
+        { context: { method: "SessionVoteManager.registerRestartVote", participantId, suggestion: "Start a restart vote before registering votes" } }
+      );
     }
 
     this._restartVote.votes[participantId] = voteYes;
@@ -62,7 +74,12 @@ export class SessionVoteManager {
    */
   getRestartVoteResult() {
     if (!this.isRestartVoteComplete()) {
-      throw new Error("Vote not complete.");
+      throw ErrorFactory.validation(
+        "Vote not complete",
+        "restartVote",
+        this._restartVote,
+        { context: { method: "SessionVoteManager.getRestartVoteResult", suggestion: "Wait for all participants to vote before getting the result" } }
+      );
     }
     return Object.values(this._restartVote.votes).every((v) => v === true);
   }

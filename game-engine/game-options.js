@@ -1,4 +1,10 @@
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicGameOptionsError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 // GameOptions - manages game options with lifecycle-based modification rules
 export class GameOptions {
@@ -40,7 +46,13 @@ export class GameOptions {
     // Check if this option name exists in any other namespace
     for (const [ns, options] of this._namespaces) {
       if (ns !== "systemspace" && options.has(key)) {
-        throw new Error(`Option "${key}" already exists in namespace "${ns}". System option names must be unique across all namespaces.`);
+        throw ErrorFactory.gameOptions(
+          `Option "${key}" already exists in namespace "${ns}". System option names must be unique across all namespaces.`,
+          key,
+          ns,
+          null,
+          { context: { existingNamespace: ns } }
+        );
       }
     }
     
@@ -51,7 +63,13 @@ export class GameOptions {
   setOption(key, value, namespace = "userspace") {
     const namespaceOptions = this._namespaces.get(namespace);
     if (!namespaceOptions || !namespaceOptions.has(key)) {
-      throw new Error(`Option "${key}" does not exist in namespace "${namespace}". Use addOption() to create it first.`);
+      throw ErrorFactory.gameOptions(
+        `Option "${key}" does not exist in namespace "${namespace}". Use addOption() to create it first.`,
+        key,
+        namespace,
+        value,
+        { context: { availableNamespaces: Array.from(this._namespaces.keys()) } }
+      );
     }
 
     const option = namespaceOptions.get(key);
@@ -59,14 +77,26 @@ export class GameOptions {
     // Check if option is locked based on lifecycle and game state
     if (option.locked) {
       const lockReason = this._getLockReason(option.lifecycle, this._gameState);
-      throw new Error(`Cannot modify option "${key}": ${lockReason}`);
+      throw ErrorFactory.gameOptions(
+        `Cannot modify option "${key}": ${lockReason}`,
+        key,
+        namespace,
+        value,
+        { context: { lifecycle: option.lifecycle, gameState: this._gameState, lockReason } }
+      );
     }
 
     // Validate the new value if a validator exists
     if (option.validator) {
       const validationResult = option.validator(value);
       if (validationResult !== true) {
-        throw new Error(`Invalid value for option "${key}": ${validationResult}`);
+        throw ErrorFactory.gameOptions(
+          `Invalid value for option "${key}": ${validationResult}`,
+          key,
+          namespace,
+          value,
+          { context: { validationResult, validator: option.validator.toString() } }
+        );
       }
     }
 
@@ -84,7 +114,12 @@ export class GameOptions {
     // Validate lifecycle value
     const validLifecycles = ["frozen", "pre-start", "runtime", "between-rounds"];
     if (!validLifecycles.includes(lifecycle)) {
-      throw new Error(`Invalid lifecycle "${lifecycle}". Must be one of: ${validLifecycles.join(", ")}`);
+      throw ErrorFactory.validation(
+        `Invalid lifecycle "${lifecycle}". Must be one of: ${validLifecycles.join(", ")}`,
+        "lifecycle",
+        lifecycle,
+        { context: { validLifecycles, namespace, key } }
+      );
     }
 
     // Ensure namespace exists
@@ -95,7 +130,13 @@ export class GameOptions {
     // Check if option already exists in this namespace
     const namespaceOptions = this._namespaces.get(namespace);
     if (namespaceOptions.has(key)) {
-      throw new Error(`Option "${key}" already exists in namespace "${namespace}"`);
+      throw ErrorFactory.gameOptions(
+        `Option "${key}" already exists in namespace "${namespace}"`,
+        key,
+        namespace,
+        null,
+        { context: { existingValue: namespaceOptions.get(key).currentValue } }
+      );
     }
 
     // System option names must be unique across all namespaces
@@ -103,14 +144,26 @@ export class GameOptions {
       // If adding to systemspace, check no other namespace has this key
       for (const [ns, options] of this._namespaces) {
         if (ns !== "systemspace" && options.has(key)) {
-          throw new Error(`Option "${key}" already exists in namespace "${ns}". System option names must be unique across all namespaces.`);
+          throw ErrorFactory.gameOptions(
+            `Option "${key}" already exists in namespace "${ns}". System option names must be unique across all namespaces.`,
+            key,
+            ns,
+            null,
+            { context: { existingNamespace: ns, targetNamespace: "systemspace" } }
+          );
         }
       }
     } else {
       // If adding to non-system namespace, check if systemspace already has this key
       const systemOptions = this._namespaces.get("systemspace");
       if (systemOptions && systemOptions.has(key)) {
-        throw new Error(`Option "${key}" already exists in systemspace. System option names must be unique across all namespaces. Use this.getGameOptions().readSystemOption("${key}") to access it.`);
+        throw ErrorFactory.gameOptions(
+          `Option "${key}" already exists in systemspace. System option names must be unique across all namespaces. Use this.getGameOptions().readSystemOption("${key}") to access it.`,
+          key,
+          "systemspace",
+          null,
+          { context: { targetNamespace: namespace, suggestion: `this.getGameOptions().readSystemOption("${key}")` } }
+        );
       }
     }
 
@@ -133,9 +186,21 @@ export class GameOptions {
       const suggestions = this._findOptionInOtherNamespaces(key, namespace);
       if (suggestions.length > 0) {
         const suggestionText = suggestions.map(s => `${s.namespace}::${key}`).join(", ");
-        throw new Error(`Option "${key}" not found in namespace "${namespace}". Did you mean: ${suggestionText}?`);
+        throw ErrorFactory.gameOptions(
+          `Option "${key}" not found in namespace "${namespace}". Did you mean: ${suggestionText}?`,
+          key,
+          namespace,
+          null,
+          { context: { suggestions: suggestions.map(s => s.namespace) } }
+        );
       }
-      throw new Error(`Option "${key}" not found in namespace "${namespace}"`);
+      throw ErrorFactory.gameOptions(
+        `Option "${key}" not found in namespace "${namespace}"`,
+        key,
+        namespace,
+        null,
+        { context: { availableNamespaces: Array.from(this._namespaces.keys()) } }
+      );
     }
     return namespaceOptions.get(key);
   }
@@ -165,9 +230,21 @@ export class GameOptions {
         const suggestions = this._findOptionInAllNamespaces(key);
         if (suggestions.length > 0) {
           const suggestionText = suggestions.map(s => `${s.namespace}::${key}`).join(", ");
-          throw new Error(`Option "${key}" not found. Did you mean: ${suggestionText}?`);
+          throw ErrorFactory.gameOptions(
+            `Option "${key}" not found. Did you mean: ${suggestionText}?`,
+            key,
+            null,
+            null,
+            { context: { suggestions: suggestions.map(s => s.namespace) } }
+          );
         }
-        throw new Error(`Option "${key}" not found in any namespace`);
+        throw ErrorFactory.gameOptions(
+          `Option "${key}" not found in any namespace`,
+          key,
+          null,
+          null,
+          { context: { availableNamespaces: Array.from(this._namespaces.keys()) } }
+        );
       }
     }
   }
@@ -203,7 +280,13 @@ export class GameOptions {
   getNamespaceOptions(namespace = "userspace") {
     const namespaceOptions = this._namespaces.get(namespace);
     if (!namespaceOptions) {
-      throw new Error(`Namespace "${namespace}" does not exist`);
+      throw ErrorFactory.gameOptions(
+        `Namespace "${namespace}" does not exist`,
+        null,
+        namespace,
+        null,
+        { context: { availableNamespaces: Array.from(this._namespaces.keys()) } }
+      );
     }
     
     const options = {};
@@ -224,7 +307,12 @@ export class GameOptions {
   setGameState(newState) {
     const validStates = ["pre-start", "started", "round-active", "between-rounds", "ended"];
     if (!validStates.includes(newState)) {
-      throw new Error(`Invalid game state "${newState}". Must be one of: ${validStates.join(", ")}`);
+      throw ErrorFactory.validation(
+        `Invalid game state "${newState}". Must be one of: ${validStates.join(", ")}`,
+        "gameState",
+        newState,
+        { context: { validStates, currentState: this._gameState } }
+      );
     }
 
     const oldState = this._gameState;

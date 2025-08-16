@@ -3,6 +3,13 @@
 // This class handles both competitive games (with win/tie concepts) and non-competitive games
 // (like turn-based scrollable adventure games). Optional properties (playerHasWon, gameIsTied) are set to null
 // for games that don't have those concepts, and are excluded from API responses.
+
+import { 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
+
 export class PlayStatus {
   constructor(options = {}) {
     // Use a Map to store properties for better encapsulation
@@ -28,11 +35,21 @@ export class PlayStatus {
   // Validate that playerId is a valid positive integer
   static _validatePlayerId(playerId) {
     if (playerId === null || playerId === undefined) {
-      throw new Error("PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)");
+      throw ErrorFactory.validation(
+        "PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)",
+        "playerId",
+        playerId,
+        { context: { method: "PlayStatus._validatePlayerId", expectedType: "positive integer" } }
+      );
     }
     
     if (!Number.isInteger(playerId) || playerId <= 0) {
-      throw new Error(`PlayStatus factory methods require a valid positive integer playerId, got: ${playerId} (type: ${typeof playerId})`);
+      throw ErrorFactory.validation(
+        `PlayStatus factory methods require a valid positive integer playerId, got: ${playerId} (type: ${typeof playerId})`,
+        "playerId",
+        playerId,
+        { context: { method: "PlayStatus._validatePlayerId", expectedType: "positive integer", actualType: typeof playerId } }
+      );
     }
   }
 
@@ -41,7 +58,12 @@ export class PlayStatus {
   access(propertyName) {
     if (!this._properties.has(propertyName)) {
       const availableProperties = Array.from(this._properties.keys()).join(", ");
-      throw new Error(`PlayStatus does not have property "${propertyName}". Available properties: ${availableProperties}`);
+      throw ErrorFactory.validation(
+        `PlayStatus does not have property "${propertyName}". Available properties: ${availableProperties}`,
+        "propertyName",
+        propertyName,
+        { context: { availableProperties: Array.from(this._properties.keys()), method: "PlayStatus.access" } }
+      );
     }
     return this._properties.get(propertyName);
   }

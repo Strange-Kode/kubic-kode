@@ -5,6 +5,12 @@ import { SessionChatManager } from "./session-chat-manager.js";
 import { SessionVoteManager } from "./session-vote-manager.js";
 import { SessionConnectionManager } from "./session-connection-manager.js";
 import { SessionHistoryManager } from "./session-history-manager.js";
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../game-engine/kubic-kode-error.js";
 
 export class GameSession {
   /**
@@ -34,47 +40,91 @@ export class GameSession {
 
   // Protected property getters - prevent direct access to protected properties
   get winCounter() {
-    throw new Error("Attempting to access winCounter property on GameSession. Not allowed, winCounter is a protected property. Use getWinCounter() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access winCounter property on GameSession. Not allowed, winCounter is a protected property. Use getWinCounter() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getWinCounter() method instead", property: "winCounter" } }
+    );
   }
 
   get restartCounter() {
-    throw new Error("Attempting to access restartCounter property on GameSession. Not allowed, restartCounter is a protected property. Use getRestartCounter() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access restartCounter property on GameSession. Not allowed, restartCounter is a protected property. Use getRestartCounter() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getRestartCounter() method instead", property: "restartCounter" } }
+    );
   }
 
   get participants() {
-    throw new Error("Attempting to access participants property on GameSession. Not allowed, participants is a protected property. Use getParticipants() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access participants property on GameSession. Not allowed, participants is a protected property. Use getParticipants() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getParticipants() method instead", property: "participants" } }
+    );
   }
 
   get maxParticipants() {
-    throw new Error("Attempting to access maxParticipants property on GameSession. Not allowed, maxParticipants is a protected property. Use getMaxParticipants() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access maxParticipants property on GameSession. Not allowed, maxParticipants is a protected property. Use getMaxParticipants() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getMaxParticipants() method instead", property: "maxParticipants" } }
+    );
   }
 
   get started() {
-    throw new Error("Attempting to access started property on GameSession. Not allowed, started is a protected property. Use isStarted() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access started property on GameSession. Not allowed, started is a protected property. Use isStarted() instead.",
+      "GameSession",
+      { context: { suggestion: "Use isStarted() method instead", property: "started" } }
+    );
   }
 
   get sessionId() {
-    throw new Error("Attempting to access sessionId property on GameSession. Not allowed, sessionId is a protected property. Use getSessionId() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access sessionId property on GameSession. Not allowed, sessionId is a protected property. Use getSessionId() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getSessionId() method instead", property: "sessionId" } }
+    );
   }
 
   get gameVariantId() {
-    throw new Error("Attempting to access gameVariantId property on GameSession. Not allowed, gameVariantId is a protected property. Use getGameVariantId() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access gameVariantId property on GameSession. Not allowed, gameVariantId is a protected property. Use getGameVariantId() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getGameVariantId() method instead", property: "gameVariantId" } }
+    );
   }
 
   get restartVote() {
-    throw new Error("Attempting to access restartVote property on GameSession. Not allowed, restartVote is a protected property. Use getRestartVote() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access restartVote property on GameSession. Not allowed, restartVote is a protected property. Use getRestartVote() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getRestartVote() method instead", property: "restartVote" } }
+    );
   }
 
   get inactivityManager() {
-    throw new Error("Attempting to access inactivityManager property on GameSession. Not allowed, inactivityManager is a protected property. Use getInactivityManager() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access inactivityManager property on GameSession. Not allowed, inactivityManager is a protected property. Use getInactivityManager() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getInactivityManager() method instead", property: "inactivityManager" } }
+    );
   }
 
   get gameHistory() {
-    throw new Error("Attempting to access gameHistory property on GameSession. Not allowed, gameHistory is a protected property. Use getGameHistory() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access gameHistory property on GameSession. Not allowed, gameHistory is a protected property. Use getGameHistory() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getGameHistory() method instead", property: "gameHistory" } }
+    );
   }
 
   get participantTokens() {
-    throw new Error("Attempting to access participantTokens property on GameSession. Not allowed, participantTokens is a private property. Use getAllParticipantTokens() instead.");
+    throw ErrorFactory.system(
+      "Attempting to access participantTokens property on GameSession. Not allowed, participantTokens is a private property. Use getAllParticipantTokens() instead.",
+      "GameSession",
+      { context: { suggestion: "Use getAllParticipantTokens() method instead", property: "participantTokens" } }
+    );
   }
 
   // Manager getters - allow direct access to managers
@@ -152,7 +202,12 @@ export class GameSession {
   removeParticipant(id) {
     const participant = this._participantManager.getParticipantById(id);
     if (!participant) {
-      throw new Error("Participant not found.");
+      throw ErrorFactory.validation(
+        "Participant not found",
+        "participantId",
+        id,
+        { context: { method: "GameSession.removeParticipant", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
 
     this._lobbyManager.removeReadyState(id);
@@ -166,7 +221,17 @@ export class GameSession {
     // Count only playable participants for game start requirement
     const playableParticipants = this._participantManager.getPlayableParticipants();
     if (playableParticipants.length < 2) {
-      throw new Error("Cannot start game. Not enough players (need at least 2 playable participants).");
+      throw ErrorFactory.validation(
+        "Cannot start game. Not enough players (need at least 2 playable participants)",
+        "playableParticipants",
+        playableParticipants,
+        { context: { 
+          method: "GameSession.markStarted", 
+          currentCount: playableParticipants.length,
+          requiredCount: 2,
+          suggestion: "Add more playable participants before starting the game"
+        } }
+      );
     }
 
     if (this._inactivityManager) {

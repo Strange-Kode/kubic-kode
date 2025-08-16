@@ -2,6 +2,12 @@ import { TileMap } from "./tile-map.js";
 import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 import { GameStateMachine } from "./game-state-machine.js";
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicGameError, 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
@@ -139,7 +145,12 @@ export class GameEngine {
   getPlayerEntity(playerId) {
     const playerEntity = this._player_entities.find(e => e.getPlayerId() === playerId);
     if (!playerEntity) {
-      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(", ")}.`);
+      throw ErrorFactory.game(
+        `Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(", ")}.`,
+        "GameEngine",
+        playerId,
+        { context: { registeredPlayers: this._player_entities.map(e => e.getPlayerId()) } }
+      );
     }
     return playerEntity;
   }
@@ -150,11 +161,21 @@ export class GameEngine {
    */
   startGame() {
     if (this._gameStarted === true) {
-      throw new Error(`Game is already started.`);
+      throw ErrorFactory.game(
+        `Game is already started.`,
+        "GameEngine",
+        null,
+        { context: { currentState: "started", playStyle: this._playStyle } }
+      );
     }
 
     if (this._player_entities.length === 0) {
-      throw new Error(`No player entities registered.`);
+      throw ErrorFactory.game(
+        `No player entities registered.`,
+        "GameEngine",
+        null,
+        { context: { playStyle: this._playStyle, turnOrder: this._turnOrder } }
+      );
     }
     this._gameStarted = true;
   }
@@ -173,7 +194,12 @@ export class GameEngine {
    */
   stopGame() {
     if (this._gameStarted === false) {
-      throw new Error(`Game is already stopped.`);
+      throw ErrorFactory.game(
+        `Game is already stopped.`,
+        "GameEngine",
+        null,
+        { context: { currentState: "stopped", playStyle: this._playStyle } }
+      );
     }
     this._gameStarted = false;
     this._currentTurnIndex = 0;
@@ -390,15 +416,27 @@ export class GameEngine {
     const componentName = componentFunc.componentName;
 
     if (!componentName) {
-      throw new Error("Component function missing static componentName property.");
+      throw ErrorFactory.system(
+        "Component function missing static componentName property.",
+        "GameEngine",
+        { context: { componentFunc: componentFunc.toString(), availableProperties: Object.getOwnPropertyNames(componentFunc) } }
+      );
     }
 
     if (this._registeredComponents.has(componentFunc)) {
-      throw new Error(`Component function already registered as "${componentName}".`);
+      throw ErrorFactory.system(
+        `Component function already registered as "${componentName}".`,
+        "GameEngine",
+        { context: { componentName, existingComponent: this._registeredComponents.get(componentFunc) } }
+      );
     }
 
     if (this._componentNames.has(componentName)) {
-      throw new Error(`Component name "${componentName}" is already registered.`);
+      throw ErrorFactory.system(
+        `Component name "${componentName}" is already registered.`,
+        "GameEngine",
+        { context: { componentName, registeredComponents: Array.from(this._componentNames) } }
+      );
     }
 
     this._registeredComponents.set(componentFunc, componentName);
@@ -416,11 +454,19 @@ export class GameEngine {
     const componentName = this._registeredComponents.get(componentFunc);
 
     if (!componentName) {
-      throw new Error(`Component function not registered.`);
+      throw ErrorFactory.system(
+        `Component function not registered.`,
+        "GameEngine",
+        { context: { componentFunc: componentFunc.toString(), registeredComponents: Array.from(this._registeredComponents.values()) } }
+      );
     }
 
     if (entity[componentName]) {
-      throw new Error(`Entity already has component "${componentName}".`);
+      throw ErrorFactory.system(
+        `Entity already has component "${componentName}".`,
+        "GameEngine",
+        { context: { componentName, entityId: entity.getPlayerId?.() || entity.id, existingComponents: Object.keys(entity) } }
+      );
     }
 
     componentFunc(entity, ...args);

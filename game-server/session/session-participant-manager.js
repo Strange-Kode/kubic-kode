@@ -1,3 +1,10 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../game-engine/kubic-kode-error.js";
+
 export class SessionParticipantManager {
   constructor(sessionId) {
     this._sessionId = sessionId;
@@ -34,30 +41,54 @@ export class SessionParticipantManager {
     // Validate unique names within session
     const existingName = this._participants.find(p => p.name === name);
     if (existingName) {
-      throw new Error(`Participant name "${name}" is already in use. Names must be unique within the session.`);
+      throw ErrorFactory.validation(
+        `Participant name "${name}" is already in use. Names must be unique within the session.`,
+        "name",
+        name,
+        { context: { method: "SessionParticipantManager.addParticipant", suggestion: "Choose a different name for the participant" } }
+      );
     }
 
     // Only count playable participants (user, computer) against maxParticipants limit
     // Spectators can join even when the game is "full"
     const playableParticipants = this._participants.filter(p => this.isParticipantPlayable(p));
     if (participant_type !== "spectator" && playableParticipants.length >= maxParticipants) {
-      throw new Error("Game session is full.");
+      throw ErrorFactory.validation(
+        "Game session is full",
+        "maxParticipants",
+        maxParticipants,
+        { context: { method: "SessionParticipantManager.addParticipant", currentCount: playableParticipants.length, participantType: participant_type, suggestion: "Join as spectator or wait for a slot to open" } }
+      );
     }
 
     if (started && participant_type !== "spectator") {
-      throw new Error("Cannot join. Game session has already started.");
+      throw ErrorFactory.validation(
+        "Cannot join. Game session has already started",
+        "started",
+        started,
+        { context: { method: "SessionParticipantManager.addParticipant", participantType: participant_type, suggestion: "Join as spectator or wait for the next game" } }
+      );
     }
 
     // Validate participant type
     if (!["user", "computer", "spectator"].includes(participant_type)) {
-      throw new Error(`Invalid participant type specified: ${participant_type}. Expected: "user", "computer", or "spectator"`);
+      throw ErrorFactory.validation(
+        `Invalid participant type specified: ${participant_type}`,
+        "participant_type",
+        participant_type,
+        { context: { method: "SessionParticipantManager.addParticipant", validTypes: ["user", "computer", "spectator"], suggestion: "Use one of the valid participant types: user, computer, or spectator" } }
+      );
     }
 
     const participantId = this.allocateParticipantId();
 
     const existing = this._participants.find((p) => p.id === participantId);
     if (existing) {
-      throw new Error("Participant with this ID already exists.");
+      throw ErrorFactory.system(
+        "Participant with this ID already exists",
+        "SessionParticipantManager",
+        { context: { method: "addParticipant", participantId, suggestion: "This is an internal error - participant ID allocation conflict" } }
+      );
     }
 
     const participant = {
@@ -105,7 +136,12 @@ export class SessionParticipantManager {
     const index = this._participants.findIndex((p) => p.id === id);
 
     if (index === -1) {
-      throw new Error("Participant not found.");
+      throw ErrorFactory.validation(
+        "Participant not found",
+        "participantId",
+        id,
+        { context: { method: "SessionParticipantManager.removeParticipant", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
 
     const participant = this._participants[index];
@@ -209,11 +245,21 @@ export class SessionParticipantManager {
   setHost(participantId, participantName) {
     const participant = this.getParticipantById(participantId);
     if (!participant) {
-      throw new Error("Cannot set host: participant not found.");
+      throw ErrorFactory.validation(
+        "Cannot set host: participant not found",
+        "participantId",
+        participantId,
+        { context: { method: "SessionParticipantManager.setHost", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
     
     if (!this.isParticipantPlayable(participant)) {
-      throw new Error("Cannot set host: only playable participants can be host.");
+      throw ErrorFactory.validation(
+        "Cannot set host: only playable participants can be host",
+        "participantId",
+        participantId,
+        { context: { method: "SessionParticipantManager.setHost", participantType: participant.type, suggestion: "Only playable participants (user or computer) can be host" } }
+      );
     }
 
     this._hostId = participantId;
@@ -256,11 +302,21 @@ export class SessionParticipantManager {
   transferHost(newHostId) {
     const newHost = this.getParticipantById(newHostId);
     if (!newHost) {
-      throw new Error("Cannot transfer host: new host participant not found.");
+      throw ErrorFactory.validation(
+        "Cannot transfer host: new host participant not found",
+        "newHostId",
+        newHostId,
+        { context: { method: "SessionParticipantManager.transferHost", suggestion: "Check if the participant ID is correct and the participant exists" } }
+      );
     }
     
-    if (!this.isParticipantPlayable(newHost)) {
-      throw new Error("Cannot transfer host: only playable participants can be host.");
+        if (!this.isParticipantPlayable(newHost)) {
+      throw ErrorFactory.validation(
+        "Cannot transfer host: only playable participants can be host",
+        "newHostId",
+        newHostId,
+        { context: { method: "SessionParticipantManager.transferHost", participantType: newHost.type, suggestion: "Only playable participants (user or computer) can be host" } }
+      );
     }
 
     this.setHost(newHostId, newHost.name);

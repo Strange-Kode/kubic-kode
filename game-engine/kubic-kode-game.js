@@ -5,6 +5,12 @@ import { PlayStatus } from "./play-status.js";
 import { shuffleArray } from "../game-utility/game-utility.js";
 
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicGameError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 // KubicKodeGame is a class that acts as a proxy for the game instance and game session.
 // It delegates method calls to the game instance and records the game history.
@@ -22,7 +28,11 @@ class KubicKodeGame extends GameInterface {
     // Validate that the game instance implements the required contract
     const validation = gameContract.validateGameInstance(gameInstance, gameInstance.constructor.name);
     if (!validation.valid) {
-      throw new Error(`Game instance validation failed: ${validation.error}`);
+      throw ErrorFactory.system(
+        `Game instance validation failed: ${validation.error}`,
+        "GameContract",
+        { context: { gameInstanceType: gameInstance.constructor.name, validationDetails: validation } }
+      );
     }
 
     // Bind wrapper methods to the game instance so they can be called from within the game
@@ -48,7 +58,11 @@ class KubicKodeGame extends GameInterface {
         }
 
         // Otherwise, throw error
-        throw new Error(`Method ${prop} not found`);
+        throw ErrorFactory.system(
+          `Method ${prop} not found`,
+          "KubicKodeGame",
+          { context: { requestedMethod: prop, availableMethods: Object.getOwnPropertyNames(target) } }
+        );
       },
     });
 
@@ -62,19 +76,35 @@ class KubicKodeGame extends GameInterface {
   }
 
   get gameInstance() {
-    throw new Error("Attempting to access gameInstance property on KubicKodeGame. Not allowed, gameInstance is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access gameInstance property on KubicKodeGame. Not allowed, gameInstance is a private property.",
+      "KubicKodeGame",
+      { context: { suggestion: "Use getGameInstance() method instead" } }
+    );
   }
 
   get gameSession() {
-    throw new Error("Attempting to access gameSession property on KubicKodeGame. Not allowed, gameSession is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access gameSession property on KubicKodeGame. Not allowed, gameSession is a private property.",
+      "KubicKodeGame",
+      { context: { suggestion: "Use getGameSession() method instead" } }
+    );
   }
 
   get gameOptions() {
-    throw new Error("Attempting to access gameOptions property on KubicKodeGame. Not allowed, gameOptions is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access gameOptions property on KubicKodeGame. Not allowed, gameOptions is a private property.",
+      "KubicKodeGame",
+      { context: { suggestion: "Use getGameOptions() method instead" } }
+    );
   }
 
   get playerMappings() {
-    throw new Error("Attempting to access playerMappings property on KubicKodeGame. Not allowed, playerMappings is a private property.");
+    throw ErrorFactory.system(
+      "Attempting to access playerMappings property on KubicKodeGame. Not allowed, playerMappings is a private property.",
+      "KubicKodeGame",
+      { context: { suggestion: "Use getPlayerMappings() method instead" } }
+    );
   }
 
   // Proxy methods
@@ -215,7 +245,12 @@ class KubicKodeGame extends GameInterface {
   startGame() {
     let requiredPlayers = this.requiredPlayers();
     if (this.__gameInstance.getGameEngine().getPlayerEntities().length < requiredPlayers) {
-      throw new Error(`At least ${requiredPlayers} players are required to start the game.`);
+      throw ErrorFactory.game(
+        `At least ${requiredPlayers} players are required to start the game.`,
+        this.__gameInstance.constructor.name,
+        null,
+        { context: { currentPlayers: this.__gameInstance.getGameEngine().getPlayerEntities().length, requiredPlayers } }
+      );
     }
 
     // Transition game options to "started" state - this locks pre-start options
