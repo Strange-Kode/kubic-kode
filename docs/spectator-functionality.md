@@ -17,11 +17,13 @@ Spectators are session participants with type `"spectator"` who:
 ### Participant Types
 
 The system now supports three participant types:
+
 - `"user"` - Regular human participant
 - `"computer"` - AI participant
 - `"spectator"` - Observer (new)
 
 Each participant's playability is determined by the `isParticipantPlayable()` method:
+
 - Returns `true` for "user" and "computer" types
 - Returns `false` for "spectator" type
 

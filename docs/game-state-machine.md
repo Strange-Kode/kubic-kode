@@ -33,6 +33,7 @@ The setup script (`node game-script/setup-game.js`) will automatically recommend
 ## Core GSM Classes
 
 ### GameState
+
 ```javascript
 import { GameState } from "kubic-kode";
 
@@ -60,6 +61,7 @@ class MenuState extends GameState {
 ```
 
 ### StateTransition
+
 ```javascript
 import { StateTransition } from "kubic-kode";
 
@@ -276,6 +278,7 @@ class TicTacToeGSMGame {
 ### GameStateMachine Methods
 
 #### Core State Management
+
 - `addState(state)` - Register a new state
 - `getState(stateName)` - Get a state by name
 - `getAllStates()` - Get all registered states
@@ -285,12 +288,14 @@ class TicTacToeGSMGame {
 - `transitionTo(stateName, data)` - Transition to new state
 
 #### Transitions
+
 - `addTransition(transition)` - Add a state transition
 - `addSimpleTransition(from, to, condition, options)` - Add transition (convenience method)
 - `triggerTransition(toState, context)` - Manually trigger transition
 - `checkAutomaticTransitions(context)` - Check/execute automatic transitions
 
 #### State Machine Control
+
 - `update(deltaTime)` - Update state machine (call every frame)
 - `pause()` - Pause the state machine
 - `resume()` - Resume the state machine
@@ -298,10 +303,12 @@ class TicTacToeGSMGame {
 - `reset()` - Reset state machine
 
 #### Event and Action Handling
+
 - `handleEvent(eventType, eventData)` - Handle game events
 - `handlePlayerAction(playerId, action, data)` - Handle player actions
 
 #### Data Management
+
 - `setGlobalData(key, value)` - Set global shared data
 - `getGlobalData(key)` - Get global data
 - `getAllGlobalData()` - Get all global data
@@ -311,6 +318,7 @@ class TicTacToeGSMGame {
 ### GameState Methods
 
 #### Lifecycle Methods (Override in subclasses)
+
 - `onEnter(fromState, data)` - Called when entering state
 - `onExit(toState, data)` - Called when exiting state
 - `update(deltaTime)` - Called each frame while active
@@ -318,6 +326,7 @@ class TicTacToeGSMGame {
 - `handlePlayerAction(playerId, action, data)` - Handle player actions
 
 #### Utility Methods
+
 - `getName()` - Get state name
 - `getStateMachine()` - Get parent state machine
 - `isActive()` - Check if state is currently active
@@ -325,11 +334,13 @@ class TicTacToeGSMGame {
 ### StateTransition
 
 #### Constructor
+
 ```javascript
 new StateTransition(fromState, toState, condition, options)
 ```
 
 #### Options
+
 - `priority` - Transition priority (higher = checked first)
 - `data` - Data to pass during transition
 - `automatic` - Whether transition happens automatically when condition is met
@@ -359,21 +370,25 @@ Choose GSM when your game needs structured state management; use procedural code
 ## Best Practices
 
 ### State Design
+
 - Keep states focused on a single responsibility
 - Use descriptive state names (`"main_menu"`, `"gameplay"`, `"paused"`)
 - Implement proper cleanup in `onExit()` methods
 
 ### Transitions
+
 - Use automatic transitions for predictable state changes
 - Use manual transitions for user-triggered actions
 - Set appropriate priorities for overlapping transition conditions
 
 ### Data Management
+
 - Use global data for information needed across multiple states
 - Keep state-specific data within the state class
 - Use transition data for temporary information during state changes
 
 ### Error Handling
+
 - Always check if GSM is enabled before using state machine methods
 - Handle cases where transitions might fail
 - Implement fallback behaviors for unexpected states
