@@ -143,7 +143,7 @@ class TicTacToeGame {
     );
     console.log(`[TicTacToeGame] Current player:`, currentPlayer);
 
-    if (this._engine.getTileMap().getTile(x, y)) {
+    if (this._engine.getTileMap().isTileOccupied(x, y)) {
       console.log("Tile already occupied.");
       return PlayStatus.invalid(playerId, "Tile already occupied", {
         type: "occupied_tile"

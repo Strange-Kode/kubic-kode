@@ -7,7 +7,7 @@
  * Basic Minimax Algorithm for Tic-Tac-Toe
  * 
  * This is a straightforward implementation without optimizations.
- * For tic-tac-toe's small game tree (~9! = 362,880 possible games),
+ * For tic-tac-toe's (3x3) small game tree (~9! = 362,880 possible games),
  * this unoptimized version is sufficient and clear.
  * 
  * @param {Object} gameState - Current state of the game
@@ -170,9 +170,9 @@ export function minimaxTicTacToe(tileMap, computerMark, humanMark, maxDepth = 9)
    */
   function tileMapToBoard(tileMap) {
     const board = [];
-    for (let y = 0; y < tileMap.height; y++) {
+    for (let y = 0; y < tileMap.getHeight(); y++) {
       board[y] = [];
-      for (let x = 0; x < tileMap.width; x++) {
+      for (let x = 0; x < tileMap.getWidth(); x++) {
         board[y][x] = tileMap.getTile(x, y);
       }
     }
