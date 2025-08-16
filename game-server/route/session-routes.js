@@ -4,7 +4,7 @@ import { GameEventService } from "../game-event-service.js";
 import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
 import { kubicLog } from "../../kubic-log.js";
 
-import { serializeRecursively, validateSession } from "../../game-utility/game-utility.js";
+import { serializeRecursively, validateSession, validateParticipant, validatePlayableParticipant } from "../../game-utility/game-utility.js";
 
 const sessionRouter = express.Router();
 
@@ -207,19 +207,10 @@ sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMid
   }
 });
 
-sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMiddleware, validatePlayableParticipant(sessionManager), (req, res) => {
   const { participantId, voteYes } = req.body;
   const gameSession = req.gameSession;
-
-  // Validate that the participant exists and is playable
-  const participant = gameSession.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
-
-  if (!gameSession.isParticipantPlayable(participant)) {
-    return res.status(400).json({ error: "Only playable participants (users and computers) can vote on restart. Spectators cannot vote." });
-  }
+  const participant = req.participant;
 
   try {
     gameSession.getVoteManager().registerRestartVote(participantId, voteYes === true);
@@ -758,28 +749,15 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
 });
 
 // Set participant ready state
-sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, validatePlayableParticipant(sessionManager), (req, res) => {
   const { participantId, ready } = req.body;
-
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required." });
-  }
 
   if (typeof ready !== "boolean") {
     return res.status(400).json({ error: "ready must be a boolean value." });
   }
 
   const session = req.gameSession;
-
-  // Validate that the participant exists and is playable
-  const participant = session.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
-
-  if (!session.isParticipantPlayable(participant)) {
-    return res.status(400).json({ error: "Only playable participants (users and computers) can set ready states. Spectators cannot set ready states." });
-  }
+  const participant = req.participant;
 
   try {
     session.getLobbyManager().setParticipantReady(participantId, ready);
@@ -962,12 +940,8 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
 // -------------------------
 
 // Send chat message
-sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
   const { participantId, message } = req.body;
-
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required." });
-  }
 
   if (!message || typeof message !== "string" || message.trim().length === 0) {
     return res.status(400).json({ error: "message is required and must be a non-empty string." });
@@ -980,10 +954,7 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, (req, 
   const session = req.gameSession;
 
   try {
-    const participant = session.getParticipantById(participantId);
-    if (!participant) {
-      return res.status(404).json({ error: "Participant not found in session." });
-    }
+    const participant = req.participant;
 
     // Determine message type based on participant
     const messageType = session.getParticipantManager().isHost(participantId) ? "host" : "user";
@@ -1108,19 +1079,12 @@ sessionRouter.post("/sessions/cleanup", (req, res) => {
 });
 
 // Heartbeat endpoint for clients to confirm they're still alive
-sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
   const { participantId } = req.body;
   const session = req.gameSession;
   
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required." });
-  }
-  
   try {
-    const participant = session.getParticipantById(participantId);
-    if (!participant) {
-      return res.status(404).json({ error: "Participant not found in session." });
-    }
+    const participant = req.participant;
     
     // Update participant connection status
     session.updateParticipantConnection(participantId, true);
@@ -1137,19 +1101,12 @@ sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, (
 });
 
 // Force disconnect a participant (admin function)
-sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
   const { participantId, reason = "Admin disconnect" } = req.body;
   const session = req.gameSession;
   
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required." });
-  }
-  
   try {
-    const participant = session.getParticipantById(participantId);
-    if (!participant) {
-      return res.status(404).json({ error: "Participant not found in session." });
-    }
+    const participant = req.participant;
     
     // Mark participant as disconnected
     session.handleParticipantDisconnection(participantId);

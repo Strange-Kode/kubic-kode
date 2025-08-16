@@ -123,6 +123,106 @@ export function checkPlayableAccess(sessionManager) {
 }
 
 /**
+ * Express middleware to validate that a participant exists in the session
+ * @param {Object} sessionManager - The session manager instance
+ * @returns {Function} Express middleware function
+ */
+export function validateParticipant(sessionManager) {
+  return (req, res, next) => {
+    const { sessionId } = req.params;
+    const { participantId } = req.body;
+
+    if (!participantId) {
+      return res.status(400).json({ 
+        error: true,
+        message: "participantId is required",
+        code: "MISSING_PARTICIPANT_ID"
+      });
+    }
+
+    const gameSession = sessionManager.getSession(sessionId);
+    if (!gameSession) {
+      return res.status(400).json({ 
+        error: true,
+        message: "Game session not found",
+        session_id: sessionId,
+        code: "SESSION_NOT_FOUND"
+      });
+    }
+
+    const participant = gameSession.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(400).json({ 
+        error: true,
+        message: "Participant not found in session",
+        participant_id: participantId,
+        session_id: sessionId,
+        code: "PARTICIPANT_NOT_FOUND"
+      });
+    }
+
+    // Attach participant to request for use in route handlers
+    req.participant = participant;
+    next();
+  };
+}
+
+/**
+ * Express middleware to validate that a participant exists and is playable
+ * @param {Object} sessionManager - The session manager instance
+ * @returns {Function} Express middleware function
+ */
+export function validatePlayableParticipant(sessionManager) {
+  return (req, res, next) => {
+    const { sessionId } = req.params;
+    const { participantId } = req.body;
+
+    if (!participantId) {
+      return res.status(400).json({ 
+        error: true,
+        message: "participantId is required",
+        code: "MISSING_PARTICIPANT_ID"
+      });
+    }
+
+    const gameSession = sessionManager.getSession(sessionId);
+    if (!gameSession) {
+      return res.status(400).json({ 
+        error: true,
+        message: "Game session not found",
+        session_id: sessionId,
+        code: "SESSION_NOT_FOUND"
+      });
+    }
+
+    const participant = gameSession.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(400).json({ 
+        error: true,
+        message: "Participant not found in session",
+        participant_id: participantId,
+        session_id: sessionId,
+        code: "PARTICIPANT_NOT_FOUND"
+      });
+    }
+
+    if (!gameSession.isParticipantPlayable(participant)) {
+      return res.status(403).json({ 
+        error: true,
+        message: "This participant cannot perform game actions",
+        participant_id: participantId,
+        participant_type: participant.type,
+        code: "PARTICIPANT_NOT_PLAYABLE"
+      });
+    }
+
+    // Attach participant to request for use in route handlers
+    req.participant = participant;
+    next();
+  };
+}
+
+/**
  * Utility function to shuffle an array using Fisher-Yates algorithm
  * @param {Array} array - The array to shuffle
  * @returns {Array} A new shuffled array

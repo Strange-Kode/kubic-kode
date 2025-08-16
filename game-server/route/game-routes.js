@@ -18,7 +18,7 @@ import { kubicLog } from "../../kubic-log.js";
 
 const gameRouter = express.Router();
 
-import { serializeRecursively, checkPlayableAccess, validateSession } from "../../game-utility/game-utility.js";
+import { serializeRecursively, checkPlayableAccess, validateSession, validatePlayableParticipant } from "../../game-utility/game-utility.js";
 import { validateGameTokenWithParticipant } from "../game-token-middleware.js";
 
 // Create middleware instances with session manager
@@ -292,23 +292,10 @@ gameRouter.post("/game/:sessionId/start", validateGameTokenWithParticipant(sessi
   res.json(result);
 });
 
-gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessionManager), validatePlayableParticipant(sessionManager), (req, res) => {
   const { participantId } = req.query;
   const gameSession = req.gameSession;
-
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required" });
-  }
-
-  // Check if participant is playable
-  const participant = gameSession.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
-
-  if (!gameSession.isParticipantPlayable(participant)) {
-    return res.status(403).json({ error: "This participant cannot stop games." });
-  }
+  const participant = req.participant;
 
   const gameInstance = gameSession.getGameInstance();
 
@@ -388,7 +375,7 @@ gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipant
 });
 
 // Generic play turn endpoint for all games
-gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(sessionManager), checkPlayableAccessMiddleware, (req, res) => {
+gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(sessionManager), validatePlayableParticipant(sessionManager), (req, res) => {
   const { sessionId } = req.params;
   const { participantId, ...moveData } = req.body;
 
@@ -399,10 +386,7 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
   
   // Validate that the participant is the current player
-  const participant = gameSession.getParticipantById(participantId);
-  if (!participant) {
-    return res.status(404).json({ error: "Participant not found." });
-  }
+  const participant = req.participant;
   
   // Find the player that corresponds to this participant
   const playerMappings = gameInstance.getPlayerMappings();

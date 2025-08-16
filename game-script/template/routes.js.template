@@ -30,7 +30,7 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 {{INDENT}}// Validate that the participant exists
 {{INDENT}}const participant = gameSession.getParticipantById(participantId);
 {{INDENT}}if (!participant) {
-{{INDENT}}{{INDENT}}return res.status(404).json({ error: "Participant not found." });
+{{INDENT}}{{INDENT}}return res.status(400).json({ error: "Participant not found in session." });
 {{INDENT}}}
 {{INDENT}}
 {{INDENT}}// Find the player that corresponds to this participant
