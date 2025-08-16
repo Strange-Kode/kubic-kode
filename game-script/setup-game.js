@@ -11,6 +11,7 @@ import readline from "readline";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -135,6 +136,11 @@ class GameSetupWizard {
   // Convert to kebab-case (spaces become hyphens, lowercase)
   toKebabCase(str) {
     return str.trim().replace(/\s+/g, "-").toLowerCase();
+  }
+
+  // Generate a secure random token for game authentication
+  generateSecureToken() {
+    return crypto.randomBytes(32).toString('hex');
   }
 
   // Check for file conflicts
@@ -416,6 +422,9 @@ class GameSetupWizard {
     this._config.SUPPORTS_SPECTATORS = await this.askYesNo("Should the game support spectators?");
     this._config.HAS_DATABASE = await this.askYesNo("Will your game need database integration?");
     this._config.HAS_EXTERNAL_API = await this.askYesNo("Will your game need external API integration?");
+    
+    // Generate secure token for game authentication
+    this._config.GAME_TOKEN_SECRET_KEY = this.generateSecureToken();
     
     return this._config;
   }

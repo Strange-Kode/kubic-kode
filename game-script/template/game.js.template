@@ -190,12 +190,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Player wins!"
 {{INDENT}}{{INDENT}}{{INDENT}}});
 {{INDENT}}{{INDENT}}}
-
-{{INDENT}}{{INDENT}}// Advance turn for single-set games
-{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}{{INDENT}}this._engine.advanceTurn();
-{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
-
+{{NEWLINE}}
 {{INDENT}}{{INDENT}}return PlayStatus.success(playerId, {
 {{INDENT}}{{INDENT}}{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}{{INDENT}}{{INDENT}}message: "Piece placed successfully"
@@ -219,7 +214,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{#HAS_INACTIVITY}}
 {{INDENT}}getInactivityTimeout() {
 {{INDENT}}{{INDENT}}// Return timeout in milliseconds (e.g., 30000 for 30 seconds)
-{{INDENT}}{{INDENT}}return 30000;
+{{INDENT}}{{INDENT}}return 30_000;
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}handleInactivity(playerId = null, player = null) {
@@ -233,11 +228,6 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}player = currentPlayer;
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}console.log(`Player ${playerId} is inactive`);
-{{INDENT}}{{INDENT}}
-{{INDENT}}{{INDENT}}// Example: Skip turn for single-set games
-{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}{{INDENT}}this._engine.nextTurn();
-{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}return PlayStatus.success(playerId, {
 {{INDENT}}{{INDENT}}{{INDENT}}message: "Player skipped due to inactivity",
