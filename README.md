@@ -279,7 +279,7 @@ Here's how to set up both userspace and systemspace options in your game:
 initializeGameOptions() {
   // Userspace options (default namespace) - game-specific settings
   this.getGameOptions().addOption("gridSize", 3, "pre-start");
-  this.getGameOptions().addOption("difficulty", "medium", "pre-start");
+  this.getGameOptions().addOption("difficulty", "medium", "pre-start"); // Options: very_easy, easy, medium, hard
   this.getGameOptions().addOption("soundEnabled", true, "runtime");
   this.getGameOptions().addOption("timeLimit", 30, "between-rounds");
 
@@ -582,7 +582,7 @@ Example game options definition:
 ```javascript
 // Lifecycle-based options (recommended)
 this.getGameOptions().addOption("gridSize", 3, "frozen");                    // Never changeable
-this.getGameOptions().addOption("difficulty", "medium", "pre-start");        // Only before game starts
+this.getGameOptions().addOption("difficulty", "medium", "pre-start");        // Options: very_easy, easy, medium, hard
 this.getGameOptions().addOption("soundEnabled", true, "runtime");            // Changeable anytime
 this.getGameOptions().addOption("timeLimit", 30, "between-rounds");          // Only between rounds
 

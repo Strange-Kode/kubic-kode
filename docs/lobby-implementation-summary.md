@@ -176,7 +176,7 @@ All endpoints follow consistent snake_case JSON format:
     },
     "lobbyConfig": {
       "gridSize": 5,
-      "difficulty": "medium",
+      "difficulty": "medium", // Options: very_easy, easy, medium, hard
       "timeLimit": 300
     },
     "readyStates": {

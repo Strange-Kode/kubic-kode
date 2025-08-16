@@ -61,7 +61,7 @@ class TicTacToeGame {
     
     // Add difficulty configuration for AI behavior
     this.getGameOptions().addOption("difficulty", "medium", "pre-start", (value) => {
-      const validDifficulties = ["easy", "medium", "hard"];
+      const validDifficulties = ["very_easy", "easy", "medium", "hard"];
       if (!validDifficulties.includes(value)) {
         return `Difficulty must be one of: ${validDifficulties.join(", ")}`;
       }
@@ -274,12 +274,17 @@ class TicTacToeGame {
 
     // Random chances applies to "dumb" heuristic moves (no smart mode)
     const randomChances = {
+      very_easy: 0.0, // No randomness for very_easy - always play worst move
       easy: 0.35,
       medium: 0.23,
       hard: 0.2,
     }
     // Determine move strategy based on difficulty
     switch (difficulty) {
+      case "very_easy":
+        // Very Easy: Play the worst possible move to favor the human player
+        return this._convertMoveToTurnData(this._getVeryEasyMove(tileMap, computerMark, humanMark, emptyTiles));
+        
       case "easy":
         // Easy: Always use heuristics (current blocking logic)
         return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, false, randomChances.easy));
@@ -330,6 +335,40 @@ class TicTacToeGame {
       console.error("Error in minimax calculation:", error);
       return null; // Fallback to heuristics
     }
+  }
+
+  /**
+   * Get the worst possible move to favor the human player
+   * This AI plays as if its goal is to make the human win
+   * @param {Object} tileMap - The game tile map
+   * @param {string} computerMark - Computer's mark type
+   * @param {string} humanMark - Human's mark type  
+   * @param {Array} emptyTiles - Array of empty tile positions
+   */
+  _getVeryEasyMove(tileMap, computerMark, humanMark, emptyTiles) {
+    // The very_easy AI should NEVER block the human's winning moves
+    // It should only play moves that don't interfere with human's strategy
+    
+    // First priority: Play in the worst strategic positions (edges, avoid center and corners)
+    const worstStrategicMove = this._findWorstStrategicMove(tileMap, emptyTiles);
+    if (worstStrategicMove) {
+      return worstStrategicMove;
+    }
+
+    // Second priority: Play in corners (still not great, but better than center)
+    const cornerMove = this._findCornerMove(tileMap, emptyTiles);
+    if (cornerMove) {
+      return cornerMove;
+    }
+
+    // Third priority: Play in center (worst possible move strategically)
+    const centerMove = this._findCenterMove(tileMap, emptyTiles);
+    if (centerMove) {
+      return centerMove;
+    }
+
+    // Fallback: random move from remaining empty tiles
+    return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
   }
 
   /**
@@ -421,6 +460,62 @@ class TicTacToeGame {
     }
 
     return null;
+  }
+
+  /**
+   * Find the worst strategic move (prioritizes edges over center and corners)
+   */
+  _findWorstStrategicMove(tileMap, emptyTiles) {
+    // Define edges (worst strategic positions)
+    const edgePositions = [
+      { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 2 }
+    ];
+
+    // Find the first available edge position
+    for (const position of edgePositions) {
+      const isAvailable = emptyTiles.some(tile => 
+        tile.x === position.x && tile.y === position.y
+      );
+      if (isAvailable) {
+        return position;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find a corner move (better than center but worse than edges for very_easy)
+   */
+  _findCornerMove(tileMap, emptyTiles) {
+    const cornerPositions = [
+      { x: 0, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 2 }, { x: 2, y: 2 }
+    ];
+
+    // Find the first available corner position
+    for (const position of cornerPositions) {
+      const isAvailable = emptyTiles.some(tile => 
+        tile.x === position.x && tile.y === position.y
+      );
+      if (isAvailable) {
+        return position;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find center move (worst possible move for very_easy)
+   */
+  _findCenterMove(tileMap, emptyTiles) {
+    const centerPosition = { x: 1, y: 1 };
+    
+    const isAvailable = emptyTiles.some(tile => 
+      tile.x === centerPosition.x && tile.y === centerPosition.y
+    );
+    
+    return isAvailable ? centerPosition : null;
   }
 
   _getAllLines(tileMap) {
