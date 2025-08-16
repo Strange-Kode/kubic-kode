@@ -113,8 +113,13 @@ class KubicKodeGame extends GameInterface {
   playTurn(playerId, turnData, metadata = {}) {
     console.log(`[KubicKodeGame] playTurn called with playerId: ${playerId}, turnData:`, turnData);
     
-    // Delegate to the actual game with consistent turnData format
-    let playStatus = this.__gameInstance.playTurn(playerId, turnData, metadata);
+    // Lock turn advancement to prevent game implementations from calling nextTurn directly
+    const engine = this.__gameInstance.getGameEngine();
+    engine.lockTurn(this);
+    
+    try {
+      // Delegate to the actual game with consistent turnData format
+      let playStatus = this.__gameInstance.playTurn(playerId, turnData, metadata);
 
     // Ensure result is a PlayStatus instance
     if (!(playStatus instanceof PlayStatus)) {
@@ -141,13 +146,13 @@ class KubicKodeGame extends GameInterface {
       
       if (playStyle === "single-set") {
         // For single-set, advance turn and clear acted players for next turn
-        engine.nextTurn(playerId);
+        engine.nextTurn(playerId, this);
         if (inactivityManager) {
           inactivityManager.clearActedPlayers();
         }
       } else if (playStyle === "multi-set" || playStyle === "multi-subset") {
         // For multi-set/multi-subset, check if all players have acted
-        engine.nextTurn(playerId);
+        engine.nextTurn(playerId, this);
         const currentPlayers = engine.getCurrentTurnPlayers();
         
         if (inactivityManager && inactivityManager.haveAllPlayersActed(currentPlayers)) {
@@ -157,7 +162,7 @@ class KubicKodeGame extends GameInterface {
       } else if (playStyle === "non-blocking") {
         // For non-blocking, advance turn number but don't clear acted players
         // Let the game implementation manage player action tracking
-        engine.nextTurn(playerId);
+        engine.nextTurn(playerId, this);
         // Note: inactivityManager.clearActedPlayers() is not called for non-blocking
         // as players can act at any time and the game manages action tracking
       }
@@ -222,6 +227,10 @@ class KubicKodeGame extends GameInterface {
     }
 
     return playStatus;
+    } finally {
+      // Turn advancement is automatically unlocked by nextTurn() when called
+      // No manual unlocking needed
+    }
   }
   
   addPlayer(name, isComputer = false) {

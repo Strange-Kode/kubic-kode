@@ -45,6 +45,10 @@ export class GameEngine {
     // For multi-set: track which players have acted this round
     this._actedThisRound = new Set();
 
+    // Turn advancement lock - prevents game implementations from calling nextTurn directly
+    this._turnLocked = false;
+    this._turnLockOwner = null; // Reference to KubicKodeGame instance that owns the lock
+
     // Game State Machine (optional)
     this._useStateMachine = engineConfig.useStateMachine === true;
     this._stateMachine = null;
@@ -250,10 +254,65 @@ export class GameEngine {
   }
 
   /**
+   * Lock turn advancement to prevent game implementations from calling nextTurn directly
+   * This method should only be called by KubicKodeGame
+   * @param {Object} lockOwner - KubicKodeGame instance that owns the lock
+   */
+  lockTurn(lockOwner) {
+    if (this._turnLocked && this._turnLockOwner && this._turnLockOwner !== lockOwner) {
+      throw ErrorFactory.system(
+        "Turn advancement is already locked by another KubicKodeGame instance",
+        "GameEngine",
+        { context: { 
+          method: "lockTurn", 
+          suggestion: "Turn advancement can only be locked by one KubicKodeGame instance at a time"
+        }}
+      );
+    }
+    this._turnLocked = true;
+    this._turnLockOwner = lockOwner;
+  }
+
+  /**
+   * Unlock turn advancement after nextTurn is called
+   * This method is called automatically by nextTurn, no manual unlocking needed
+   * @private
+   */
+  _unlockTurn() {
+    this._turnLocked = false;
+    this._turnLockOwner = null;
+  }
+
+  /**
+   * Check if turn advancement is currently locked
+   * @returns {boolean} True if turn advancement is locked
+   */
+  isTurnLocked() {
+    return this._turnLocked;
+  }
+
+  /**
    * Advance to the next turn based on play style
    * @param {string} playerId - Optional player ID for tracking who acted (used in multi-set/multi-subset play style)
+   * @param {Object} caller - The object calling nextTurn (used to verify it's KubicKodeGame)
+   * @private - This method should only be called by KubicKodeGame, not by game implementations
    */
-  nextTurn(playerId = null) {
+  nextTurn(playerId = null, caller = null) {
+    // Check if turn advancement is locked by someone other than the caller
+    if (this._turnLocked && this._turnLockOwner !== caller) {
+      throw ErrorFactory.game(
+        "nextTurn() is locked by KubicKodeGame and cannot be called by game implementations",
+        "GameEngine",
+        { context: { 
+          method: "nextTurn",
+          suggestion: "Game implementations should not call nextTurn() directly. KubicKodeGame handles turn advancement automatically during playTurn()."
+        }}
+      );
+    }
+
+    // Lock the turn during advancement to prevent concurrent calls
+    this._turnLocked = true;
+
     if (this._playStyle === "single-set") {
       this._currentTurnIndex = (this._currentTurnIndex + 1) % this._turnOrder.length;
       this._currentTurnNumber++;
@@ -285,6 +344,13 @@ export class GameEngine {
       this._currentTurnNumber++;
       // Don't clear actedThisRound - let game implementation manage player action tracking
     }
+
+    // Unlock the turn after advancement is complete
+    // If the game has stopped, unlock the turn to allow future calls
+    if (!this._gameStarted) {
+      this._unlockTurn();
+    }
+    // Otherwise, the turn remains locked until the next playTurn() call
   }
   
   /**
