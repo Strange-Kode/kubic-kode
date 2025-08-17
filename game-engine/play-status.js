@@ -53,6 +53,17 @@ export class PlayStatus {
     }
   }
 
+  // Validate that playerId is a valid positive integer
+  static _validatePlayerId(playerId) {
+    if (playerId === null || playerId === undefined) {
+      throw new Error('PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)');
+    }
+    
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      throw new Error(`PlayStatus factory methods require a valid positive integer playerId, got: ${playerId} (type: ${typeof playerId})`);
+    }
+  }
+
   // Generic accessor method for safe property access
   // Throws an error if the property doesn't exist, preventing silent typos
   access(propertyName) {

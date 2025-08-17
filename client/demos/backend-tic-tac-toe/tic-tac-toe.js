@@ -154,6 +154,7 @@ class TicTacToeGame {
     if (this.__checkWinCondition(mark)) {
       this._winner = currentPlayer;
       this._engine.stopGame();
+
       return PlayStatus.win(playerId, {
         mark: mark
       });
@@ -162,6 +163,7 @@ class TicTacToeGame {
     // Check for tie condition - all tiles filled but no winner
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
+      
       return PlayStatus.tie(playerId, {
         mark: mark
       });

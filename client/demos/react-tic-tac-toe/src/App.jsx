@@ -23,6 +23,8 @@ import {
 import LoadingScreen from "./components/LoadingScreen";
 import Container from "./components/Container";
 import GameModal from "./components/GameModal";
+import { WelcomeScreen } from "./components/WelcomeScreen";
+import { SessionBrowserModal } from "./components/SessionBrowserModal";
 import { LiveTimer } from "./components/LiveTimer";
 import { useTicTacToe } from "./hooks/useTicTacToe";
 
@@ -71,15 +73,74 @@ function AppContent() {
     submitRestartVote,
     handleRestartVoteModalClose,
     // Pass-through for advanced use
+    initializeSession,
     joinSession,
     addAIParticipant,
     startGame,
     checkSessionAvailability,
+    syncSessionState,
+    leaveSession,
   } = useTicTacToe();
 
   const [testName, setTestName] = useState("");
   const [spectatorName, setSpectatorName] = useState("");
+  const [showSessionBrowser, setShowSessionBrowser] = useState(false);
   // Removed manualModalOpen and suppressAutoModal state
+
+  // Define handlers before using them
+  const handleJoinWithName = async (name) => {
+    // Use the orchestration hook's handler
+    await handleNameSubmit(name);
+  };
+
+  const handleSessionBrowserJoin = async (joinResult) => {
+    // console.log("[App] Session browser join result:", joinResult);
+
+    if (
+      joinResult.sessionId &&
+      joinResult.participantId &&
+      joinResult.playerName
+    ) {
+      // Sync the main app state with the session browser join result
+      syncSessionState(
+        joinResult.sessionId,
+        joinResult.participantId,
+        joinResult.playerName
+      );
+
+      // Ensure loading state is reset after sync
+      // The syncSessionState triggers data fetching which should reset loading states
+    } else {
+      // console.error("[App] Invalid join result:", joinResult);
+      await refreshData();
+    }
+  };
+
+  // Show welcome screen when no session exists
+  if (!sessionId) {
+    return (
+      <WelcomeScreen
+        onCreateGame={async (playerName) => {
+          // Initialize session with forceNew=true to always create a fresh session
+          const initResult = await initializeSession(true);
+          if (initResult.success) {
+            // Use joinSession directly with the session ID from initialization
+            const joinResult = await joinSession(
+              playerName,
+              "user",
+              initResult.sessionId
+            );
+            if (!joinResult.success) {
+              // console.error("[App] Failed to join newly created session:", joinResult.error);
+            }
+          } else {
+            // console.error("[App] Failed to initialize session:", initResult.error);
+          }
+        }}
+        onSessionJoined={handleSessionBrowserJoin}
+      />
+    );
+  }
 
   // Show loading while session initializes
   if (gamePhase === "loading" || isLoading) {
@@ -97,11 +158,6 @@ function AppContent() {
       </ChakraContainer>
     );
   }
-
-  const handleJoinWithName = async (name) => {
-    // Use the orchestration hook's handler
-    await handleNameSubmit(name);
-  };
 
   const handleQuickJoin = async () => {
     if (!testName.trim()) {
@@ -483,13 +539,34 @@ function AppContent() {
               {/* Session Info */}
               <Container w="100%">
                 <VStack align="start" spacing={2}>
-                  <Text>
-                    <strong>Session ID:</strong>{" "}
-                    {sessionId || "Not initialized"}
-                  </Text>
-                  <Text>
-                    <strong>Are you the host?:</strong> {isHost ? "Yes" : "No"}
-                  </Text>
+                  <HStack justify="space-between" w="100%">
+                    <VStack align="start" spacing={2}>
+                      <Text>
+                        <strong>Session ID:</strong>{" "}
+                        {sessionId || "Not initialized"}
+                      </Text>
+                      <Text>
+                        <strong>Are you the host?:</strong>{" "}
+                        {isHost ? "Yes" : "No"}
+                      </Text>
+                    </VStack>
+                    <Button
+                      colorScheme="red"
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const result = await leaveSession();
+                        if (!result.success) {
+                          console.error(
+                            "Failed to leave session:",
+                            result.error
+                          );
+                        }
+                      }}
+                    >
+                      Leave Game
+                    </Button>
+                  </HStack>
                   <Text>
                     <strong>Players:</strong>{" "}
                     {
@@ -640,9 +717,18 @@ function AppContent() {
                         onChange={(e) => setTestName(e.target.value)}
                         maxW="300px"
                       />
-                      <Button colorScheme="blue" onClick={handleQuickJoin}>
-                        Join Session
-                      </Button>
+                      <HStack spacing={2}>
+                        <Button colorScheme="blue" onClick={handleQuickJoin}>
+                          Create/Join Session
+                        </Button>
+                        <Button
+                          colorScheme="green"
+                          variant="outline"
+                          onClick={() => setShowSessionBrowser(true)}
+                        >
+                          Browse Games
+                        </Button>
+                      </HStack>
                     </VStack>
                   </VStack>
                 </Container>
@@ -840,6 +926,15 @@ function AppContent() {
         type={getWinModalType()}
         primaryButton={getWinModalPrimaryButton()}
         secondaryButton={getWinModalSecondaryButton()}
+      />
+
+      {/* Session Browser Modal */}
+      <SessionBrowserModal
+        isOpen={showSessionBrowser}
+        onClose={() => setShowSessionBrowser(false)}
+        onSessionJoined={handleSessionBrowserJoin}
+        currentSessionId={sessionId}
+        wI
       />
     </Box>
   );
