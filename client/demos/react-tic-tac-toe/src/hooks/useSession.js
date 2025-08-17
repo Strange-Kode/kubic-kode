@@ -36,7 +36,9 @@ export function useSession() {
   const getGameToken = useCallback((sessionId, participantId) => {
     try {
       const tokens = getAllGameTokens();
-      return tokens[sessionId]?.[participantId] || null;
+      const token = tokens[sessionId]?.[participantId] || null;
+      console.log(`🔐 [useSession] Getting game token for session: ${sessionId}, participant: ${participantId}, found: ${token ? 'YES' : 'NO'}`);
+      return token;
     } catch (error) {
       console.error("Error getting game token:", error);
       return null;

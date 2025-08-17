@@ -86,6 +86,10 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
       result = await autoJoinSession("tic-tac-toe-classic", playerName.trim());
     } else {
       // Join specific session
+      if (!selectedSession?.sessionId) {
+        setError("Invalid session selected");
+        return;
+      }
       const participantType = joinType === "spectator" ? "spectator" : "user";
       result = await joinSpecificSession(selectedSession.sessionId, playerName.trim(), participantType);
     }
@@ -125,7 +129,7 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
   };
 
   const isOwnSession = (session) => {
-    return currentSessionId && session.sessionId === currentSessionId;
+    return currentSessionId && session.sessionId && session.sessionId === currentSessionId;
   };
 
   const getJoinModalTitle = () => {
@@ -141,7 +145,7 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
     
     if (selectedSession) {
       const action = joinType === "spectator" ? "watch" : "join";
-      return `You're about to ${action} session ${selectedSession.sessionId.slice(0, 8)}... hosted by ${selectedSession.host?.name}. Current players: ${selectedSession.participantCount.players}/${selectedSession.participantCount.maxPlayers}`;
+      return `You're about to ${action} session ${selectedSession.sessionId ? `${selectedSession.sessionId.slice(0, 8)}...` : 'Unknown Session'} hosted by ${selectedSession.host?.name}. Current players: ${selectedSession.participantCount.players}/${selectedSession.maxPlayers}`;
     }
     
     return "Enter your name to join this session.";
@@ -208,7 +212,7 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
                     <VStack align="start" spacing={1}>
                       <HStack>
                         <Text fontSize="sm" fontWeight="bold">
-                          {session.sessionId.slice(0, 8)}...
+                          {session.sessionId ? `${session.sessionId.slice(0, 8)}...` : 'Unknown Session'}
                         </Text>
                         {isOwnSession(session) && (
                           <Badge colorScheme="purple" size="sm">
@@ -228,9 +232,9 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
                   </Td>
                   <Td>
                     <VStack align="start" spacing={0}>
-                      <Text fontSize="sm">
-                        {session.participantCount.players}/{session.participantCount.maxPlayers}
-                      </Text>
+                                             <Text fontSize="sm">
+                         {session.participantCount.players}/{session.maxPlayers}
+                       </Text>
                       {session.participantCount.spectators > 0 && (
                         <Text fontSize="xs" color="gray.500">
                           +{session.participantCount.spectators} spectator{session.participantCount.spectators !== 1 ? 's' : ''}

@@ -81,6 +81,17 @@ class TicTacToeGame {
     return player;
   }
 
+  removePlayer(playerId) {
+    // Remove the player from the game engine
+    this._engine.deregisterPlayerEntity(playerId);
+    
+    // Return the mark type to the pool so it can be reused
+    const player = this._engine.getPlayerById(playerId);
+    if (player) {
+      this._consumeMarkTypes.unshift(player.getMarkType());
+    }
+  }
+
   establishFirstPlayers(sessionContext = null) {
     const players = this._engine.getPlayerEntities();
     

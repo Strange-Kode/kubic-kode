@@ -12,6 +12,7 @@ export function useGame(sessionId, participantId, getGameToken) {
   const [gameActive, setGameActive] = useState(false);
   const [tileMap, setTileMap] = useState(null);
   const [currentPlayerId, setCurrentPlayerId] = useState(null);
+  const [playerMappings, setPlayerMappings] = useState({});
   const [isGameLoading, setIsGameLoading] = useState(false);
   const [gameError, setGameError] = useState(null);
   const [lastMoveResult, setLastMoveResult] = useState(null);
@@ -62,7 +63,8 @@ export function useGame(sessionId, participantId, getGameToken) {
 
   // Fetch current player - now uses POST with game token
   const fetchCurrentPlayer = useCallback(async () => {
-    if (!sessionId || !gameStarted || !getGameToken) {
+    if (!sessionId || !getGameToken) {
+      console.log("[useGame] Cannot fetch current player - missing sessionId or getGameToken");
       return;
     }
 
@@ -72,13 +74,17 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
+    // Only fetch if we don't already have a current player or if the game has started
+    if (currentPlayerId && gameStarted) {
+      return;
+    }
+
     try {
       const result = await post(`/api/game/${sessionId}/get-current-player`, {
         gameToken: gameToken
       });
 
       if (result.success) {
-        // console.log("[useGame] Current players:", result.data.current_player_ids);
         const currentPlayerId = extractCurrentPlayerId(result.data);
         setCurrentPlayerId(currentPlayerId);
       } else {
@@ -90,7 +96,37 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error fetching current player:", error);
     }
-  }, [sessionId, post, gameStarted, getGameToken, extractCurrentPlayerId]);
+  }, [sessionId, post, getGameToken, extractCurrentPlayerId, currentPlayerId, gameStarted]);
+
+  // Fetch player mappings - now uses POST with game token
+  const fetchPlayerMappings = useCallback(async () => {
+    if (!sessionId || !getGameToken) {
+      return;
+    }
+
+    const gameToken = getGameToken();
+    if (!gameToken) {
+      console.warn('[useGame] No game token available for fetchPlayerMappings');
+      return;
+    }
+
+    try {
+      const result = await post(`/api/game/${sessionId}/get-player-mappings`, {
+        gameToken: gameToken
+      });
+
+      if (result.success) {
+        setPlayerMappings(result.data.player_mappings);
+      } else {
+        console.error(
+          "[useGame] Failed to fetch player mappings:",
+          result.error
+        );
+      }
+    } catch (error) {
+      console.error("[useGame] Error fetching player mappings:", error);
+    }
+  }, [sessionId, post, getGameToken]);
 
   // Start the game (called when session has 2 participants) - now uses POST with game token
   const startGame = useCallback(async () => {
@@ -122,7 +158,6 @@ export function useGame(sessionId, participantId, getGameToken) {
       });
 
       if (result.success) {
-        // console.log("[useGame] Game started successfully:", result.data);
         setGameStarted(true);
         setGameActive(true);
         const currentPlayerId = extractCurrentPlayerId(result.data);
@@ -130,6 +165,9 @@ export function useGame(sessionId, participantId, getGameToken) {
 
         // Fetch initial game state after starting
         await fetchGameState();
+        
+        // Fetch player mappings after starting
+        await fetchPlayerMappings();
 
         return { success: true, data: result.data };
       } else {
@@ -158,16 +196,32 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
+    // Only check game status if we don't already know the game is active
+    if (gameActive && gameStarted) {
+      return;
+    }
+
     try {
       const result = await post(`/api/game/${sessionId}/is-active`, {
         gameToken: gameToken
       });
 
       if (result.success) {
-        // console.log("[useGame] Game active status:", result.data.is_active);
+        console.log("[useGame] Game active status:", result.data.is_active);
+        const wasStarted = gameStarted;
+        const wasActive = gameActive;
+        
         setGameActive(result.data.is_active);
         if (result.data.is_active) {
           setGameStarted(true);
+          
+          // If game just became active, fetch current player once
+          if (!wasActive) {
+            console.log("[useGame] Game just became active, fetching current player");
+            setTimeout(async () => {
+              await fetchCurrentPlayer();
+            }, 500);
+          }
         }
       } else {
         console.error("[useGame] Failed to check game status:", result.error);
@@ -175,7 +229,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error checking game status:", error);
     }
-  }, [sessionId, post, getGameToken]);
+  }, [sessionId, post, getGameToken, gameActive, gameStarted]);
 
   // Make a move (play turn) - now uses POST with game token
   const makeMove = useCallback(
@@ -240,7 +294,7 @@ export function useGame(sessionId, participantId, getGameToken) {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, participantId, post, fetchGameState, fetchCurrentPlayer, getGameToken]
+    [sessionId, participantId, post, fetchGameState, getGameToken]
   );
 
   // Refresh all game data
@@ -249,13 +303,52 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
-    // console.log("[useGame] Refreshing all game data");
-    await Promise.all([
-      checkGameStatus(),
-      fetchGameState(),
-      fetchCurrentPlayer(),
-    ]);
-  }, [sessionId, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
+    // Only refresh game data if the game has started
+    if (gameStarted) {
+      await Promise.all([
+        fetchGameState(),
+        fetchPlayerMappings(),
+      ]);
+      // Only fetch current player if we don't have one
+      if (!currentPlayerId) {
+        await fetchCurrentPlayer();
+      }
+      // Only check game status if we don't already know it's active
+      if (!gameActive) {
+        await checkGameStatus();
+      }
+    } else {
+      // If game hasn't started, only check game status occasionally
+      // Add a small delay to prevent spam
+      setTimeout(async () => {
+        await checkGameStatus();
+      }, 100);
+    }
+  }, [sessionId, gameStarted, gameActive, checkGameStatus, fetchGameState]);
+
+  // Reset game state when session changes
+  useEffect(() => {
+    if (sessionId) {
+      console.log("[useGame] Session changed, resetting game state");
+      setGameStarted(false);
+      setGameActive(false);
+      setCurrentPlayerId(null);
+      setTileMap(null);
+      setPlayerMappings({});
+      setLastMoveResult(null);
+      setGameError(null);
+    }
+  }, [sessionId]);
+
+  // Auto-fetch current player when game is active but no current player is set
+  useEffect(() => {
+    if (gameStarted && gameActive && !currentPlayerId) {
+      console.log("[useGame] Game is active but no current player, auto-fetching...");
+      setTimeout(async () => {
+        await fetchCurrentPlayer();
+      }, 1000); // Increased delay to reduce spam
+    }
+  }, [gameStarted, gameActive, currentPlayerId]);
 
   // Helper to get tile at position (for UI rendering only)
   const getTile = useCallback(
@@ -284,6 +377,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     gameActive,
     tileMap,
     currentPlayerId,
+    playerMappings,
     isGameLoading,
     gameError,
     lastMoveResult,
@@ -294,10 +388,14 @@ export function useGame(sessionId, participantId, getGameToken) {
     refreshGameData,
     fetchGameState,
     fetchCurrentPlayer,
+    fetchPlayerMappings,
     checkGameStatus,
 
     // Helper functions
     getTile,
     getGridDimensions,
+    
+    // Debug/utility functions
+    forceRefreshCurrentPlayer: fetchCurrentPlayer,
   };
 }

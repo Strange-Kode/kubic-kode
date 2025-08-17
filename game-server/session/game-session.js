@@ -215,6 +215,71 @@ export class GameSession {
 
     // Add to game history
     this._historyManager.addParticipantLeftEvent(id, participant.name);
+
+    // Update game instance if game is started and participant was a player
+    if (this._started && this._gameInstance) {
+      const playerMappings = this._gameInstance.getPlayerMappings();
+      const playerId = playerMappings[id];
+      
+      if (playerId) {
+        console.log(`[GameSession] Removing player ${playerId} (participant ${id}) from game instance`);
+        
+        // Get current state before removal
+        const gameEngine = this._gameInstance.getGameEngine();
+        const currentPlayers = gameEngine.getCurrentTurnPlayers();
+        const currentPlayerIds = Array.isArray(currentPlayers) 
+          ? currentPlayers.map(p => p.getPlayerId()) 
+          : [currentPlayers?.getPlayerId()].filter(Boolean);
+        
+        console.log(`[GameSession] Before removal - Current players: ${currentPlayerIds}, Turn order: ${gameEngine.getTurnOrder()}, Turn index: ${gameEngine.getCurrentTurnIndex()}`);
+        
+        // Remove the player from the game instance
+        this._gameInstance.removePlayer(playerId);
+        
+        // Update player mappings to remove the departed participant
+        delete playerMappings[id];
+        this._gameInstance.setPlayerMappings(playerMappings);
+        
+        console.log(`[GameSession] After removal - Turn order: ${gameEngine.getTurnOrder()}, Turn index: ${gameEngine.getCurrentTurnIndex()}`);
+        
+        // If the departed player was the current player, update to next player
+        if (currentPlayerIds.includes(playerId)) {
+          console.log(`[GameSession] Departed player ${playerId} was current player, updating to next player`);
+          
+          // Find the next available player and set them as current
+          const remainingPlayers = gameEngine.getPlayerEntities();
+          console.log(`[GameSession] Remaining players: ${remainingPlayers.map(p => p.getPlayerId())}`);
+          
+          if (remainingPlayers.length > 0) {
+            const nextPlayer = remainingPlayers[0]; // Take the first remaining player
+            const nextPlayerId = nextPlayer.getPlayerId();
+            
+            // Find the index of the next player in the turn order
+            const turnOrder = gameEngine.getTurnOrder();
+            const nextPlayerIndex = turnOrder.indexOf(nextPlayerId);
+            
+            console.log(`[GameSession] Next player: ${nextPlayerId}, Turn order: ${turnOrder}, Next player index: ${nextPlayerIndex}`);
+            
+            if (nextPlayerIndex !== -1) {
+              // Set the current turn index to point to the next player
+              gameEngine.setCurrentTurnIndex(nextPlayerIndex);
+              console.log(`[GameSession] Set current turn index to ${nextPlayerIndex}`);
+            } else {
+              // If the next player is not in turn order, reset to 0
+              gameEngine.setCurrentTurnIndex(0);
+              console.log(`[GameSession] Next player not in turn order, reset turn index to 0`);
+            }
+            
+            // Verify the current player after the update
+            const newCurrentPlayers = gameEngine.getCurrentTurnPlayers();
+            const newCurrentPlayerIds = Array.isArray(newCurrentPlayers) 
+              ? newCurrentPlayers.map(p => p.getPlayerId()) 
+              : [newCurrentPlayers?.getPlayerId()].filter(Boolean);
+            console.log(`[GameSession] After update - Current players: ${newCurrentPlayerIds}`);
+          }
+        }
+      }
+    }
   }
 
   markStarted() {
@@ -324,6 +389,7 @@ export class GameSession {
 
   getLobbyStatus() {
     const lobbyStatus = this._lobbyManager.getLobbyStatus();
+    lobbyStatus.sessionId = this._sessionId;
     lobbyStatus.started = this._started;
     lobbyStatus.gameVariantId = this._gameVariantId;
     lobbyStatus.maxPlayers = this._maxPlayers;

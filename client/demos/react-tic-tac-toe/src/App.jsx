@@ -691,7 +691,10 @@ function AppContent() {
                       onClick={async () => {
                         try {
                           const result = await addAIParticipant();
-                          if (!result.success) {
+                          if (result.success) {
+                            // Refresh data to trigger auto-start logic
+                            await refreshData();
+                          } else {
                             alert(`Failed to add AI opponent: ${result.error}`);
                           }
                         } catch (error) {

@@ -374,6 +374,18 @@ gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipant
   res.json(response);
 });
 
+// Get player mappings (participantId -> playerId)
+gameRouter.post("/game/:sessionId/get-player-mappings", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+  const gameSession = req.gameSession;
+  const gameInstance = gameSession.getGameInstance();
+
+  const playerMappings = gameInstance.getPlayerMappings();
+  
+  res.json({
+    player_mappings: playerMappings
+  });
+});
+
 // Generic play turn endpoint for all games
 gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(sessionManager), validatePlayableParticipant(sessionManager), (req, res) => {
   const { sessionId } = req.params;
