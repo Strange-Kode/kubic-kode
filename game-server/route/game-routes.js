@@ -13,13 +13,14 @@
 import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { GameEventService } from "../game-event-service.js";
+import { GameHistory } from "../game-history.js"; // GameHistory contains getValidEventTypes used for subscription validation
 import { PlayStatus } from "../../game-engine/play-status.js";
 import { kubicLog } from "../../kubic-log.js";
 
 const gameRouter = express.Router();
 
 import { serializeRecursively, checkPlayableAccess, validateSession, validatePlayableParticipant } from "../../game-utility/game-utility.js";
-import { validateGameTokenWithParticipant } from "../game-token-middleware.js";
+import { validateGameTokenWithParticipant, validateGameTokenWithParticipantReadOnly } from "../game-token-middleware.js";
 
 // Create middleware instances with session manager
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
@@ -324,7 +325,7 @@ gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessio
 });
 
 // Used to get current turn (=> current player id)
-gameRouter.post("/game/:sessionId/get-current-player", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/get-current-player", validateGameTokenWithParticipantReadOnly(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -351,7 +352,7 @@ gameRouter.post("/game/:sessionId/get-current-player", validateGameTokenWithPart
   }
 });
 
-gameRouter.post("/game/:sessionId/is-active", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/is-active", validateGameTokenWithParticipantReadOnly(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -360,7 +361,7 @@ gameRouter.post("/game/:sessionId/is-active", validateGameTokenWithParticipant(s
   });
 });
 
-gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipantReadOnly(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -375,7 +376,7 @@ gameRouter.post("/game/:sessionId/get-tilemap", validateGameTokenWithParticipant
 });
 
 // Get player mappings (participantId -> playerId)
-gameRouter.post("/game/:sessionId/get-player-mappings", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/get-player-mappings", validateGameTokenWithParticipantReadOnly(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 
@@ -670,7 +671,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
 };
 
 // Get game options information
-gameRouter.post("/game/:sessionId/options", validateGameTokenWithParticipant(sessionManager), (req, res) => {
+gameRouter.post("/game/:sessionId/options", validateGameTokenWithParticipantReadOnly(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
   const gameInstance = gameSession.getGameInstance();
 

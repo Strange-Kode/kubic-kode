@@ -127,6 +127,54 @@ export function validateGameTokenWithParticipant(sessionManager) {
 }
 
 /**
+ * Middleware to validate game tokens with participant-specific validation for read-only endpoints
+ * Allows spectators to access read-only game information
+ * @param {Object} sessionManager - The session manager instance
+ * @returns {Function} Express middleware function
+ */
+export function validateGameTokenWithParticipantReadOnly(sessionManager) {
+  return (req, res, next) => {
+    // First validate the basic game token
+    const basicValidation = validateGameToken(sessionManager);
+    
+    basicValidation(req, res, (err) => {
+      if (err) {
+        return next(err);
+      }
+
+      const { participantId } = req.body;
+      const { gameTokenData } = req;
+
+      // If participantId is provided in the request, validate it matches the token
+      if (participantId && gameTokenData.participantId && gameTokenData.participantId !== participantId) {
+        return res.status(403).json({
+          error: true,
+          message: "Game token is not valid for this participant",
+          code: "TOKEN_PARTICIPANT_MISMATCH",
+          tokenParticipantId: gameTokenData.participantId,
+          requestParticipantId: participantId
+        });
+      }
+
+      // If token has a participantId, validate that the participant exists (but don't check if playable)
+      if (gameTokenData.participantId) {
+        const participant = req.gameSession.getParticipantById(gameTokenData.participantId);
+        if (!participant) {
+          return res.status(404).json({
+            error: true,
+            message: "Participant not found",
+            participantId: gameTokenData.participantId
+          });
+        }
+      }
+
+      kubicLog.debug(`[GameTokenMiddleware] Validated read-only game token for session: ${req.params.sessionId}, participant: ${gameTokenData.participantId}`);
+      next();
+    });
+  };
+}
+
+/**
  * Middleware to ensure game tokens are only passed via POST requests
  * This is a lightweight check that can be used before other middleware
  * @returns {Function} Express middleware function
