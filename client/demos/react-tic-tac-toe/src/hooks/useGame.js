@@ -74,19 +74,14 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
-    // Only fetch if we don't already have a current player or if the game has started
-    if (currentPlayerId && gameStarted) {
-      return;
-    }
-
     try {
       const result = await post(`/api/game/${sessionId}/get-current-player`, {
         gameToken: gameToken
       });
 
       if (result.success) {
-        const currentPlayerId = extractCurrentPlayerId(result.data);
-        setCurrentPlayerId(currentPlayerId);
+        const newCurrentPlayerId = extractCurrentPlayerId(result.data);
+        setCurrentPlayerId(newCurrentPlayerId);
       } else {
         console.error(
           "[useGame] Failed to fetch current player:",
@@ -96,7 +91,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error fetching current player:", error);
     }
-  }, [sessionId, post, getGameToken, extractCurrentPlayerId, currentPlayerId, gameStarted]);
+  }, [sessionId, post, getGameToken, extractCurrentPlayerId]);
 
   // Fetch player mappings - now uses POST with game token
   const fetchPlayerMappings = useCallback(async () => {
@@ -294,7 +289,7 @@ export function useGame(sessionId, participantId, getGameToken) {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, participantId, post, fetchGameState, getGameToken]
+    [sessionId, participantId, post, fetchGameState, fetchCurrentPlayer, getGameToken]
   );
 
   // Refresh all game data
@@ -308,11 +303,8 @@ export function useGame(sessionId, participantId, getGameToken) {
       await Promise.all([
         fetchGameState(),
         fetchPlayerMappings(),
+        fetchCurrentPlayer(), // Always fetch current player to ensure turn updates
       ]);
-      // Only fetch current player if we don't have one
-      if (!currentPlayerId) {
-        await fetchCurrentPlayer();
-      }
       // Only check game status if we don't already know it's active
       if (!gameActive) {
         await checkGameStatus();
@@ -324,7 +316,7 @@ export function useGame(sessionId, participantId, getGameToken) {
         await checkGameStatus();
       }, 100);
     }
-  }, [sessionId, gameStarted, gameActive, checkGameStatus, fetchGameState]);
+  }, [sessionId, gameStarted, gameActive, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
 
   // Reset game state when session changes
   useEffect(() => {

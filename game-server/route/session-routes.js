@@ -593,7 +593,7 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
 });
 
 // Auto-join session for a game variant
-sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
+sessionRouter.post("/sessions/auto-join/:gameVariantId", async (req, res) => {
   const { gameVariantId } = req.params;
   const { participantName, participantType = "user", createIfNone = true } = req.body;
 
@@ -651,10 +651,14 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", (req, res) => {
     const participantId = targetSession.addParticipant(participantName.trim(), participantType);
     const participant = targetSession.getParticipantById(participantId);
 
+    // Get the participant's game token
+    const gameToken = await targetSession.generateParticipantToken(participantId);
+
     res.json({
       success: true,
       session_id: targetSession.getSessionId(),
       participant_id: participantId,
+      game_token: gameToken,
       session_created: sessionCreated,
       lobby_status: targetSession.getLobbyStatus()
     });

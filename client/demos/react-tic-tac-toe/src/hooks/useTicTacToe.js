@@ -64,6 +64,11 @@ export function useTicTacToe() {
     }, 100); // 100ms debounce
   }, [refreshData]);
 
+  // Immediate refresh function for turn updates (no debounce)
+  const immediateRefreshData = useCallback(() => {
+    refreshData();
+  }, [refreshData]);
+
   // Live timer calculation with interpolation - always sync to backend authority
   const getLiveTimer = useCallback(() => {
     if (inactivityTimer === null || lastTimerUpdate === null) return null;
@@ -311,7 +316,7 @@ export function useTicTacToe() {
       if (data.type === "turnPlayed") {
         // Skip refresh if this is a winning move or tie - let win modal show
         if (!data.payload?.roundStatus?.player_has_won && !data.payload?.gameTied) {
-          debouncedRefreshData();
+          immediateRefreshData(); // Use immediate refresh for turn updates
         }
       } else if (
         data.type === "sessionParticipantJoined" ||
@@ -392,7 +397,7 @@ export function useTicTacToe() {
         }
       }
     },
-    [session.participants, debouncedRefreshData, restartVoting, playerWins]
+    [session.participants, debouncedRefreshData, immediateRefreshData, restartVoting, playerWins]
   );
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
