@@ -616,6 +616,12 @@ class GameSetupWizard {
         console.log("⚠️  .env.example already exists - skipping");
       }
       
+      // Generate README.md
+      console.log(`📄 Generating: ${gameDir}/README.md`);
+      const readmeTemplate = fs.readFileSync(path.join(this._templateDir, "README.md.template"), "utf8");
+      const readmeContent = this.processTemplate(readmeTemplate, this._config);
+      fs.writeFileSync(path.join(gameDir, "README.md"), readmeContent);
+      
       return true;
     } catch (error) {
       console.error("❌ Error generating files:", error.message);
@@ -658,6 +664,7 @@ class GameSetupWizard {
         // Show generated folder structure
         console.log(`\n📁 Generated Folder Structure:`);
         console.log(`backend-${this._config.GAME_SHORT_NAME}/`);
+        console.log(`├── README.md                         # Game documentation`);
         console.log(`├── game-server.js                    # Complete Express server`);
         console.log(`├── ${this._config.GAME_SHORT_NAME}.js              # Main game logic (${this._config.GAME_CLASS_NAME}Game class)`);
         console.log(`├── route/`);

@@ -612,39 +612,39 @@ initializeGameOptions() {
 
 1. **Create a session with configurable TicTacToe**:
 
-   ```bash
-   POST /api/session/init/tic-tac-toe-configurable
-   ```
+```bash
+POST /api/session/init/tic-tac-toe-configurable
+```
 
 2. **Check available options**:
 
-   ```bash
-   GET /api/game/options/:sessionId
-   ```
+```bash
+GET /api/game/options/:sessionId
+```
 
 3. **Start game with custom options**:
 
-   ```bash
-   POST /api/game/start/:sessionId
-   {
-     "gridSize": 5,
-     "winCondition": 4,
-     "system::debugMode": true
-   }
-   ```
+```bash
+POST /api/game/start/:sessionId
+{
+  "gridSize": 5,
+  "winCondition": 4,
+  "system::debugMode": true
+}
+```
 
 4. **Access different namespaces in code**:
 
-   ```javascript
-   // Userspace (default)
-   const gameSize = this.getGameOptions().getCurrentValue("gridSize");
+```javascript
+  // Userspace (default)
+  const gameSize = this.getGameOptions().getCurrentValue("gridSize");
    
-   // Systemspace (explicit)
-   const debugEnabled = this.getGameOptions().getCurrentSystemValue("debugMode");
+  // Systemspace (explicit)
+  const debugEnabled = this.getGameOptions().getCurrentSystemValue("debugMode");
    
-   // Alternative systemspace access
-   const debugEnabled2 = this.getGameOptions().getCurrentValue("debugMode", "systemspace");
-   ```
+  // Alternative systemspace access
+  const debugEnabled2 = this.getGameOptions().getCurrentValue("debugMode", "systemspace");
+```
 
 ### Game Options - Error Handling
 
@@ -814,3 +814,49 @@ The setup script (`node game-script/setup-game.js`) will automatically recommend
 ### Documentation
 
 📖 **[Complete GSM Guide](docs/game-state-machine.md)** - Detailed documentation with examples, API reference, and best practices
+
+## Troubleshooting
+
+### WebSocket Connection Issues
+
+If you're experiencing WebSocket connection problems with the tic-tac-toe demo:
+
+1. **Check Environment Variables**: Ensure `VITE_HOST_IP` and `VITE_HOST_PORT` are correctly set in `client/demos/react-tic-tac-toe/.env`:
+
+```sh
+VITE_HOST_IP=localhost
+VITE_HOST_PORT=3000
+```
+
+2. **Verify Backend is Running**: Make sure the backend server is started with `npm run dev-server` and listening on the correct port.
+
+3. **Check Browser Console**: Look for WebSocket connection errors in the browser's developer console.
+
+4. **Network Configuration**: If running on a different machine or in a container, update `VITE_HOST_IP` to the actual IP address of your backend server.
+
+### Port Conflicts
+
+If you encounter port conflicts:
+
+1. **Backend Port**: Change the backend port by setting the `PORT` environment variable:
+```sh
+PORT=3001 npm run dev-server
+```
+
+2. **Frontend Port**: Change the frontend port by modifying the start script in `package.json` or using Vite's port option.
+
+### Game Session Issues
+
+1. **Session Not Found**: Clear browser localStorage and refresh the page to reset session state.
+
+2. **Participants Not Joining**: Check that the session ID is correct and the session hasn't expired (sessions auto-cleanup after 2 minutes of inactivity).
+
+### Development Environment
+
+1. **Node.js Version**: Ensure you're using Node.js 20.x or later. Check with `node --version`.
+
+2. **Dependencies**: If you encounter module errors, try reinstalling dependencies:
+```sh
+rm -rf node_modules package-lock.json
+npm install
+```

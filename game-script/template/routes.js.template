@@ -14,5 +14,14 @@ const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 // in game-routes.js to make it reusable across all games. This file can be used for 
 // your game specific routes in the future if needed.
 {{NEWLINE}}
+// Test route to verify the router is working
+{{ GAME_CAMEL_NAME }}Router.get('/test', (req, res) => {
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}message: '{{ GAME_NAME }} router is working!',
+{{INDENT}}{{INDENT}}timestamp: new Date().toISOString(),
+{{INDENT}}{{INDENT}}game: '{{ GAME_NAME }}'
+{{INDENT}}});
+});
+{{NEWLINE}}
 export default {{ GAME_CAMEL_NAME }}Router;
 {{NEWLINE}}

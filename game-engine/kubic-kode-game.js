@@ -111,7 +111,6 @@ class KubicKodeGame extends GameInterface {
   // -------------
 
   playTurn(playerId, turnData, metadata = {}) {
-    console.log(`[KubicKodeGame] playTurn called with playerId: ${playerId}, turnData:`, turnData);
     
     // Lock turn advancement to prevent game implementations from calling nextTurn directly
     const engine = this.__gameInstance.getGameEngine();
@@ -184,15 +183,9 @@ class KubicKodeGame extends GameInterface {
           status: playStatus.access("status"),
         }
       );
-
-      // Debug: Log the playStatus object to see what it contains
-      console.log(`[KubicKodeGame] playStatus object:`, playStatus);
-      console.log(`[KubicKodeGame] playStatus.access("playerHasWon"):`, playStatus.access("playerHasWon"));
-      console.log(`[KubicKodeGame] playStatus.access("playerId"):`, playStatus.access("playerId"));
       
       // Record win if it occurred and stop the game
       if (playStatus.access("playerHasWon")) {
-        console.log(`[KubicKodeGame] Win detected for player ${playStatus.access("playerId")}`);
         
         // Stop the game and clear inactivity timer when someone wins
         this.__gameOptions.setGameState("ended");

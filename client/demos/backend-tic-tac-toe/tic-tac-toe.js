@@ -41,7 +41,7 @@ class TicTacToeGame {
   initializeGameOptions() {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:
-    // console.log(this.getGameOptions().getSystemOptions());
+    // this.getGameOptions().getSystemOptions();
     // To read a system option: this.getGameOptions().readSystemOption("participantPlaysFirst")
     // Available system options include:
     // - participantPlaysFirst: Which participant goes first (pre-start)
@@ -138,35 +138,22 @@ class TicTacToeGame {
     // Get the player by ID
     const currentPlayer = this._engine.getPlayerById(playerId);
 
-    console.log(
-      `[TicTacToeGame] playTurn called - playerId: ${playerId}, turnData:`, turnData
-    );
-    console.log(`[TicTacToeGame] Current player:`, currentPlayer);
-
     if (this._engine.getTileMap().isTileOccupied(x, y)) {
-      console.log("Tile already occupied.");
       return PlayStatus.invalid(playerId, "Tile already occupied", {
         type: "occupied_tile"
       });
     }
 
     const mark = currentPlayer.placeMark({ x, y });
-    console.log(`[TicTacToeGame] Created mark:`, mark);
 
     this._engine.getTileMap().setTile(x, y, mark);
-    console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
 
     // Debug: Check if tile was actually set
     const retrievedTile = this._engine.getTileMap().getTile(x, y);
-    console.log(
-      `[TicTacToeGame] Retrieved tile at (${x}, ${y}):`,
-      retrievedTile
-    );
 
     if (this.__checkWinCondition(mark)) {
       this._winner = currentPlayer;
       this._engine.stopGame();
-      console.log(`${currentPlayer.getPlayerName()} wins!`);
       return PlayStatus.win(playerId, {
         mark: mark
       });
@@ -175,7 +162,6 @@ class TicTacToeGame {
     // Check for tie condition - all tiles filled but no winner
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
-      console.log("Game is tied!");
       return PlayStatus.tie(playerId, {
         mark: mark
       });

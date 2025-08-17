@@ -117,9 +117,9 @@ export class SessionParticipantManager {
     // Generate a game token for this participant
     this.generateParticipantToken(participantId).then(token => {
       this._participantTokens.set(participantId, token);
-      console.log(`Generated game token for participant ${participantId} (${name}) in session ${this._sessionId}`);
+      kubicLog.info(`[SessionParticipantManager]::addParticipant - Generated game token for participant ${participantId} (${name}) in session ${this._sessionId}`);
     }).catch(error => {
-      console.error(`Failed to generate game token for participant ${participantId}:`, error);
+      kubicLog.error(`[SessionParticipantManager]::addParticipant - Failed to generate game token for participant ${participantId}:`, error);
     });
 
     return participantId;
@@ -463,7 +463,7 @@ export class SessionParticipantManager {
   async regenerateParticipantToken(participantId) {
     return this.generateParticipantToken(participantId).then(token => {
       this._participantTokens.set(participantId, token);
-      console.log(`Regenerated game token for participant ${participantId} in session ${this._sessionId}`);
+      kubicLog.info(`[SessionParticipantManager]::regenerateParticipantToken - Regenerated game token for participant ${participantId} in session ${this._sessionId}`);
       return token;
     });
   }
