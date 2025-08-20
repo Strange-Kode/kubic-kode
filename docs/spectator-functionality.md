@@ -4,7 +4,7 @@ The kubic-kode game system now supports **spectators** - special session partici
 
 ## Overview
 
-Spectators are session participants with type `'spectator'` who:
+Spectators are session participants with type `"spectator"` who:
 - ✅ Can join sessions and observe games
 - ✅ Receive all game broadcasts and updates
 - ✅ Can view game state, tile maps, and participant lists
@@ -17,13 +17,15 @@ Spectators are session participants with type `'spectator'` who:
 ### Participant Types
 
 The system now supports three participant types:
-- `'user'` - Regular human participant
-- `'computer'` - AI participant
-- `'spectator'` - Observer (new)
+
+- `"user"` - Regular human participant
+- `"computer"` - AI participant
+- `"spectator"` - Observer (new)
 
 Each participant's playability is determined by the `isParticipantPlayable()` method:
-- Returns `true` for 'user' and 'computer' types
-- Returns `false` for 'spectator' type
+
+- Returns `true` for "user" and "computer" types
+- Returns `false` for "spectator" type
 
 ### Session Management
 
@@ -31,13 +33,13 @@ Each participant's playability is determined by the `isParticipantPlayable()` me
 
 ```javascript
 // Add a user to a session
-const userId = gameSession.addParticipant('Alice', 'user');
+const userId = gameSession.addParticipant("Alice", "user");
 
 // Add a computer player to a session
-const computerId = gameSession.addParticipant('AI Bot', 'computer');
+const computerId = gameSession.addParticipant("AI Bot", "computer");
 
 // Add a spectator to a session
-const spectatorId = gameSession.addParticipant('Charlie', 'spectator');
+const spectatorId = gameSession.addParticipant("Charlie", "spectator");
 ```
 
 #### Game Start Requirements
@@ -46,7 +48,7 @@ Games now require at least 2 **non-spectator** participants to start:
 
 ```javascript
 // Only counts human and computer participants
-const playerParticipants = this.participants.filter(p => p.type !== 'spectator');
+const playerParticipants = this.participants.filter(p => p.type !== "spectator");
 if (playerParticipants.length < 2) {
   throw new Error("Cannot start game. Not enough players (need at least 2 non-spectator participants).");
 }
@@ -99,7 +101,7 @@ The following routes now require `participantId` and block spectators:
 
 ```javascript
 // Reusable middleware checks if participant is playable
-import { checkPlayableAccess } from '../../game-utility/game-utility.js';
+import { checkPlayableAccess } from "../../game-utility/game-utility.js";
 
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 
@@ -117,10 +119,10 @@ gameRouter.post("/game/start/:sessionId", checkPlayableAccessMiddleware, (req, r
 
 ```javascript
 // Join as spectator
-const result = await KubicKode.spectateSession('Charlie');
+const result = await KubicKode.spectateSession("Charlie");
 
 // Get participant statistics
-const stats = await KubicKode.route.session('participant-stats');
+const stats = await KubicKode.route.session("participant-stats");
 ```
 
 #### Automatic Participant ID Tracking
@@ -139,21 +141,21 @@ await KubicKode.playTurn(0, 0); // Includes participantId in request body
 
 ```javascript
 // 1. Initialize session
-await KubicKode.initSession('tic-tac-toe-classic');
+await KubicKode.initSession("tic-tac-toe-classic");
 
 // 2. Join as spectator
-const result = await KubicKode.spectateSession('Charlie');
+const result = await KubicKode.spectateSession("Charlie");
 
 // 3. Connect to WebSocket for real-time updates
 KubicKode.connectWebSocket();
 
 // 4. Listen for game events
-KubicKode.events.on('turnPlayed', (data) => {
-  console.log('A participant made a move:', data);
+KubicKode.events.on("turnPlayed", (data) => {
+  console.log("A participant made a move:", data);
 });
 
-KubicKode.events.on('gameStarted', (data) => {
-  console.log('Game started:', data);
+KubicKode.events.on("gameStarted", (data) => {
+  console.log("Game started:", data);
 });
 ```
 
@@ -161,15 +163,15 @@ KubicKode.events.on('gameStarted', (data) => {
 
 ```javascript
 // Get all participants
-const participants = await KubicKode.route.session('participants');
+const participants = await KubicKode.route.session("participants");
 // Returns: [
-//   { id: 1, name: 'Alice', type: 'user' },
-//   { id: 2, name: 'Bob', type: 'user' },
-//   { id: 3, name: 'Charlie', type: 'spectator' }
+//   { id: 1, name: "Alice", type: "user" },
+//   { id: 2, name: "Bob", type: "user" },
+//   { id: 3, name: "Charlie", type: "spectator" }
 // ]
 
 // Get participant statistics
-const stats = await KubicKode.route.session('participant-stats');
+const stats = await KubicKode.route.session("participant-stats");
 // Returns: { total: 3, players: 2, spectators: 1, canStart: true }
 ```
 
@@ -180,8 +182,8 @@ try {
   // This will fail for spectators
   await KubicKode.startGame();
 } catch (error) {
-  if (error.message.includes('Spectators cannot perform this action')) {
-    console.log('Spectators cannot start games');
+  if (error.message.includes("Spectators cannot perform this action")) {
+    console.log("Spectators cannot start games");
   }
 }
 ```

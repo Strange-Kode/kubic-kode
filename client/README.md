@@ -27,7 +27,7 @@ This directory contains examples of how to use the `KubicKodeHelper` with Alpine
 The `rps-usage-example.js` file contains modular examples showing different aspects of the KubicKodeHelper:
 
 ```javascript
-import { KubicKode } from './kubic-kode-helper.js';
+import { KubicKode } from "./kubic-kode-helper.js";
 
 // Basic setup
 await basicSetup();
@@ -49,14 +49,14 @@ await makeGameMoves();
 ```javascript
 // Configure the helper
 KubicKode.configure({
-    apiPrefix: 'http://localhost:3000/api',
+    apiPrefix: "http://localhost:3000/api",
     autoReconnect: true,
     retryAttempts: 3,
     retryDelay: 1000
 });
 
 // Register game type
-KubicKode.game.register('rock-paper-scissors');
+KubicKode.game.register("rock-paper-scissors");
 
 // Connect WebSocket
 KubicKode.connectWebSocket();
@@ -66,13 +66,13 @@ KubicKode.connectWebSocket();
 
 ```javascript
 // Initialize session
-const initResponse = await KubicKode.initSession('rock-paper-scissors');
+const initResponse = await KubicKode.initSession("rock-paper-scissors");
 
 // Join session
-const joinResponse = await KubicKode.joinSession('Alice', 'human');
+const joinResponse = await KubicKode.joinSession("Alice", "human");
 
 // Get participants
-const participants = await KubicKode.route.session('participants');
+const participants = await KubicKode.route.session("participants");
 ```
 
 ### 3. Game Flow
@@ -80,14 +80,14 @@ const participants = await KubicKode.route.session('participants');
 ```javascript
 // Start game with options
 const startResponse = await KubicKode.startGame({
-    playStyle: 'competitive',
+    playStyle: "competitive",
     maxRounds: 5,
     timeLimit: 30
 });
 
 // Check game status
-const isActive = await KubicKode.route.game('is-active');
-const currentPlayer = await KubicKode.route.game('get-current-player');
+const isActive = await KubicKode.route.game("is-active");
+const currentPlayer = await KubicKode.route.game("get-current-player");
 ```
 
 ### 4. Making Moves
@@ -95,14 +95,14 @@ const currentPlayer = await KubicKode.route.game('get-current-player');
 ```javascript
 // Using dynamic game method
 const moveResponse = await KubicKode.rock_paper_scissors.playTurn(0, 0, {
-    choice: 'rock',
-    playerName: 'Alice'
+    choice: "rock",
+    playerName: "Alice"
 });
 
 // Using generic method
 const genericMove = await KubicKode.playTurn(0, 0, {
-    choice: 'paper',
-    playerName: 'Alice'
+    choice: "paper",
+    playerName: "Alice"
 });
 ```
 
@@ -111,23 +111,23 @@ const genericMove = await KubicKode.playTurn(0, 0, {
 ```javascript
 // WebSocket events
 KubicKode.events
-    .on('websocketConnected', (data) => {
-        console.log('Connected to server');
+    .on("websocketConnected", (data) => {
+        console.log("Connected to server");
     })
-    .on('websocketDisconnected', (data) => {
-        console.log('Disconnected from server');
+    .on("websocketDisconnected", (data) => {
+        console.log("Disconnected from server");
     });
 
 // Game events
 KubicKode.events
-    .on('gameStarted', (data) => {
-        console.log('Game started:', data);
+    .on("gameStarted", (data) => {
+        console.log("Game started:", data);
     })
-    .on('turnPlayed', (data) => {
-        console.log('Turn played:', data);
+    .on("turnPlayed", (data) => {
+        console.log("Turn played:", data);
     })
-    .on('gameEnded', (data) => {
-        console.log('Game ended:', data);
+    .on("gameEnded", (data) => {
+        console.log("Game ended:", data);
     });
 ```
 
@@ -140,7 +140,7 @@ The `createAlpineComponent()` function provides a ready-to-use Alpine.js compone
     <!-- Your game UI here -->
     <button @click="joinGame()">Join Game</button>
     <button @click="startGame()">Start Game</button>
-    <button @click="makeChoice('rock')">Rock</button>
+    <button @click="makeChoice("rock")">Rock</button>
 </div>
 ```
 
@@ -178,10 +178,10 @@ The helper includes built-in retry logic and error handling:
 
 ```javascript
 try {
-    const response = await KubicKode.initSession('rock-paper-scissors');
-    console.log('Success:', response.data);
+    const response = await KubicKode.initSession("rock-paper-scissors");
+    console.log("Success:", response.data);
 } catch (error) {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
 }
 ```
 

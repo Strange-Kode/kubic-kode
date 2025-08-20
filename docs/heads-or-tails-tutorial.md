@@ -11,7 +11,8 @@ This tutorial will guide you through creating a complete turn-based heads or tai
 ## Project Structure
 
 We'll create the following structure:
-```
+
+```text
 heads-or-tails-game/
 ├── game/
 │   ├── backend-hot/
@@ -55,14 +56,16 @@ Before diving into the implementation, let's understand the key concepts of the 
 
 The **GameContract** defines what methods game implementations must provide:
 
-#### **Required Methods** (MUST implement):
+#### **Required Methods** (MUST implement)
+
 - `getGameEngine()` - Return the game engine instance
 - `playTurn()` - Handle a player's turn
 - `addPlayer()` - Add a new player to the game
 - `startGame()` - Start the game
 - `resetForRestart()` - Reset game state for restart
 
-#### **Optional Methods** (CAN implement, defaults provided):
+#### **Optional Methods** (CAN implement, defaults provided)
+
 - `getTileMap()` - Return the game board
 - `getCurrentTurnPlayers()` - Get players whose turn it is
 - `getWinner()` - Get the current winner
@@ -74,7 +77,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `initializeGameOptions()` - Set up game options
 - `calculateComputerMove()` - Calculate AI moves
 
-#### **Wrapper Methods** (Always provided by KubicKodeGame):
+#### **Wrapper Methods** (Always provided by KubicKodeGame)
+
 - `getGameOptions()` - Access game options
 - `getOptionValue()` - Get current option values
 - `resetGameOptions()` - Reset options to defaults
@@ -87,41 +91,49 @@ The **GameOptions** system provides a centralized way to manage configurable gam
 
 ```javascript
 // In initializeGameOptions()
-this.getGameOptions().addConfigurable('maxRounds', 10, (value) => {
-  if (value < 1 || value > 50) return 'Max rounds must be 1-50';
+this.getGameOptions().addOption("maxRounds", 10, "runtime", (value) => {
+  if (value < 1 || value > 50) return "Max rounds must be 1-50";
   return true;
 });
 
 // Access values anywhere in your game
-const maxRounds = this.getOptionValue('maxRounds');
+const maxRounds = this.getOptionValue("maxRounds");
 ```
 
 **Key Features:**
+
 - **Validation**: Options are validated when applied
 - **Applied Values**: Tracks currently applied values
 - **Frozen vs Configurable**: Some options can be locked after game starts
 - **No Boilerplate**: Games don't need to implement option handling manually
 
 ### Game Entities
+
 A **Game Entity** is a fundamental object in kubic-kode that represents any game object (players, pieces, etc.). Entities have:
+
 - **ID**: Unique identifier
 - **Name**: Human-readable name
 - **Position**: Location on the game board (x, y coordinates)
 - **Custom properties**: Game-specific data (like score, player type, etc.)
 
 In our heads or tails game, we create two types of entities:
+
 - **PlayerEntity**: Represents each player with their score, guess history, and player type
 - **CoinEntity**: Represents the coin that gets flipped
 
 ### Game Engine
+
 The **GameEngine** is the core component that manages:
+
 - **Turn sequencing**: Who plays when
 - **Player management**: Adding/removing players
 - **Game state**: Whether the game is active, started, or stopped
 - **Tile map**: The game board (even if we don't use it visually)
 
 ### KubicKodeGame Wrapper
+
 **KubicKodeGame** is a proxy class that wraps your game implementation and provides:
+
 - **History recording**: Automatically logs all game events
 - **Method delegation**: Forwards calls to your actual game instance
 - **Session integration**: Connects your game to the session management system
@@ -129,26 +141,34 @@ The **GameEngine** is the core component that manages:
 - **No boilerplate**: Automatically handles common operations like tile map resizing
 
 ### Session Management
+
 **GameSession** handles multiplayer functionality:
+
 - **Participant tracking**: Who's in the game
 - **Session state**: Whether the game has started
 - **Game instance**: The actual game logic
 - **WebSocket integration**: Real-time communication
 
 ### Core Routes
+
 kubic-kode provides two main route systems:
+
 - **sessionRoutes**: Handle session creation, joining, and management
 - **gameRoutes**: Handle game lifecycle (start, restart, get stats, etc.)
 
 ### WebSocket Communication
+
 **WebSockets** provide real-time bidirectional communication:
+
 - **Server to Client**: Game state updates, turn notifications, player actions
 - **Client to Server**: Player moves, game actions
 - **Automatic reconnection**: Handles connection drops gracefully
 - **Session-based**: Messages are scoped to specific game sessions
 
 ### Game Registry
+
 The **GameRegistry** is a factory system that:
+
 - **Registers game types**: Associates game IDs with factory functions
 - **Creates game instances**: Spawns new games when sessions are created
 - **Enables extensibility**: Allows multiple game types in one server
@@ -176,7 +196,7 @@ class PlayerEntity extends GameEntity {
     
     // Custom properties for our heads or tails game
     this.score = 0; // Track correct guesses
-    this.guesses = []; // Array of { round: number, guess: 'heads'|'tails', correct: boolean }
+    this.guesses = []; // Array of { round: number, guess: "heads"|"tails", correct: boolean }
   }
 
   // Static counter for generating unique player IDs
@@ -219,7 +239,7 @@ Create `game/backend-hot/game-entity/coin-entity.js`:
 ```javascript
 export class CoinEntity {
   constructor() {
-    this.sides = ['heads', 'tails'];
+    this.sides = ["heads", "tails"];
     this.currentSide = null; // Tracks the result of the last flip
   }
 
@@ -325,8 +345,8 @@ class HeadsOrTailsGame {
     console.log(`[HeadsOrTailsGame] playTurn called - playerId: ${playerId}, guess: ${guess}`);
     console.log(`[HeadsOrTailsGame] Current player:`, currentPlayer);
 
-    // Validate the guess - must be either 'heads' or 'tails'
-    if (guess !== 'heads' && guess !== 'tails') {
+    // Validate the guess - must be either "heads" or "tails"
+    if (guess !== "heads" && guess !== "tails") {
       return {
         status: "invalid",
         type: "invalid_guess",
@@ -422,16 +442,15 @@ class HeadsOrTailsGame {
     return 30_000; // 30 seconds
   }
 
-  handleInactivity() {
+  handleInactivity(playerId = null, player = null) {
     const players = this.engine.getPlayerEntities();
-    const currentPlayerId = this.engine.getCurrentPlayer().getPlayerId();
 
     const winner = players.find(
-      (player) => player.getPlayerId() !== currentPlayerId
+      (player) => player.getPlayerId() !== playerId
     );
     this.winner = winner || null;
     return {
-      inactivePlayerId: currentPlayerId,
+      inactivePlayerId: playerId,
       winnerPlayerId: this.winner?.getPlayerId(),
     };
   }
@@ -443,14 +462,14 @@ class HeadsOrTailsGame {
   // Game Options Pattern (Optional)
   // This allows the game to be configurable via the game options system
   initializeGameOptions() {
-    // Register configurable options
-    this.getGameOptions().addConfigurable('maxRounds', 10, (value) => {
-      if (value < 1 || value > 50) return 'Max rounds must be 1-50';
+    // Register configurable options (runtime lifecycle - can be changed during game)
+    this.getGameOptions().addOption("maxRounds", 10, "runtime", (value) => {
+      if (value < 1 || value > 50) return "Max rounds must be 1-50";
       return true;
     });
 
-    // Register frozen options (cannot be changed after game starts)
-    this.getGameOptions().addFrozen('gameType', 'heads-or-tails');
+    // Register frozen options (frozen lifecycle - cannot be changed after game starts)
+    this.getGameOptions().addOption("gameType", "heads-or-tails", "frozen");
   }
 
   // Custom option handling (optional)
@@ -487,10 +506,14 @@ hotRouter.post("/hot/play-turn/:sessionId", (req, res) => {
   const gameSession = sessionManager.getSession(sessionId);
   const gameInstance = gameSession.getGameInstance();
   
-  // Get the current player from the game engine
-  const currentPlayer = gameInstance.getGameEngine().getCurrentPlayer();
+  // Get the current players from the game engine
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  const currentPlayerIds = Array.isArray(currentPlayers) 
+    ? currentPlayers.map(p => p.getPlayerId()) 
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
+  const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
 
-  let roundStatus = gameInstance.playTurn(currentPlayer.getPlayerId(), guess);
+  let roundStatus = gameInstance.playTurn(currentPlayerId, guess);
   
   res.json(roundStatus);
 
@@ -525,8 +548,8 @@ This is the main entry point that sets up the Express server, registers our game
 Create `game.js`:
 
 ```javascript
-import express from 'express';
-import path from 'path';
+import express from "express";
+import path from "path";
 
 // Import the core kubic-kode components
 import { sessionRoutes, gameRoutes } from "kubic-kode";
@@ -534,7 +557,7 @@ import { gameEventService } from "kubic-kode";
 import { gameRegistry } from "kubic-kode";
 
 import { fileURLToPath } from "url";
-import 'dotenv/config';
+import "dotenv/config";
 
 import {
   HeadsOrTailsGame,
@@ -546,14 +569,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-// Serve static files from the 'public' directory
+// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
 
 // Add game routes
-app.use('/api', sessionRoutes);
-app.use('/api', gameRoutes);
+app.use("/api", sessionRoutes);
+app.use("/api", gameRoutes);
 
 // Factory function that creates new game instances
 // This is required by the game registry system
@@ -985,10 +1008,10 @@ Create `public/app.js`:
 function headsOrTailsGame() {
     return {
         // Game state - Alpine.js will make these reactive
-        gamePhase: 'loading', // 'loading', 'playing', 'error'
+        gamePhase: "loading", // "loading", "playing", "error"
         showNameModal: true,
         showGameOverModal: false,
-        playerName: '',
+        playerName: "",
         sessionId: null,
         participantId: null,
         
@@ -1014,57 +1037,57 @@ function headsOrTailsGame() {
         
         async checkSession() {
             try {
-                const response = await fetch('/api/session/check');
+                const response = await fetch("/api/session/check");
                 const data = await response.json();
                 
                 if (data.available) {
                     this.sessionId = data.sessionId;
-                    this.gamePhase = 'playing';
+                    this.gamePhase = "playing";
                     this.showNameModal = true;
                 } else {
                     // Create a new session
                     await this.createSession();
                 }
             } catch (error) {
-                console.error('Error checking session:', error);
-                this.gamePhase = 'error';
+                console.error("Error checking session:", error);
+                this.gamePhase = "error";
             }
         },
         
         async createSession() {
             try {
-                const response = await fetch('/api/session/create', {
-                    method: 'POST',
+                const response = await fetch("/api/session/create", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        gameVariantId: 'hot',
-                        maxParticipants: 2
+                        gameVariantId: "hot",
+                        maxPlayers: 2
                     })
                 });
                 
                 const data = await response.json();
                 this.sessionId = data.sessionId;
-                this.gamePhase = 'playing';
+                this.gamePhase = "playing";
                 this.showNameModal = true;
             } catch (error) {
-                console.error('Error creating session:', error);
-                this.gamePhase = 'error';
+                console.error("Error creating session:", error);
+                this.gamePhase = "error";
             }
         },
         
         async handleNameSubmit() {
             if (!this.playerName.trim()) {
-                alert('Please enter your name');
+                alert("Please enter your name");
                 return;
             }
             
             try {
                 const response = await fetch(`/api/session/join/${this.sessionId}`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         name: this.playerName
@@ -1082,8 +1105,8 @@ function headsOrTailsGame() {
                 
                 this.fetchGameState();
             } catch (error) {
-                console.error('Error joining session:', error);
-                alert('Failed to join the game');
+                console.error("Error joining session:", error);
+                alert("Failed to join the game");
             }
         },
         
@@ -1097,7 +1120,7 @@ function headsOrTailsGame() {
                     this.fetchGameState();
                 }
             } catch (error) {
-                console.error('Error starting game:', error);
+                console.error("Error starting game:", error);
             }
         },
         
@@ -1110,13 +1133,14 @@ function headsOrTailsGame() {
                     this.updateGameState(data.data);
                 }
             } catch (error) {
-                console.error('Error fetching game state:', error);
+                console.error("Error fetching game state:", error);
             }
         },
         
         updateGameState(gameStats) {
             const players = gameStats.players || [];
-            const currentPlayerId = gameStats.current_player_id;
+            const currentPlayerIds = gameStats.current_player_ids || [];
+            const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
             
             // Find current player and opponent
             this.currentPlayer = players.find(p => p.id === currentPlayerId);
@@ -1142,7 +1166,7 @@ function headsOrTailsGame() {
                 const history = await response.json();
                 this.gameHistory = history;
             } catch (error) {
-                console.error('Error fetching game history:', error);
+                console.error("Error fetching game history:", error);
             }
         },
         
@@ -1155,9 +1179,9 @@ function headsOrTailsGame() {
                 this.isFlipping = true;
                 
                 const response = await fetch(`/api/hot/play-turn/${this.sessionId}`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({ guess })
                 });
@@ -1177,7 +1201,7 @@ function headsOrTailsGame() {
                 }, 1000);
                 
             } catch (error) {
-                console.error('Error making guess:', error);
+                console.error("Error making guess:", error);
                 this.isFlipping = false;
             }
         },
@@ -1195,23 +1219,23 @@ function headsOrTailsGame() {
                     this.fetchGameState();
                 }
             } catch (error) {
-                console.error('Error restarting game:', error);
+                console.error("Error restarting game:", error);
             }
         },
         
         initializeWebSocket() {
             // Determine WebSocket protocol based on current page protocol
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${protocol}//${window.location.host}`;
             
             // Create WebSocket connection for real-time updates
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
-                console.log('WebSocket connected');
+                console.log("WebSocket connected");
                 if (this.sessionId) {
                     this.ws.send(JSON.stringify({
-                        type: 'join',
+                        type: "join",
                         sessionId: this.sessionId,
                         participantId: this.participantId
                     }));
@@ -1222,14 +1246,14 @@ function headsOrTailsGame() {
                 const data = JSON.parse(event.data);
                 
                 switch (data.type) {
-                    case 'turnPlayed':
+                    case "turnPlayed":
                         this.fetchGameState();
                         break;
-                    case 'gameStarted':
+                    case "gameStarted":
                         this.gameActive = true;
                         this.fetchGameState();
                         break;
-                    case 'playerJoined':
+                    case "playerJoined":
                         if (data.payload.participants.length === 2) {
                             this.startGame();
                         }
@@ -1238,7 +1262,7 @@ function headsOrTailsGame() {
             };
             
             this.ws.onclose = () => {
-                console.log('WebSocket disconnected');
+                console.log("WebSocket disconnected");
                 // Attempt to reconnect after a delay
                 setTimeout(() => {
                     this.initializeWebSocket();
@@ -1274,6 +1298,7 @@ Update your `package.json` to include the development script:
 ## Step 7: Running the Game
 
 1. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -1293,8 +1318,6 @@ Update your `package.json` to include the development script:
 3. **Scoring**: Players earn points for correct guesses
 4. **Game End**: After 10 rounds, the player with the most points wins
 5. **Real-time Updates**: WebSocket connections provide real-time game state updates
-
-
 
 ## Key Features Implemented
 
@@ -1323,10 +1346,10 @@ You can easily extend this game by:
 ## Best Practices
 
 1. **Use Game Options**: Always use the game options system for configurable settings
-2. **Access via getOptionValue()**: Use `this.getOptionValue('optionName')` to access current values
+2. **Access via getOptionValue()**: Use `this.getOptionValue("optionName")` to access current values
 3. **No Instance Properties**: Don't store option values as instance properties
 4. **Implement Required Methods**: Always implement the required contract methods
 5. **Leverage Defaults**: Don't implement optional methods unless you need custom behavior
 6. **Use Wrapper Methods**: Take advantage of the wrapper methods provided by KubicKodeGame
 
-This tutorial demonstrates how to build a complete turn-based game using the kubic-kode framework, from backend game logic to frontend user interface. The modular architecture and no-boilerplate design make it easy to extend and modify the game as needed. 
+This tutorial demonstrates how to build a complete turn-based game using the kubic-kode framework, from backend game logic to frontend user interface. The modular architecture and no-boilerplate design make it easy to extend and modify the game as needed.

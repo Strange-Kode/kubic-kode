@@ -19,7 +19,7 @@ export function useRestartVoting(session, game, refreshData) {
       setRestartVotes({});
 
       const response = await fetch(
-        `/api/session/request-restart-vote/${session.sessionId}`
+        `/api/session/${session.sessionId}/request-restart-vote`
       );
       const result = await response.json();
 
@@ -29,7 +29,7 @@ export function useRestartVoting(session, game, refreshData) {
 
       // Automatically submit "Yes" vote for the initiator
       const voteResponse = await fetch(
-        `/api/session/submit-restart-vote/${session.sessionId}`,
+        `/api/session/${session.sessionId}/submit-restart-vote`,
         {
           method: "POST",
           headers: {
@@ -64,7 +64,7 @@ export function useRestartVoting(session, game, refreshData) {
 
       try {
         const response = await fetch(
-          `/api/session/submit-restart-vote/${session.sessionId}`,
+          `/api/session/${session.sessionId}/submit-restart-vote`,
           {
             method: "POST",
             headers: {
@@ -135,14 +135,14 @@ export function useRestartVoting(session, game, refreshData) {
 
         // AI auto-voting: Check if there are any AI participants that need to auto-vote
         // Only include playable participants (users and computers) in voting
-        const aiParticipants = session.participants.filter(p => p.type === 'computer');
+        const aiParticipants = session.participants.filter(p => p.type === "computer");
         aiParticipants.forEach(aiParticipant => {
           // Add a small delay to make it feel more realistic
           setTimeout(() => {
             console.log(`[AI Auto-Vote] AI participant ${aiParticipant.name} (ID: ${aiParticipant.id}) automatically voting Yes`);
             
             // Submit AI vote directly via API call
-            fetch(`/api/session/submit-restart-vote/${session.sessionId}`, {
+            fetch(`/api/session/${session.sessionId}/submit-restart-vote`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

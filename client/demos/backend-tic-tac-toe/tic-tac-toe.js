@@ -22,12 +22,7 @@ class TicTacToeGame {
   getGameEngine() {
     return this._engine;
   }
-
-  getCurrentPlayer() {
-    const currentPlayerList = this._engine.getCurrentTurnPlayers();
-    return currentPlayerList.pop();
-  }
-
+  
   getGameStats() {
     return {
       gridSize: this.getOptionValue("gridSize"),
@@ -46,29 +41,37 @@ class TicTacToeGame {
   initializeGameOptions() {
     // System options are automatically available via systemspace namespace
     // To discover available system options, use:
-    // console.log(this.getAvailableSystemOptions());
-    // To read a system option: this.getGameOptions().readSystemOption('participantPlaysFirst')
+    // this.getGameOptions().getSystemOptions();
+    // To read a system option: this.getGameOptions().readSystemOption("participantPlaysFirst")
     // Available system options include:
     // - participantPlaysFirst: Which participant goes first (pre-start)
     // - turnOrderType: How turn order is determined (pre-start) 
     // - allowSpectatorVoting: Whether spectators can vote (runtime)
     // - inactivityTimeout: Player inactivity timeout in ms (runtime)
+    // - returnSinglePlayerId: Return player ID as a single value instead of array (frozen)
+    //   (e.g. if true then [1] => 1, if false then [1] => [1])
+    //   (true only allowed if game play style is set to single-set)
 
     // Example: Read a system option
-    // const firstParticipant = this.getGameOptions().readSystemOption('participantPlaysFirst');
+    // const firstParticipant = this.getGameOptions().readSystemOption("participantPlaysFirst");
 
     // Game-specific options (userspace namespace - default)
-    this.getGameOptions().addOption("gridSize", 3, 'frozen'); // TicTacToe (classic) is always 3x3
-    this.getGameOptions().addOption("winCondition", 3, 'frozen'); // TicTacToe (classic) always requires 3 in a row
+    this.getGameOptions().addOption("gridSize", 3, "frozen"); // TicTacToe (classic) is always 3x3
+    this.getGameOptions().addOption("winCondition", 3, "frozen"); // TicTacToe (classic) always requires 3 in a row
     
     // Add difficulty configuration for AI behavior
-    this.getGameOptions().addOption("difficulty", "medium", 'runtime', (value) => {
-      const validDifficulties = ["easy", "medium", "hard"];
+    this.getGameOptions().addOption("difficulty", "medium", "pre-start", (value) => {
+      const validDifficulties = ["very_easy", "easy", "medium", "hard"];
       if (!validDifficulties.includes(value)) {
         return `Difficulty must be one of: ${validDifficulties.join(", ")}`;
       }
       return true;
     });
+
+    // Set returnSinglePlayerId option to true for TicTacToe
+    // This allows the game routes to return player ID as a single int value instead of array of ints
+    // TicTacToe uses single-set play style and always has exactly one current player
+    this.getGameOptions().setSystemOption("returnSinglePlayerId", true);
   }
 
   addPlayer(name, isComputer = false) {
@@ -78,14 +81,25 @@ class TicTacToeGame {
     return player;
   }
 
+  removePlayer(playerId) {
+    // Remove the player from the game engine
+    this._engine.deregisterPlayerEntity(playerId);
+    
+    // Return the mark type to the pool so it can be reused
+    const player = this._engine.getPlayerById(playerId);
+    if (player) {
+      this._consumeMarkTypes.unshift(player.getMarkType());
+    }
+  }
+
   establishFirstPlayers(sessionContext = null) {
     const players = this._engine.getPlayerEntities();
     
     // If we have session context, alternate first player based on restart count
-    if (sessionContext && typeof sessionContext.restartCount === 'number') {
+    if (sessionContext && typeof sessionContext.restartCount === "number") {
       const restartCount = sessionContext.restartCount;
-      const xPlayer = players.find(player => player.getMarkType() === 'X');
-      const oPlayer = players.find(player => player.getMarkType() === 'O');
+      const xPlayer = players.find(player => player.getMarkType() === "X");
+      const oPlayer = players.find(player => player.getMarkType() === "O");
       
       if (xPlayer && oPlayer) {
         // Alternate first player: odd restart count = X first, even = O first
@@ -96,7 +110,7 @@ class TicTacToeGame {
     }
     
     // Fallback to traditional behavior: X always goes first
-    const xPlayer = players.find(player => player.getMarkType() === 'X');
+    const xPlayer = players.find(player => player.getMarkType() === "X");
     if (xPlayer) {
       return xPlayer.getPlayerId();
     }
@@ -135,35 +149,23 @@ class TicTacToeGame {
     // Get the player by ID
     const currentPlayer = this._engine.getPlayerById(playerId);
 
-    console.log(
-      `[TicTacToeGame] playTurn called - playerId: ${playerId}, turnData:`, turnData
-    );
-    console.log(`[TicTacToeGame] Current player:`, currentPlayer);
-
-    if (this._engine.getTileMap().getTile(x, y)) {
-      console.log("Tile already occupied.");
+    if (this._engine.getTileMap().isTileOccupied(x, y)) {
       return PlayStatus.invalid(playerId, "Tile already occupied", {
         type: "occupied_tile"
       });
     }
 
     const mark = currentPlayer.placeMark({ x, y });
-    console.log(`[TicTacToeGame] Created mark:`, mark);
 
     this._engine.getTileMap().setTile(x, y, mark);
-    console.log(`[TicTacToeGame] Set tile at (${x}, ${y}) to:`, mark);
 
     // Debug: Check if tile was actually set
     const retrievedTile = this._engine.getTileMap().getTile(x, y);
-    console.log(
-      `[TicTacToeGame] Retrieved tile at (${x}, ${y}):`,
-      retrievedTile
-    );
 
     if (this.__checkWinCondition(mark)) {
       this._winner = currentPlayer;
       this._engine.stopGame();
-      console.log(`${currentPlayer.getPlayerName()} wins!`);
+
       return PlayStatus.win(playerId, {
         mark: mark
       });
@@ -172,13 +174,12 @@ class TicTacToeGame {
     // Check for tie condition - all tiles filled but no winner
     if (this.__checkTieCondition()) {
       this._engine.stopGame();
-      console.log('Game is tied!');
+      
       return PlayStatus.tie(playerId, {
         mark: mark
       });
     }
 
-    this._engine.nextTurn();
     return PlayStatus.success(playerId, {
       mark: mark
     });
@@ -192,8 +193,8 @@ class TicTacToeGame {
       { dx: 1, dy: -1 }, // diagonal /
     ];
 
-    const { x, y } = lastMark.position;
-    const targetType = lastMark.type;
+    const { x, y } = lastMark.getEntityPosition();
+    const targetType = lastMark.getMarkType();
 
     for (const { dx, dy } of directions) {
       let count = 1;
@@ -222,7 +223,7 @@ class TicTacToeGame {
 
     while (this._engine.getTileMap().inBounds(x, y)) {
       const tile = this._engine.getTileMap().getTile(x, y);
-      if (!tile || tile.type !== type) {
+      if (!tile || tile.getMarkType() !== type) {
         break;
       }
       count++;
@@ -241,12 +242,11 @@ class TicTacToeGame {
     return this._winner;
   }
 
-  handleInactivity() {
+  handleInactivity(playerId = null, player = null) {
     const players = this._engine.getPlayerEntities();
-    const currentPlayerId = this._engine.getCurrentPlayer().getPlayerId();
 
     const winner = players.find(
-      (player) => player.getPlayerId() !== currentPlayerId
+      (player) => player.getPlayerId() !== playerId
     );
     this._winner = winner || null;
 
@@ -254,13 +254,12 @@ class TicTacToeGame {
     this._engine.stopGame();
 
     return {
-      inactivePlayerId: currentPlayerId,
+      inactivePlayerId: playerId,
       winnerPlayerId: this._winner?.getPlayerId(),
     };
   }
 
-  calculateComputerMove() {
-    const currentPlayer = this._engine.getCurrentPlayer();
+  calculateComputerMove(playerId, currentPlayer) {
     const tileMap = this._engine.getTileMap();
     const computerMark = currentPlayer.getMarkType();
     const humanMark = computerMark === "X" ? "O" : "X";
@@ -273,12 +272,17 @@ class TicTacToeGame {
 
     // Random chances applies to "dumb" heuristic moves (no smart mode)
     const randomChances = {
+      very_easy: 0.0, // No randomness for very_easy - always play worst move
       easy: 0.35,
       medium: 0.23,
       hard: 0.2,
     }
     // Determine move strategy based on difficulty
     switch (difficulty) {
+      case "very_easy":
+        // Very Easy: Play the worst possible move to favor the human player
+        return this._convertMoveToTurnData(this._getVeryEasyMove(tileMap, computerMark, humanMark, emptyTiles));
+        
       case "easy":
         // Easy: Always use heuristics (current blocking logic)
         return this._convertMoveToTurnData(this._getHeuristicMove(tileMap, computerMark, humanMark, emptyTiles, false, randomChances.easy));
@@ -329,6 +333,40 @@ class TicTacToeGame {
       console.error("Error in minimax calculation:", error);
       return null; // Fallback to heuristics
     }
+  }
+
+  /**
+   * Get the worst possible move to favor the human player
+   * This AI plays as if its goal is to make the human win
+   * @param {Object} tileMap - The game tile map
+   * @param {string} computerMark - Computer's mark type
+   * @param {string} humanMark - Human's mark type  
+   * @param {Array} emptyTiles - Array of empty tile positions
+   */
+  _getVeryEasyMove(tileMap, computerMark, humanMark, emptyTiles) {
+    // The very_easy AI should NEVER block the human's winning moves
+    // It should only play moves that don't interfere with human's strategy
+    
+    // First priority: Play in the worst strategic positions (edges, avoid center and corners)
+    const worstStrategicMove = this._findWorstStrategicMove(tileMap, emptyTiles);
+    if (worstStrategicMove) {
+      return worstStrategicMove;
+    }
+
+    // Second priority: Play in corners (still not great, but better than center)
+    const cornerMove = this._findCornerMove(tileMap, emptyTiles);
+    if (cornerMove) {
+      return cornerMove;
+    }
+
+    // Third priority: Play in center (worst possible move strategically)
+    const centerMove = this._findCenterMove(tileMap, emptyTiles);
+    if (centerMove) {
+      return centerMove;
+    }
+
+    // Fallback: random move from remaining empty tiles
+    return emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
   }
 
   /**
@@ -390,7 +428,7 @@ class TicTacToeGame {
 
     for (const line of lines) {
       const ownMarks = line.filter(
-        (tile) => tile.tile && tile.tile.type === mark
+        (tile) => tile.tile && tile.tile.getMarkType() === mark
       );
       const emptyTiles = line.filter((tile) => tile.tile === null);
 
@@ -410,7 +448,7 @@ class TicTacToeGame {
 
     for (const line of lines) {
       const opponentMarks = line.filter(
-        (tile) => tile.tile && tile.tile.type === opponentMark
+        (tile) => tile.tile && tile.tile.getMarkType() === opponentMark
       );
       const emptyTiles = line.filter((tile) => tile.tile === null);
 
@@ -422,13 +460,69 @@ class TicTacToeGame {
     return null;
   }
 
+  /**
+   * Find the worst strategic move (prioritizes edges over center and corners)
+   */
+  _findWorstStrategicMove(tileMap, emptyTiles) {
+    // Define edges (worst strategic positions)
+    const edgePositions = [
+      { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 2 }
+    ];
+
+    // Find the first available edge position
+    for (const position of edgePositions) {
+      const isAvailable = emptyTiles.some(tile => 
+        tile.x === position.x && tile.y === position.y
+      );
+      if (isAvailable) {
+        return position;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find a corner move (better than center but worse than edges for very_easy)
+   */
+  _findCornerMove(tileMap, emptyTiles) {
+    const cornerPositions = [
+      { x: 0, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 2 }, { x: 2, y: 2 }
+    ];
+
+    // Find the first available corner position
+    for (const position of cornerPositions) {
+      const isAvailable = emptyTiles.some(tile => 
+        tile.x === position.x && tile.y === position.y
+      );
+      if (isAvailable) {
+        return position;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find center move (worst possible move for very_easy)
+   */
+  _findCenterMove(tileMap, emptyTiles) {
+    const centerPosition = { x: 1, y: 1 };
+    
+    const isAvailable = emptyTiles.some(tile => 
+      tile.x === centerPosition.x && tile.y === centerPosition.y
+    );
+    
+    return isAvailable ? centerPosition : null;
+  }
+
   _getAllLines(tileMap) {
     const lines = [];
 
     // Rows
-    for (let y = 0; y < tileMap.height; y++) {
+    for (let y = 0; y < tileMap.getHeight(); y++) {
       const row = [];
-      for (let x = 0; x < tileMap.width; x++) {
+      for (let x = 0; x < tileMap.getWidth(); x++) {
         row.push({
           tile: tileMap.getTile(x, y),
           position: { x, y },
@@ -438,9 +532,9 @@ class TicTacToeGame {
     }
 
     // Columns
-    for (let x = 0; x < tileMap.width; x++) {
+    for (let x = 0; x < tileMap.getWidth(); x++) {
       const column = [];
-      for (let y = 0; y < tileMap.height; y++) {
+      for (let y = 0; y < tileMap.getHeight(); y++) {
         column.push({
           tile: tileMap.getTile(x, y),
           position: { x, y },

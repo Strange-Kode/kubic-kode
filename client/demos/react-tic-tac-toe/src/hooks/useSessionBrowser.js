@@ -103,6 +103,29 @@ export function useSessionBrowser() {
     return true;
   };
 
+  // Game token management helpers
+  const storeGameToken = useCallback((sessionId, participantId, gameToken) => {
+    try {
+      const tokens = getAllGameTokens();
+      tokens[sessionId] = tokens[sessionId] || {};
+      tokens[sessionId][participantId] = gameToken;
+      localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
+      console.log(`🔐 [useSessionBrowser] Stored game token for session: ${sessionId}, participant: ${participantId}, token: ${gameToken ? 'PRESENT' : 'MISSING'}`);
+    } catch (error) {
+      console.error("[useSessionBrowser] Error storing game token:", error);
+    }
+  }, []);
+
+  const getAllGameTokens = useCallback(() => {
+    try {
+      const stored = localStorage.getItem("kubic_game_tokens");
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error("[useSessionBrowser] Error getting all game tokens:", error);
+      return {};
+    }
+  }, []);
+
   // Join a specific session by session ID
   const joinSpecificSession = useCallback(async (sessionId, participantName, participantType = "user") => {
     if (!sessionId || !participantName?.trim()) {
@@ -125,10 +148,17 @@ export function useSessionBrowser() {
       });
 
       if (result.success) {
+        const participantId = result.data.participant_id;
+        
+        // Store the game token if it's provided
+        if (result.data.game_token) {
+          storeGameToken(sessionId, participantId, result.data.game_token);
+        }
+
         return {
           success: true,
           sessionId,
-          participantId: result.data.participant_id,
+          participantId,
           participantType
         };
       } else {
@@ -141,7 +171,7 @@ export function useSessionBrowser() {
     } finally {
       setIsLoading(false);
     }
-  }, [post]);
+  }, [post, storeGameToken]);
 
   // Auto-join the best available session for a game type
   const autoJoinSession = useCallback(async (gameVariantId, participantName, participantType = "user", createIfNone = true) => {
@@ -162,10 +192,18 @@ export function useSessionBrowser() {
       });
 
       if (result.success) {
+        const sessionId = result.data.session_id;
+        const participantId = result.data.participant_id;
+        
+        // Store the game token if it's provided
+        if (result.data.game_token) {
+          storeGameToken(sessionId, participantId, result.data.game_token);
+        }
+
         return {
           success: true,
-          sessionId: result.data.session_id,
-          participantId: result.data.participant_id,
+          sessionId,
+          participantId,
           sessionCreated: result.data.session_created,
           lobbyStatus: result.data.lobby_status
         };
@@ -179,7 +217,7 @@ export function useSessionBrowser() {
     } finally {
       setIsLoading(false);
     }
-  }, [post]);
+  }, [post, storeGameToken]);
 
   // Get detailed lobby status for a specific session
   const getSessionLobbyStatus = useCallback(async (sessionId) => {

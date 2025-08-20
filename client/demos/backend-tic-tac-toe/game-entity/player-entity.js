@@ -1,48 +1,97 @@
 import { GameEntity } from "../../../../game-engine/game-entity/game-entity.js";
 import MarkEntity from "./mark-entity.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../../../../game-engine/kubic-kode-error.js";
 
 class PlayerEntity extends GameEntity {
   constructor(name, markType, isComputer=false) {
     // Generate a simple ID based on the markType for now
     const playerId = markType === "X" ? 1 : 2;
     super(playerId, name, null); // Pass id, name, position to parent
-    this.markType = markType; // 'X' or 'O'
-    this.marks = []; // List of MarkEntity objects
-    this.isComputer = isComputer;
+    this._markType = markType; // "X" or "O"
+    this._marks = []; // List of MarkEntity objects
+    this._isComputer = isComputer;
+  }
+
+  get marks() {
+    throw ErrorFactory.system(
+      "Attempting to access marks property on PlayerEntity. Use getMarks() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use getMarks() method instead", property: "marks" } }
+    );
+  }
+
+  getMarks() {
+    return this._marks;
+  }
+
+  get isComputer() {
+    throw ErrorFactory.system(
+      "Attempting to access isComputer property on PlayerEntity. Use isComputer() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use isComputer() method instead", property: "isComputer" } }
+    );
+  }
+
+  isComputer() {
+    return this._isComputer;
+  }
+
+  get markType() {
+    throw ErrorFactory.system(
+      "Attempting to access markType property on PlayerEntity. Use getMarkType() instead.",
+      "PlayerEntity",
+      { context: { suggestion: "Use getMarkType() method instead", property: "markType" } }
+    );
+  }
+
+  getMarkType() {
+    return this._markType;
   }
 
   placeMark(position) {
     const mark = new MarkEntity({
-      type: this.markType,
+      type: this._markType,
       owner: this,
       position,
     });
-    this.marks.push(mark);
+    this._marks.push(mark);
     return mark;
   }
-  
-  getPlayerType() {
-    if (this.isComputer) {
-      return 'computer';
-    }
-    return 'human';
+
+  getPlayerId() {
+    return this.getEntityId();
   }
-  
-  getMarkType() {
-    return this.markType;
+
+  getPlayerName() {
+    return this.getEntityName();
+  }
+
+  getPlayerPosition() {
+    return this.getEntityPosition();
+  }
+
+  getPlayerType() {
+    if (this.isComputer()) {
+      return "computer";
+    }
+    return "human";
   }
 
   clearMarks() {
-    this.marks = [];
+    this._marks = [];
   }
 
   toJSON() {
     return {
-      id: this.id,
-      name: this.name,
-      position: this.position,
-      markType: this.markType,
-      marks: this.marks
+      id: this.getPlayerId(),
+      name: this.getPlayerName(),
+      position: this.getPlayerPosition(),
+      markType: this._markType,
+      marks: this._marks
     };
   }
 }

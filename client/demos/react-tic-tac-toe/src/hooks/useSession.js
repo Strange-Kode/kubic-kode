@@ -4,13 +4,14 @@ import { useFetch } from "./useFetch";
 /**
  * Custom hook for session management
  * Handles session initialization, participant joining, and participant fetching
+ * Now includes game token management for the new authentication system
  */
 export function useSession() {
   // Session state
   const [sessionId, setSessionId] = useState(null);
   const [participantId, setParticipantId] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [maxParticipants, setMaxParticipants] = useState(2); // default fallback
+  const [maxPlayers, setMaxPlayers] = useState(2); // default fallback
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState(null);
 
@@ -18,6 +19,57 @@ export function useSession() {
   const { get, post } = useFetch();
 
   // No automatic initialization - session must be explicitly created
+
+  // Game token management helpers
+  const storeGameToken = useCallback((sessionId, participantId, gameToken) => {
+    try {
+      const tokens = getAllGameTokens();
+      tokens[sessionId] = tokens[sessionId] || {};
+      tokens[sessionId][participantId] = gameToken;
+      localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
+      console.log(`🔐 Stored game token for session: ${sessionId}, participant: ${participantId}`);
+    } catch (error) {
+      console.error("Error storing game token:", error);
+    }
+  }, []);
+
+  const getGameToken = useCallback((sessionId, participantId) => {
+    try {
+      const tokens = getAllGameTokens();
+      const token = tokens[sessionId]?.[participantId] || null;
+      console.log(`🔐 [useSession] Getting game token for session: ${sessionId}, participant: ${participantId}, found: ${token ? 'YES' : 'NO'}`);
+      return token;
+    } catch (error) {
+      console.error("Error getting game token:", error);
+      return null;
+    }
+  }, []);
+
+  const clearGameToken = useCallback((sessionId, participantId) => {
+    try {
+      const tokens = getAllGameTokens();
+      if (tokens[sessionId]) {
+        delete tokens[sessionId][participantId];
+        if (Object.keys(tokens[sessionId]).length === 0) {
+          delete tokens[sessionId];
+        }
+        localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
+        console.log(`🔐 Cleared game token for session: ${sessionId}, participant: ${participantId}`);
+      }
+    } catch (error) {
+      console.error("Error clearing game token:", error);
+    }
+  }, []);
+
+  const getAllGameTokens = useCallback(() => {
+    try {
+      const stored = localStorage.getItem("kubic_game_tokens");
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error("Error getting all game tokens:", error);
+      return {};
+    }
+  }, []);
 
   // Initialize session with backend
   const initializeSession = useCallback(async (forceNew = false) => {
@@ -70,9 +122,15 @@ export function useSession() {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
           
-          // If we joined a different session, update our session state
+          // If we joined a different session, update our session state first
           if (targetSessionId && targetSessionId !== sessionId) {
             setSessionId(targetSessionId);
+          }
+          
+          // Store the game token if it's provided (use the correct session ID)
+          if (result.data.game_token) {
+            const finalSessionId = targetSessionId || sessionId;
+            storeGameToken(finalSessionId, newParticipantId, result.data.game_token);
           }
           
           // console.log(
@@ -91,7 +149,7 @@ export function useSession() {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, post]
+    [sessionId, post, storeGameToken]
   );
 
   // Add AI participant to session
@@ -107,6 +165,11 @@ export function useSession() {
       });
 
       if (result.success) {
+        // Store the game token if it's provided
+        if (result.data.game_token) {
+          storeGameToken(sessionId, result.data.participant_id, result.data.game_token);
+        }
+        
         // Fetch updated participants list
         await fetchParticipants();
         return { success: true };
@@ -117,7 +180,7 @@ export function useSession() {
       console.error("[useSession] Failed to add AI opponent:", error);
       return { success: false, error: error.message };
     }
-  }, [sessionId, post]);
+  }, [sessionId, post, storeGameToken]);
 
   // Join session as spectator (uses dedicated /spectate endpoint)
   const joinAsSpectator = useCallback(
@@ -134,6 +197,11 @@ export function useSession() {
         if (result.success) {
           const newParticipantId = result.data.participant_id;
           setParticipantId(newParticipantId);
+          
+          // Store the game token if it's provided
+          if (result.data.game_token) {
+            storeGameToken(sessionId, newParticipantId, result.data.game_token);
+          }
 
           // Fetch updated participants list
           await fetchParticipants();
@@ -147,23 +215,23 @@ export function useSession() {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, post]
+    [sessionId, post, storeGameToken]
   );
 
-  // Fetch session stats including participants and maxParticipants
+  // Fetch session stats including participants and maxPlayers
   const fetchSessionStats = useCallback(async () => {
     if (!sessionId) {
       return;
     }
 
     try {
-      const result = await get(`/api/session/participants/stats/${sessionId}`);
+      const result = await get(`/api/session/${sessionId}/participants/stats`);
       console.log("[useSession] Session stats result:", result);
 
       if (result.success) {
-        const { maxParticipants: maxParts } = result.data;
-        console.log("[useSession] Setting maxParticipants to:", maxParts);
-        setMaxParticipants(maxParts);
+        const { maxPlayers: maxPlayers } = result.data;
+        console.log("[useSession] Setting maxPlayers to:", maxPlayers);
+        setMaxPlayers(maxPlayers);
       } else {
         console.error(
           "[useSession] Failed to fetch session stats:",
@@ -182,7 +250,7 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/${sessionId}/participants`);
+      const result = await get(`/api/session/${sessionId}/participants/list`);
 
       if (result.success) {
         const participantsList = result.data;
@@ -209,10 +277,10 @@ export function useSession() {
     }
 
     try {
-      const result = await get(`/api/session/participants/stats/${sessionId}`);
+      const result = await get(`/api/session/${sessionId}/participants/stats`);
 
       if (result.success) {
-        const { players, maxParticipants: maxParts, started } = result.data;
+        const { players, maxPlayers: maxParts, started } = result.data;
         const isFull = players >= maxParts;
 
         return {
@@ -223,7 +291,7 @@ export function useSession() {
             ? "Session is full"
             : "Available",
           participantCount: players,
-          maxParticipants: maxParts,
+          maxPlayers: maxParts,
           started,
         };
       } else {
@@ -276,6 +344,9 @@ export function useSession() {
       });
 
       if (result.success) {
+        // Clear the game token
+        clearGameToken(sessionId, participantId);
+
         // Clear session state
         setSessionId(null);
         setParticipantId(null);
@@ -289,14 +360,14 @@ export function useSession() {
       console.error("[useSession] Error leaving session:", error);
       return { success: false, error: error.message };
     }
-  }, [sessionId, participantId, post]);
+  }, [sessionId, participantId, post, clearGameToken]);
 
   return {
     // Session state
     sessionId,
     participantId,
     participants,
-    maxParticipants,
+    maxPlayers,
     isSessionLoading,
     sessionError,
     isHost,
@@ -306,9 +377,13 @@ export function useSession() {
     joinSession,
     joinAsSpectator,
     addAIParticipant,
+    leaveSession,
     fetchParticipants,
     checkSessionAvailability,
     syncSessionState,
-    leaveSession,
+    // Token management (exposed for use by other hooks)
+    getGameToken: () => getGameToken(sessionId, participantId),
+    storeGameToken: (token) => storeGameToken(sessionId, participantId, token),
+    clearGameToken: () => clearGameToken(sessionId, participantId),
   };
 }

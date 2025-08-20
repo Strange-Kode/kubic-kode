@@ -59,4 +59,4 @@ module.exports = {
   gameHistoryManager,
   gameRoutes,
   sessionRoutes
-}; 
+};

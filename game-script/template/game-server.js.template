@@ -1,36 +1,36 @@
-import express from 'express';
-import path from 'path';
-
+import express from "express";
+import path from "path";
+{{NEWLINE}}
 // Kubic Kode imports
 import { sessionRoutes, gameRoutes } from "kubic-kode";
 import { gameEventService } from "kubic-kode";
 import { gameRegistry } from "kubic-kode";
-
+{{NEWLINE}}
 // Extract specific classes for cleaner usage
 const { GameEventService } = gameEventService;
-
+{{NEWLINE}}
 import { fileURLToPath } from "url";
-import 'dotenv/config';
-
+import "dotenv/config";
+{{NEWLINE}}
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+{{NEWLINE}}
 const app = express();
 app.use(express.json());
-// Serve static files from the 'public' directory
+// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, "public")));
-
+{{NEWLINE}}
 const PORT = process.env.PORT || 3000;
-
+{{NEWLINE}}
 // Add game routes
-app.use('/api', sessionRoutes);
-app.use('/api', gameRoutes);
-
+app.use("/api", sessionRoutes);
+app.use("/api", gameRoutes);
+{{NEWLINE}}
 import {
 {{INDENT}}{{GAME_CLASS_NAME}}Game,
 {{INDENT}}{{GAME_CAMEL_NAME}}Router,
 } from "./{{GAME_SHORT_NAME}}.js";
-
+{{NEWLINE}}
 function {{GAME_CLASS_NAME}}Factory(sessionId, options = {}) {
 {{INDENT}}{{#IS_SCROLLABLE}}
 {{INDENT}}// Default grid size if not specified
@@ -44,19 +44,20 @@ function {{GAME_CLASS_NAME}}Factory(sessionId, options = {}) {
 {{INDENT}}return new {{GAME_CLASS_NAME}}Game({ sessionId, gridSize, ...options });
 {{INDENT}}{{/IS_SCROLLABLE}}
 }
-
+{{NEWLINE}}
 const gameRouters = [{ path: "/api/{{GAME_SHORT_NAME}}", router: {{GAME_CAMEL_NAME}}Router }];
-
+{{NEWLINE}}
 // Dynamically register game specific routers
 gameRouters.forEach(({ path, router }) => {
 {{INDENT}}app.use(path, router);
 });
-
+{{NEWLINE}}
 // List of known games
 gameRegistry.register("{{GAME_SHORT_NAME}}", {{GAME_CLASS_NAME}}Factory);
-
+{{NEWLINE}}
 const server = app.listen(PORT, () => {
 {{INDENT}}console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
 });
-
+{{NEWLINE}}
 GameEventService.initWebSocketServer(server);
+{{NEWLINE}}

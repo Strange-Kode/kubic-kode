@@ -172,8 +172,8 @@ The test runner is preconfigured with optimal settings:
 
 ```javascript
 const testRunner = new TicTacToeGameTest({
-  baseUrl: 'http://localhost:3000',    // Server URL
-  wsUrl: 'ws://localhost:3000',        // WebSocket URL  
+  baseUrl: "http://localhost:3000",    // Server URL
+  wsUrl: "ws://localhost:3000",        // WebSocket URL  
   timeout: 10000,                      // Request timeout (ms)
   retryAttempts: 3,                    // Retry attempts for failed requests
   retryDelay: 1000                     // Delay between retries (ms)
@@ -183,7 +183,7 @@ const testRunner = new TicTacToeGameTest({
 ### Key Features
 
 - **Session Isolation**: Each test gets a fresh session using `forceNew: true`
-- **Proper Participant Types**: Uses `'user'` participant type (not `'human'`)
+- **Proper Participant Types**: Uses `"user"` participant type (not `"human"`)
 - **Complete API Coverage**: Tests all tic-tac-toe specific endpoints
 - **WebSocket Monitoring**: Captures and validates all real-time events
 - **Error Handling**: Comprehensive error detection and reporting
@@ -195,7 +195,7 @@ const testRunner = new TicTacToeGameTest({
 1. **Create a new test class**:
 
 ```javascript
-import E2ETestRunner from './e2e-test-runner.js';
+import E2ETestRunner from "./e2e-test-runner.js";
 
 class CustomGameTest extends E2ETestRunner {
   async testCustomScenario() {
@@ -208,7 +208,7 @@ class CustomGameTest extends E2ETestRunner {
 
 ```javascript
 async testCustomScenario() {
-  const testName = 'Custom Scenario';
+  const testName = "Custom Scenario";
   console.log(`\n🧪 Running: ${testName}`);
   
   try {
@@ -234,13 +234,13 @@ Example for a new game:
 
 ```javascript
 // Test with a different game
-const result = await this.testCompleteGameFlow('my-new-game');
+const result = await this.testCompleteGameFlow("my-new-game");
 
 // Test with game-specific options
 const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
-  method: 'POST',
+  method: "POST",
   body: JSON.stringify({
-    customOption: 'value'
+    customOption: "value"
   })
 });
 ```
@@ -257,7 +257,7 @@ const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
 
 2. **Missing Dependencies**:
    ```
-   Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'node-fetch'
+   Error [ERR_MODULE_NOT_FOUND]: Cannot find package "node-fetch"
    ```
    **Solution**: Install dependencies with `npm install`
 
@@ -277,7 +277,7 @@ const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
    ```
    ❌ Invalid participant type specified: human
    ```
-   **Solution**: Use `'user'`, `'computer'`, or `'spectator'` (not `'human'`)
+   **Solution**: Use `"user"`, `"computer"`, or `"spectator"` (not `"human"`)
 
 ### Debug Mode
 
@@ -313,7 +313,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: '18'
+          node-version: "18"
       - run: npm install
       - run: npm run start-server &
       - run: sleep 5  # Wait for server to start
@@ -331,7 +331,7 @@ jobs:
 ## Best Practices
 
 1. **Session Isolation**: Each test uses `forceNew: true` for independent sessions
-2. **Proper Participant Types**: Always use `'user'`, `'computer'`, or `'spectator'`
+2. **Proper Participant Types**: Always use `"user"`, `"computer"`, or `"spectator"`
 3. **WebSocket Timing**: Connect WebSockets after obtaining participant IDs
 4. **Error Handling**: Include comprehensive error checking and reporting
 5. **Real-time Testing**: Validate WebSocket events and game state synchronization
@@ -353,13 +353,13 @@ When extending the test suite:
 
 ```javascript
 async testNewFeature() {
-  const testName = 'New Feature Test';
+  const testName = "New Feature Test";
   console.log(`\n🧪 Running: ${testName}`);
   
   try {
     // Create isolated session
-    const initResponse = await this.makeRequest('/api/session/init/tic-tac-toe-classic', {
-      method: 'POST',
+    const initResponse = await this.makeRequest("/api/session/init/tic-tac-toe-classic", {
+      method: "POST",
       body: JSON.stringify({ forceNew: true })
     });
     
@@ -382,4 +382,4 @@ If you encounter issues with the testing framework:
 2. Verify your server is running and accessible
 3. Check the server logs for errors
 4. Ensure all dependencies are installed
-5. Try running tests individually to isolate issues 
+5. Try running tests individually to isolate issues

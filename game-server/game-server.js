@@ -1,14 +1,35 @@
+import dotenv from "dotenv";
+
+// Load environment variables from .env file FIRST, before any other imports
+dotenv.config();
+
+// Log only KUBIC_ environment variables (protecting sensitive ones)
+console.log("=== KUBIC Environment Variables Loaded ===");
+Object.keys(process.env)
+  .filter(key => key.startsWith("KUBIC_"))
+  .forEach(key => {
+    const value = process.env[key];
+    // Protect sensitive keys by showing [SET] instead of actual value
+    if (key.includes("SECRET") || key.includes("PASSWORD") || key.includes("KEY")) {
+      console.log(`${key}:`, value ? "[SET]" : "[NOT SET]");
+    } else {
+      console.log(`${key}:`, value);
+    }
+  });
+console.log("=====================================");
+
 import express from "express";
+import helmet from "helmet";
 import { kubicLog } from "../kubic-log.js";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.KUBIC_PORT || 3000;
 
-process.on('uncaughtException', (err) => {
-    kubicLog.error('Uncaught Exception:', err.stack || err);
+process.on("uncaughtException", (err) => {
+    kubicLog.error("Uncaught Exception:", err.stack || err);
 });
-process.on('unhandledRejection', (reason, promise) => {
-    kubicLog.error('Unhandled Rejection:', reason.stack || reason);
+process.on("unhandledRejection", (reason, promise) => {
+    kubicLog.error("Unhandled Rejection:", reason.stack || reason);
 });
 
 import sessionRouter from "./route/session-routes.js";
@@ -42,19 +63,19 @@ class ConfigurableTicTacToeGame extends TicTacToeGame {
   // Override initializeGameOptions to define lifecycle-based options
   initializeGameOptions() {
     // Grid size is a pre-start option - can only be changed before game starts
-    this.getGameOptions().addOption('gridSize', 3, 'pre-start', (value) => {
-      if (typeof value !== 'number' || value < 3 || value > 10) {
-        return 'Grid size must be a number between 3 and 10';
+    this.getGameOptions().addOption("gridSize", 3, "pre-start", (value) => {
+      if (typeof value !== "number" || value < 3 || value > 10) {
+        return "Grid size must be a number between 3 and 10";
       }
       return true;
     });
     
     // Win condition is also pre-start - fundamental to game rules
-    this.getGameOptions().addOption('winCondition', 3, 'pre-start', (value) => {
-      if (typeof value !== 'number' || value < 3) {
-        return 'Win condition must be at least 3';
+    this.getGameOptions().addOption("winCondition", 3, "pre-start", (value) => {
+      if (typeof value !== "number" || value < 3) {
+        return "Win condition must be at least 3";
       }
-      const currentGridSize = this.getOptionValue('gridSize');
+      const currentGridSize = this.getOptionValue("gridSize");
       if (value > currentGridSize) {
         return `Win condition cannot be greater than grid size (${currentGridSize})`;
       }
@@ -62,9 +83,9 @@ class ConfigurableTicTacToeGame extends TicTacToeGame {
     });
 
     // Example of a runtime option - could be changed during gameplay
-    this.getGameOptions().addOption('showHints', false, 'runtime', (value) => {
-      if (typeof value !== 'boolean') {
-        return 'Show hints must be true or false';
+    this.getGameOptions().addOption("showHints", false, "runtime", (value) => {
+      if (typeof value !== "boolean") {
+        return "Show hints must be true or false";
       }
       return true;
     });
@@ -80,6 +101,9 @@ const gameRouters = [{ path: "/api/tic-tac-toe", router: ticTacToeRouter }];
 // List of known games
 gameRegistry.register("tic-tac-toe-classic", TicTacToeClassicFactory);
 gameRegistry.register("tic-tac-toe-configurable", ConfigurableTicTacToeFactory);
+
+// Security middleware - helmet.js for security headers
+app.use(helmet());
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -102,9 +126,9 @@ app.get("/", (req, res) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Kubic Kode Server running at http://localhost:${PORT}`);
-  console.log(`Debug mode: ${kubicLog.isEnabled() ? 'enabled' : 'disabled'}`);
+  console.log(`Debug mode: ${kubicLog.isEnabled() ? "enabled" : "disabled"}`);
   if (kubicLog.isEnabled()) {
-    console.log(`Debug level: ${process.env.DEBUG_LEVEL || 'info'}`);
+    console.log(`Debug level: ${process.env.KUBIC_LOG_LEVEL || process.env.DEBUG_LEVEL || "info"}`);
   }
 });
 

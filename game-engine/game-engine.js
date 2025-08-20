@@ -2,6 +2,12 @@ import { TileMap } from "./tile-map.js";
 import { ScrollableTileMapManager } from "./scrollable-tile-map-manager.js";
 import { GameStateMachine } from "./game-state-machine.js";
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicGameError, 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 export class GameEngine {
   constructor(tilemapWidth, tilemapHeight, engineConfig = {}) {
@@ -39,6 +45,10 @@ export class GameEngine {
     // For multi-set: track which players have acted this round
     this._actedThisRound = new Set();
 
+    // Turn advancement lock - prevents game implementations from calling nextTurn directly
+    this._turnLocked = false;
+    this._turnLockOwner = null; // Reference to KubicKodeGame instance that owns the lock
+
     // Game State Machine (optional)
     this._useStateMachine = engineConfig.useStateMachine === true;
     this._stateMachine = null;
@@ -47,15 +57,23 @@ export class GameEngine {
     }
   }
 
+  /**
+   * Get all registered entities in the game engine
+   * @returns {Array} Array of all registered player entities
+   */
   getEntities() {
     return this._player_entities;
   }
 
+  /**
+   * Register a player entity with the game engine
+   * @param {Object} entity - The player entity to register
+   */
   registerPlayerEntity(entity) {
     // Check if player is already registered to prevent duplicates
-    const existingPlayer = this._player_entities.find(e => e.id === entity.id);
+    const existingPlayer = this._player_entities.find(e => e.getPlayerId() === entity.getPlayerId());
     if (existingPlayer) {
-      kubicLog.warn(`[GameEngine] Player ${entity.id} already registered, skipping duplicate registration`);
+      kubicLog.warn(`[GameEngine] Player ${entity.getPlayerId()} already registered, skipping duplicate registration`);
       return; // Don't add duplicate players
     }
     
@@ -63,21 +81,24 @@ export class GameEngine {
     
     // Register viewport for scrollable tile map if available
     if (this._useScrollableTileMap && this._scrollableManager && entity.viewport) {
-      this._scrollableManager.registerPlayerViewport(entity.id, entity.viewport);
+      this._scrollableManager.registerPlayerViewport(entity.getPlayerId(), entity.viewport);
     }
     
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
-      this._turnOrder = this._player_entities.map(e => e.id);
+      this._turnOrder = this._player_entities.map(e => e.getPlayerId());
     }
     // For multi-subset, only set turnOrder if not already set
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 0) {
-      this._turnOrder = [this._player_entities.map(e => e.id)];
+      this._turnOrder = [this._player_entities.map(e => e.getPlayerId())];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
 
-  // Clear all registered players (useful for game restart)
+  /**
+   * Clear all registered players and reset turn state
+   * Useful for game restart scenarios
+   */
   clearPlayerEntities() {
     this._player_entities = [];
     this._turnOrder = [];
@@ -86,8 +107,14 @@ export class GameEngine {
     kubicLog.debug(`[GameEngine] Cleared all player entities and reset turn state`);
   }
 
+  /**
+   * Deregister a player entity from the game engine.
+   * Removing player entity from the game engine may have side effects,
+   * such as changing the turn order.
+   * @param {string} entityId - The ID of the player entity to deregister
+   */
   deregisterPlayerEntity(entityId) {
-    this._player_entities = this._player_entities.filter(e => e.id !== entityId);
+    this._player_entities = this._player_entities.filter(e => e.getPlayerId() !== entityId);
     
     // Unregister viewport for scrollable tile map if available
     if (this._useScrollableTileMap && this._scrollableManager) {
@@ -96,45 +123,87 @@ export class GameEngine {
     
     // Automatically update turnOrder for single-set and multi-set
     if (this._playStyle === "single-set" || this._playStyle === "multi-set") {
-      this._turnOrder = this._player_entities.map(e => e.id);
+      this._turnOrder = this._player_entities.map(e => e.getPlayerId());
     }
     // For multi-subset, only update if turnOrder was default
     if (this._playStyle === "multi-subset" && this._turnOrder.length === 1) {
-      this._turnOrder = [this._player_entities.map(e => e.id)];
+      this._turnOrder = [this._player_entities.map(e => e.getPlayerId())];
     }
     // For non-blocking, don't manage turn order - let game implementation handle it
   }
   
+  /**
+   * Get all registered player entities
+   * @returns {Array} Array of all player entities
+   */
   getPlayerEntities() {
     return this._player_entities;
   }
   
+  /**
+   * Get a specific player entity by ID
+   * @param {string} playerId - The ID of the player to find
+   * @returns {Object} The player entity
+   * @throws {Error} If player is not found
+   */
   getPlayerEntity(playerId) {
-    const playerEntity = this._player_entities.find(e => e.id === playerId);
+    const playerEntity = this._player_entities.find(e => e.getPlayerId() === playerId);
     if (!playerEntity) {
-      throw new Error(`Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.id).join(', ')}.`);
+      throw ErrorFactory.game(
+        `Player with ID ${playerId} not found. Registered player entities: ${this._player_entities.map(e => e.getPlayerId()).join(", ")}.`,
+        "GameEngine",
+        playerId,
+        { context: { registeredPlayers: this._player_entities.map(e => e.getPlayerId()) } }
+      );
     }
     return playerEntity;
   }
   
+  /**
+   * Start the game engine
+   * @throws {Error} If game is already started or no players are registered
+   */
   startGame() {
     if (this._gameStarted === true) {
-      throw new Error(`Game is already started.`);
+      throw ErrorFactory.game(
+        `Game is already started.`,
+        "GameEngine",
+        null,
+        { context: { currentState: "started", playStyle: this._playStyle } }
+      );
     }
 
     if (this._player_entities.length === 0) {
-      throw new Error(`No player entities registered.`);
+      throw ErrorFactory.game(
+        `No player entities registered.`,
+        "GameEngine",
+        null,
+        { context: { playStyle: this._playStyle, turnOrder: this._turnOrder } }
+      );
     }
     this._gameStarted = true;
   }
 
+  /**
+   * Check if the game has been started
+   * @returns {boolean} True if game is started, false otherwise
+   */
   isGameStarted() {
     return this._gameStarted;
   }
 
+  /**
+   * Stop the game engine and reset turn state
+   * @throws {Error} If game is already stopped
+   */
   stopGame() {
     if (this._gameStarted === false) {
-      throw new Error(`Game is already stopped.`);
+      throw ErrorFactory.game(
+        `Game is already stopped.`,
+        "GameEngine",
+        null,
+        { context: { currentState: "stopped", playStyle: this._playStyle } }
+      );
     }
     this._gameStarted = false;
     this._currentTurnIndex = 0;
@@ -142,19 +211,30 @@ export class GameEngine {
     this._actedThisRound.clear();
   }
 
+  /**
+   * Get array of registered player entities whose turn it currently is.
+   * Return result depends on set play style.
+   * @returns {Object|Array|null} Current turn player(s) or null if no players
+   */
   getCurrentTurnPlayers() {
     if (this._playStyle === "single-set") {
+      // Safety check for empty turn order
+      if (this._turnOrder.length === 0) {
+        kubicLog.warn(`[GameEngine] Turn order is empty, returning first player entity`);
+        return this._player_entities.length > 0 ? this._player_entities[0] : null;
+      }
+      
       const playerId = this._turnOrder[this._currentTurnIndex];
-      return this._player_entities.find(e => e.id === playerId);
+      return this._player_entities.find(e => e.getPlayerId() === playerId);
     }
     else if (this._playStyle === "multi-set") {
       // All players act simultaneously
-      return this._player_entities.filter(e => this._turnOrder.includes(e.id));
+      return this._player_entities.filter(e => this._turnOrder.includes(e.getPlayerId()));
     }
     else if (this._playStyle === "multi-subset") {
       // Return the current subset (array of player entities)
       const currentSubset = this._turnOrder[this._currentTurnIndex];
-      return this._player_entities.filter(e => currentSubset.includes(e.id));
+      return this._player_entities.filter(e => currentSubset.includes(e.getPlayerId()));
     }
     else if (this._playStyle === "non-blocking") {
       // All players can act at any time - no turn restrictions
@@ -163,23 +243,76 @@ export class GameEngine {
     // Fallback: all players
     return this._player_entities;
   }
-  // @deprecated (use getCurrentTurnPlayers instead)
-  getCurrentPlayer() {
-    const turn = this.getCurrentTurnPlayers();
-    if (Array.isArray(turn)) {
-      // Return the first player entity in the group
-      return turn[0];
-    }
-    else {
-      return turn;
-    }
-  }
 
+  /**
+   * Find a registered player entity by ID
+   * @param {string} playerId - The ID of the player to find
+   * @returns {Object|undefined} The player entity or undefined if not found
+   */
   getPlayerById(playerId) {
-    return this._player_entities.find(e => e.id === playerId);
+    return this._player_entities.find(e => e.getPlayerId() === playerId);
   }
 
-  nextTurn(playerId = null) {
+  /**
+   * Lock turn advancement to prevent game implementations from calling nextTurn directly
+   * This method should only be called by KubicKodeGame
+   * @param {Object} lockOwner - KubicKodeGame instance that owns the lock
+   */
+  lockTurn(lockOwner) {
+    if (this._turnLocked && this._turnLockOwner && this._turnLockOwner !== lockOwner) {
+      throw ErrorFactory.system(
+        "Turn advancement is already locked by another KubicKodeGame instance",
+        "GameEngine",
+        { context: { 
+          method: "lockTurn", 
+          suggestion: "Turn advancement can only be locked by one KubicKodeGame instance at a time"
+        }}
+      );
+    }
+    this._turnLocked = true;
+    this._turnLockOwner = lockOwner;
+  }
+
+  /**
+   * Unlock turn advancement after nextTurn is called
+   * This method is called automatically by nextTurn, no manual unlocking needed
+   * @private
+   */
+  _unlockTurn() {
+    this._turnLocked = false;
+    this._turnLockOwner = null;
+  }
+
+  /**
+   * Check if turn advancement is currently locked
+   * @returns {boolean} True if turn advancement is locked
+   */
+  isTurnLocked() {
+    return this._turnLocked;
+  }
+
+  /**
+   * Advance to the next turn based on play style
+   * @param {string} playerId - Optional player ID for tracking who acted (used in multi-set/multi-subset play style)
+   * @param {Object} caller - The object calling nextTurn (used to verify it's KubicKodeGame)
+   * @private - This method should only be called by KubicKodeGame, not by game implementations
+   */
+  nextTurn(playerId = null, caller = null) {
+    // Check if turn advancement is locked by someone other than the caller
+    if (this._turnLocked && this._turnLockOwner !== caller) {
+      throw ErrorFactory.game(
+        "nextTurn() is locked by KubicKodeGame and cannot be called by game implementations",
+        "GameEngine",
+        { context: { 
+          method: "nextTurn",
+          suggestion: "Game implementations should not call nextTurn() directly. KubicKodeGame handles turn advancement automatically during playTurn()."
+        }}
+      );
+    }
+
+    // Lock the turn during advancement to prevent concurrent calls
+    this._turnLocked = true;
+
     if (this._playStyle === "single-set") {
       this._currentTurnIndex = (this._currentTurnIndex + 1) % this._turnOrder.length;
       this._currentTurnNumber++;
@@ -211,12 +344,28 @@ export class GameEngine {
       this._currentTurnNumber++;
       // Don't clear actedThisRound - let game implementation manage player action tracking
     }
+
+    // Unlock the turn after advancement is complete
+    // If the game has stopped, unlock the turn to allow future calls
+    if (!this._gameStarted) {
+      this._unlockTurn();
+    }
+    // Otherwise, the turn remains locked until the next playTurn() call
   }
   
+  /**
+   * Get the current turn number
+   * @returns {number} The current turn number
+   */
   getTurnNumber() {
     return this._currentTurnNumber;
   }
 
+  /**
+   * Update the game engine and all player entities
+   * @param {number} deltaTime - Time elapsed since last update in milliseconds (default: 16)
+   * @deprecated - Not used, will be removed in v. 1.1.x.
+   */
   update(deltaTime = 16) {
     for (const player_entity of this._player_entities) {
       player_entity.update();
@@ -228,16 +377,27 @@ export class GameEngine {
     }
   }
 
+  /**
+   * Get the current tile map
+   * @returns {TileMap} The tile map instance
+   */
   getTileMap() {
     return this._tileMap;
   }
   
+  /**
+   * Reset the tile map to a new instance
+   */
   resetTileMap() {
     this._tileMap = new TileMap(this._tilemapWidth, this._tilemapHeight);
   }
 
-  // Method to update tile map dimensions
-  // Note: tileMap is completely reset, so all existing tiles are lost
+  /**
+   * Update tile map dimensions and recreate the tile map
+   * Note: This completely resets the tile map, so all existing tiles are lost
+   * @param {number} newWidth - The new width of the tile map
+   * @param {number} newHeight - The new height of the tile map
+   */
   updateTileMapDimensions(newWidth, newHeight) {
     this._tilemapWidth = newWidth;
     this._tilemapHeight = newHeight;
@@ -268,9 +428,9 @@ export class GameEngine {
     // For other play styles, check if player is in current turn players
     const currentPlayers = this.getCurrentTurnPlayers();
     if (Array.isArray(currentPlayers)) {
-      return currentPlayers.some(player => player.id === playerId);
+      return currentPlayers.some(player => player.getPlayerId() === playerId);
     }
-    return currentPlayers && currentPlayers.id === playerId;
+    return currentPlayers && currentPlayers.getPlayerId() === playerId;
   }
   
   /**
@@ -313,34 +473,66 @@ export class GameEngine {
     return this._playStyle;
   }
 
+  /**
+   * Register a component function with the game engine
+   * @param {Function} componentFunc - The component function to register
+   * @throws {Error} If component is missing name or already registered
+   */
   registerComponent(componentFunc) {
     const componentName = componentFunc.componentName;
 
     if (!componentName) {
-      throw new Error("Component function missing static componentName property.");
+      throw ErrorFactory.system(
+        "Component function missing static componentName property.",
+        "GameEngine",
+        { context: { componentFunc: componentFunc.toString(), availableProperties: Object.getOwnPropertyNames(componentFunc) } }
+      );
     }
 
     if (this._registeredComponents.has(componentFunc)) {
-      throw new Error(`Component function already registered as "${componentName}".`);
+      throw ErrorFactory.system(
+        `Component function already registered as "${componentName}".`,
+        "GameEngine",
+        { context: { componentName, existingComponent: this._registeredComponents.get(componentFunc) } }
+      );
     }
 
     if (this._componentNames.has(componentName)) {
-      throw new Error(`Component name "${componentName}" is already registered.`);
+      throw ErrorFactory.system(
+        `Component name "${componentName}" is already registered.`,
+        "GameEngine",
+        { context: { componentName, registeredComponents: Array.from(this._componentNames) } }
+      );
     }
 
     this._registeredComponents.set(componentFunc, componentName);
     this._componentNames.add(componentName);
   }
   
+  /**
+   * Apply a component to an entity
+   * @param {Object} entity - The entity to apply the component to
+   * @param {Function} componentFunc - The component function to apply
+   * @param {...any} args - Additional arguments to pass to the component function
+   * @throws {Error} If component is not registered or entity already has the component
+   */
   applyComponent(entity, componentFunc, ...args) {
     const componentName = this._registeredComponents.get(componentFunc);
 
     if (!componentName) {
-      throw new Error(`Component function not registered.`);
+      throw ErrorFactory.system(
+        `Component function not registered.`,
+        "GameEngine",
+        { context: { componentFunc: componentFunc.toString(), registeredComponents: Array.from(this._registeredComponents.values()) } }
+      );
     }
 
     if (entity[componentName]) {
-      throw new Error(`Entity already has component "${componentName}".`);
+      throw ErrorFactory.system(
+        `Entity already has component "${componentName}".`,
+        "GameEngine",
+        { context: { componentName, entityId: entity.getPlayerId?.() || entity.id, existingComponents: Object.keys(entity) } }
+      );
     }
 
     componentFunc(entity, ...args);
@@ -374,7 +566,7 @@ export class GameEngine {
    */
   getStateMachine() {
     if (!this._useStateMachine) {
-      kubicLog.warn('[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.');
+      kubicLog.warn("[GameEngine] State machine is not enabled. Use { useStateMachine: true } in engineConfig.");
       return null;
     }
     return this._stateMachine;
@@ -424,7 +616,7 @@ export class GameEngine {
     if (this._useStateMachine && this._stateMachine) {
       return await this._stateMachine.transitionTo(stateName, data);
     }
-    kubicLog.warn('[GameEngine] Cannot transition to state - state machine is not enabled.');
+    kubicLog.warn("[GameEngine] Cannot transition to state - state machine is not enabled.");
     return false;
   }
 

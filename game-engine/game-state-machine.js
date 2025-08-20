@@ -1,4 +1,10 @@
 import { kubicLog } from "../kubic-log.js";
+import { 
+  KubicSystemError, 
+  KubicStateError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 /**
  * Game State Machine Implementation
@@ -17,14 +23,26 @@ export class GameState {
     this._isActive = false;
   }
 
+  /**
+   * Get the name of this state
+   * @returns {string} The state name
+   */
   getName() {
     return this._name;
   }
 
+  /**
+   * Get the parent state machine
+   * @returns {GameStateMachine} The state machine instance
+   */
   getStateMachine() {
     return this._stateMachine;
   }
 
+  /**
+   * Check if this state is currently active
+   * @returns {boolean} True if the state is active, false otherwise
+   */
   isActive() {
     return this._isActive;
   }
@@ -32,6 +50,8 @@ export class GameState {
   /**
    * Called when entering this state
    * Override in subclasses to define enter behavior
+   * @param {GameState|null} fromState - The state we're coming from
+   * @param {Object} data - Optional transition data
    */
   async onEnter(fromState, data = {}) {
     this._isActive = true;
@@ -41,6 +61,8 @@ export class GameState {
   /**
    * Called when exiting this state
    * Override in subclasses to define exit behavior
+   * @param {GameState|null} toState - The state we're going to
+   * @param {Object} data - Optional transition data
    */
   async onExit(toState, data = {}) {
     this._isActive = false;
@@ -50,6 +72,7 @@ export class GameState {
   /**
    * Called each frame/update while this state is active
    * Override in subclasses to define update behavior
+   * @param {number} deltaTime - Time elapsed since last update in milliseconds
    */
   update(deltaTime) {
     // Override in subclasses
@@ -58,6 +81,8 @@ export class GameState {
   /**
    * Called when game events occur while this state is active
    * Override in subclasses to handle events
+   * @param {string} eventType - The type of event
+   * @param {Object} eventData - Event data
    */
   handleEvent(eventType, eventData) {
     // Override in subclasses
@@ -66,6 +91,9 @@ export class GameState {
   /**
    * Called when player actions occur while this state is active
    * Override in subclasses to handle player actions
+   * @param {string} playerId - The ID of the player
+   * @param {string} action - The action type
+   * @param {Object} data - Action data
    */
   handlePlayerAction(playerId, action, data) {
     // Override in subclasses
@@ -85,34 +113,60 @@ export class StateTransition {
     this._automatic = options.automatic || false; // if true, transition happens automatically when condition is met
   }
 
+  /**
+   * Get the source state name
+   * @returns {string} The from state name
+   */
   getFromState() {
     return this._fromState;
   }
 
+  /**
+   * Get the target state name
+   * @returns {string} The to state name
+   */
   getToState() {
     return this._toState;
   }
 
+  /**
+   * Check if this transition can occur given the current state and context
+   * @param {string} currentState - The current state name
+   * @param {Object} context - Optional context data for condition evaluation
+   * @returns {boolean} True if transition can occur, false otherwise
+   */
   canTransition(currentState, context = {}) {
     if (currentState !== this._fromState) {
       return false;
     }
     
-    if (typeof this._condition === 'function') {
+    if (typeof this._condition === "function") {
       return this._condition(context);
     }
     
     return !!this._condition;
   }
 
+  /**
+   * Get the priority of this transition (higher priority transitions are checked first)
+   * @returns {number} The transition priority
+   */
   getPriority() {
     return this._priority;
   }
 
+  /**
+   * Get the data associated with this transition
+   * @returns {Object} The transition data
+   */
   getData() {
     return this._data;
   }
 
+  /**
+   * Check if this transition is automatic
+   * @returns {boolean} True if automatic, false otherwise
+   */
   isAutomatic() {
     return this._automatic;
   }
@@ -135,16 +189,27 @@ export class GameStateMachine {
     this._pausedState = null;
   }
 
+  /**
+   * Get the game engine instance connected to this state machine
+   * @returns {GameEngine} The game engine
+   */
   getGameEngine() {
     return this._gameEngine;
   }
 
   /**
    * Register a new state
+   * @param {GameState} state - The state to register
+   * @returns {GameStateMachine} This instance for chaining
+   * @throws {Error} If state is not a GameState instance
    */
   addState(state) {
     if (!(state instanceof GameState)) {
-      throw new Error('State must be an instance of GameState');
+      throw ErrorFactory.system(
+        "State must be an instance of GameState",
+        "GameStateMachine",
+        { context: { providedType: state?.constructor?.name, expectedType: "GameState" } }
+      );
     }
     
     this._states.set(state.getName(), state);
@@ -153,6 +218,8 @@ export class GameStateMachine {
 
   /**
    * Get a state by name
+   * @param {string} stateName - The name of the state to get
+   * @returns {GameState|undefined} The state or undefined if not found
    */
   getState(stateName) {
     return this._states.get(stateName);
@@ -160,6 +227,7 @@ export class GameStateMachine {
 
   /**
    * Get all registered states
+   * @returns {Array<GameState>} Array of all registered states
    */
   getAllStates() {
     return Array.from(this._states.values());
@@ -167,10 +235,17 @@ export class GameStateMachine {
 
   /**
    * Add a transition between states
+   * @param {StateTransition} transition - The transition to add
+   * @returns {GameStateMachine} This instance for chaining
+   * @throws {Error} If transition is not a StateTransition instance
    */
   addTransition(transition) {
     if (!(transition instanceof StateTransition)) {
-      throw new Error('Transition must be an instance of StateTransition');
+      throw ErrorFactory.system(
+        "Transition must be an instance of StateTransition",
+        "GameStateMachine",
+        { context: { providedType: transition?.constructor?.name, expectedType: "StateTransition" } }
+      );
     }
     
     this._transitions.push(transition);
@@ -181,6 +256,11 @@ export class GameStateMachine {
 
   /**
    * Add a simple transition (convenience method)
+   * @param {string} fromState - The source state name
+   * @param {string} toState - The target state name
+   * @param {Function|boolean} condition - The transition condition
+   * @param {Object} options - Transition options (priority, data, automatic)
+   * @returns {GameStateMachine} This instance for chaining
    */
   addSimpleTransition(fromState, toState, condition, options = {}) {
     const transition = new StateTransition(fromState, toState, condition, options);
@@ -189,6 +269,7 @@ export class GameStateMachine {
 
   /**
    * Get current state
+   * @returns {GameState|null} The current state or null if none set
    */
   getCurrentState() {
     return this._currentState;
@@ -196,6 +277,7 @@ export class GameStateMachine {
 
   /**
    * Get previous state
+   * @returns {GameState|null} The previous state or null if none
    */
   getPreviousState() {
     return this._previousState;
@@ -203,11 +285,19 @@ export class GameStateMachine {
 
   /**
    * Set initial state (doesn't trigger onEnter)
+   * @param {string} stateName - The name of the initial state
+   * @returns {GameStateMachine} This instance for chaining
+   * @throws {Error} If state is not found
    */
   setInitialState(stateName) {
     const state = this._states.get(stateName);
     if (!state) {
-      throw new Error(`State '${stateName}' not found`);
+      throw ErrorFactory.state(
+        `State "${stateName}" not found`,
+        "GameStateMachine",
+        stateName,
+        { context: { availableStates: Array.from(this._states.keys()) } }
+      );
     }
     
     this._currentState = state;
@@ -218,11 +308,20 @@ export class GameStateMachine {
 
   /**
    * Transition to a new state
+   * @param {string} stateName - The name of the state to transition to
+   * @param {Object} data - Optional transition data
+   * @returns {Promise<boolean>} True if transition was successful, false if already in target state
+   * @throws {Error} If target state is not found
    */
   async transitionTo(stateName, data = {}) {
     const newState = this._states.get(stateName);
     if (!newState) {
-      throw new Error(`State '${stateName}' not found`);
+      throw ErrorFactory.state(
+        `State "${stateName}" not found`,
+        "GameStateMachine",
+        stateName,
+        { context: { availableStates: Array.from(this._states.keys()), currentState: this._currentState?.getName() } }
+      );
     }
 
     if (this._currentState === newState) {
@@ -246,12 +345,14 @@ export class GameStateMachine {
     
     this._addToHistory(stateName);
     
-    kubicLog.debug(`[GSM] State transition: ${previousState?.getName() || 'null'} -> ${stateName}`);
+    kubicLog.debug(`[GSM] State transition: ${previousState?.getName() || "null"} -> ${stateName}`);
     return true;
   }
 
   /**
    * Check for and execute automatic transitions
+   * @param {Object} context - Optional context data for condition evaluation
+   * @returns {boolean} True if a transition occurred, false otherwise
    */
   checkAutomaticTransitions(context = {}) {
     if (this._paused || !this._currentState) {
@@ -270,6 +371,9 @@ export class GameStateMachine {
 
   /**
    * Manually trigger a transition if conditions are met
+   * @param {string} toState - The name of the state to transition to
+   * @param {Object} context - Optional context data for condition evaluation
+   * @returns {Promise<boolean>} True if transition was successful, false if conditions not met
    */
   async triggerTransition(toState, context = {}) {
     if (!this._currentState) {
@@ -289,6 +393,7 @@ export class GameStateMachine {
 
   /**
    * Update the state machine (call every frame)
+   * @param {number} deltaTime - Time elapsed since last update in milliseconds
    */
   update(deltaTime) {
     if (this._paused) {
@@ -306,6 +411,8 @@ export class GameStateMachine {
 
   /**
    * Handle game events
+   * @param {string} eventType - The type of event
+   * @param {Object} eventData - Event data
    */
   handleEvent(eventType, eventData) {
     if (this._paused) {
@@ -319,6 +426,9 @@ export class GameStateMachine {
 
   /**
    * Handle player actions
+   * @param {string} playerId - The ID of the player
+   * @param {string} action - The action type
+   * @param {Object} data - Action data
    */
   handlePlayerAction(playerId, action, data) {
     if (this._paused) {
@@ -349,6 +459,7 @@ export class GameStateMachine {
 
   /**
    * Check if the state machine is paused
+   * @returns {boolean} True if paused, false otherwise
    */
   isPaused() {
     return this._paused;
@@ -356,6 +467,8 @@ export class GameStateMachine {
 
   /**
    * Set global data accessible to all states
+   * @param {string} key - The data key
+   * @param {any} value - The data value
    */
   setGlobalData(key, value) {
     this._globalData[key] = value;
@@ -363,6 +476,8 @@ export class GameStateMachine {
 
   /**
    * Get global data
+   * @param {string} key - The data key
+   * @returns {any} The data value
    */
   getGlobalData(key) {
     return this._globalData[key];
@@ -370,6 +485,7 @@ export class GameStateMachine {
 
   /**
    * Get all global data
+   * @returns {Object} Copy of all global data
    */
   getAllGlobalData() {
     return { ...this._globalData };
@@ -377,6 +493,7 @@ export class GameStateMachine {
 
   /**
    * Get state history
+   * @returns {Array} Copy of state history array
    */
   getStateHistory() {
     return [...this._stateHistory];
@@ -384,6 +501,8 @@ export class GameStateMachine {
 
   /**
    * Go back to previous state
+   * @param {Object} data - Optional transition data
+   * @returns {Promise<boolean>} True if transition was successful, false if no previous state
    */
   async goBack(data = {}) {
     if (this._previousState) {
@@ -411,6 +530,8 @@ export class GameStateMachine {
 
   /**
    * Add state to history (internal method)
+   * @param {string} stateName - The name of the state to add to history
+   * @private
    */
   _addToHistory(stateName) {
     this._stateHistory.push({

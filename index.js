@@ -25,11 +25,10 @@ export * as gameStateMachine from "./game-engine/game-state-machine.js";
 
 // Game Server
 export { sessionManager } from "./game-server/session-manager.js";
-export * as gameSession from "./game-server/game-session.js";
+export * as gameSession from "./game-server/session/game-session.js";
 export { gameRegistry } from "./game-server/game-registry.js";
 export * as gameEventService from "./game-server/game-event-service.js";
 export * as gameHistory from "./game-server/game-history.js";
 export * as gameHistoryManager from "./game-server/game-history-manager.js";
 export { default as gameRoutes } from "./game-server/route/game-routes.js";
 export { default as sessionRoutes } from "./game-server/route/session-routes.js";
-

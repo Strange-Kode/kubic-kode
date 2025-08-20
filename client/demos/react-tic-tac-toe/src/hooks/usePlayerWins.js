@@ -12,7 +12,7 @@ export function usePlayerWins(sessionId) {
   const fetchPlayerWins = useCallback(async () => {
     if (!sessionId) return;
 
-    const result = await post(`/api/session/history/${sessionId}`, {
+    const result = await post(`/api/session/${sessionId}/history`, {
       type: 'playerWon'
     });
 

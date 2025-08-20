@@ -1,8 +1,8 @@
 // Debug configuration for the server-side application
 class KubicLogConfig {
   constructor() {
-    this._debugMode = process.env.DEBUG_MODE === 'true' || process.env.DEBUG_MODE === '1';
-    this._debugLevel = process.env.DEBUG_LEVEL || 'info'; // 'error', 'warn', 'info', 'debug', 'trace'
+    this._debugMode = process.env.DEBUG_MODE === "true" || process.env.DEBUG_MODE === "1";
+    this._debugLevel = process.env.DEBUG_LEVEL || "info"; // "error", "warn", "info", "debug", "trace"
   }
 
   isDebugEnabled() {
@@ -17,11 +17,11 @@ class KubicLogConfig {
     if (!this._debugMode) return false;
     
     const levels = {
-      'error': 0,
-      'warn': 1, 
-      'info': 2,
-      'debug': 3,
-      'trace': 4
+      "error": 0,
+      "warn": 1, 
+      "info": 2,
+      "debug": 3,
+      "trace": 4
     };
     
     const currentLevel = levels[this._debugLevel] || 2;
@@ -44,30 +44,30 @@ class KubicLogConfig {
   }
 
   error(message, ...args) {
-    this.log('error', message, ...args);
+    this.log("error", message, ...args);
   }
 
   warn(message, ...args) {
-    this.log('warn', message, ...args);
+    this.log("warn", message, ...args);
   }
 
   info(message, ...args) {
-    this.log('info', message, ...args);
+    this.log("info", message, ...args);
   }
 
   debug(message, ...args) {
-    this.log('debug', message, ...args);
+    this.log("debug", message, ...args);
   }
 
   trace(message, ...args) {
-    this.log('trace', message, ...args);
+    this.log("trace", message, ...args);
   }
 
   // Method to update debug mode at runtime
-  setDebugMode(enabled, level = 'info') {
+  setDebugMode(enabled, level = "info") {
     this._debugMode = enabled;
     this._debugLevel = level;
-    this.info(`Debug mode ${enabled ? 'enabled' : 'disabled'} with level: ${level}`);
+    this.info(`Debug mode ${enabled ? "enabled" : "disabled"} with level: ${level}`);
   }
 }
 

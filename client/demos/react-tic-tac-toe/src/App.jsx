@@ -40,7 +40,7 @@ function AppContent() {
     winner,
     playerName,
     participants,
-    maxParticipants,
+    maxPlayers,
     currentPlayer,
     opponent,
     isMyTurn,
@@ -574,7 +574,7 @@ function AppContent() {
                         (p) => p.type === "user" || p.type === "computer"
                       ).length
                     }
-                    /{maxParticipants}
+                    /{maxPlayers}
                     {participants.filter((p) => p.type === "spectator").length >
                       0 && (
                       <Text as="span" ml={2} color="gray.600">
@@ -673,13 +673,13 @@ function AppContent() {
                 //   participantId,
                 //   participants,
                 //   playableCount,
-                //   maxParticipants,
+                //   maxPlayers,
                 //   gameStarted,
-                //   shouldShow: participantId && playableCount < maxParticipants && !gameStarted
+                //   shouldShow: participantId && playableCount < maxPlayers && !gameStarted
                 // });
                 return (
                   participantId &&
-                  playableCount < maxParticipants &&
+                  playableCount < maxPlayers &&
                   !gameStarted
                 );
               })() && (
@@ -691,7 +691,10 @@ function AppContent() {
                       onClick={async () => {
                         try {
                           const result = await addAIParticipant();
-                          if (!result.success) {
+                          if (result.success) {
+                            // Refresh data to trigger auto-start logic
+                            await refreshData();
+                          } else {
                             alert(`Failed to add AI opponent: ${result.error}`);
                           }
                         } catch (error) {

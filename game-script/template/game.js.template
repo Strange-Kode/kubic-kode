@@ -5,6 +5,8 @@ import { gameEngine } from "kubic-kode";
 import { viewportPlayer } from "kubic-kode";
 {{/USE_VIEWPORTS}}
 import { PlayStatus } from "kubic-kode";
+import { ErrorFactory } from "kubic-kode";
+import { kubicLog } from "kubic-kode";
 
 // Extract specific classes for cleaner usage
 const { GameEngine } = gameEngine;
@@ -43,9 +45,8 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}return this._engine;
 {{INDENT}}}
 {{NEWLINE}}
-{{INDENT}}getCurrentPlayer() {
-{{INDENT}}{{INDENT}}const currentPlayerList = this._engine.getCurrentTurnPlayers();
-{{INDENT}}{{INDENT}}return currentPlayerList.pop();
+{{INDENT}}getCurrentTurnPlayers() {
+{{INDENT}}{{INDENT}}return this._engine.getCurrentTurnPlayers();
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}getGameStats() {
@@ -67,33 +68,43 @@ class {{GAME_CLASS_NAME}}Game {
 {{NEWLINE}}
 {{INDENT}}initializeGameOptions() {
 {{INDENT}}{{INDENT}}{{#IS_SCROLLABLE}}
-{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridWidth", {{DEFAULT_GRID_WIDTH}}, (value) => {
-{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid width must be a number between 3 and 50';
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridWidth", {{DEFAULT_GRID_WIDTH}}, "runtime", (value) => {
+{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== "number" || value < 3 || value > 50) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return "Grid width must be a number between 3 and 50";
 {{INDENT}}{{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{INDENT}}return true;
 {{INDENT}}{{INDENT}}});
-{{INDENT}}{{INDENT}}this.getGameOptions().addConfigurable("gridHeight", {{DEFAULT_GRID_HEIGHT}}, (value) => {
-{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== 'number' || value < 3 || value > 50) {
-{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return 'Grid height must be a number between 3 and 50';
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridHeight", {{DEFAULT_GRID_HEIGHT}}, "runtime", (value) => {
+{{INDENT}}{{INDENT}}{{INDENT}}if (typeof value !== "number" || value < 3 || value > 50) {
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}return "Grid height must be a number between 3 and 50";
 {{INDENT}}{{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{INDENT}}return true;
 {{INDENT}}{{INDENT}}});
 {{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
 {{INDENT}}{{INDENT}}{{^IS_SCROLLABLE}}
-{{INDENT}}{{INDENT}}this.getGameOptions().addFrozen("gridSize", {{DEFAULT_GRID_WIDTH}});
+{{INDENT}}{{INDENT}}this.getGameOptions().addOption("gridSize", {{DEFAULT_GRID_WIDTH}}, "frozen");
 {{INDENT}}{{INDENT}}{{/IS_SCROLLABLE}}
 {{INDENT}}}
 {{NEWLINE}}
 {{INDENT}}addPlayer(name, isComputer = false) {
 {{INDENT}}{{INDENT}}if (this._engine.getPlayerEntities().length >= this._maxPlayers) {
-{{INDENT}}{{INDENT}}{{INDENT}}throw new Error(`Maximum of ${this._maxPlayers} players allowed`);
+{{INDENT}}{{INDENT}}{{INDENT}}throw ErrorFactory.validation(
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}`Maximum of ${this._maxPlayers} players allowed`,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}"playerCount",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}this._engine.getPlayerEntities().length,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{ context: { method: "{{GAME_CLASS_NAME}}Game.addPlayer", maxPlayers: this._maxPlayers, suggestion: "Remove a player before adding a new one" } }
+{{INDENT}}{{INDENT}}{{INDENT}});
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{^SUPPORTS_AI}}
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}// Computer players are not supported in this game
 {{INDENT}}{{INDENT}}if (isComputer) {
-{{INDENT}}{{INDENT}}{{INDENT}}throw new Error("Computer players are not supported");
+{{INDENT}}{{INDENT}}{{INDENT}}throw ErrorFactory.validation(
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}"Computer players are not supported",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}"isComputer",
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}isComputer,
+{{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}{ context: { method: "{{GAME_CLASS_NAME}}Game.addPlayer", suggestion: "Set isComputer to false or use a game that supports AI players" } }
+{{INDENT}}{{INDENT}}{{INDENT}});
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{/SUPPORTS_AI}}
 {{INDENT}}{{INDENT}}
@@ -136,8 +147,11 @@ class {{GAME_CLASS_NAME}}Game {
 
 {{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
 {{INDENT}}{{INDENT}}// Validate turn for single-set play style
-{{INDENT}}{{INDENT}}const currentPlayer = this.getCurrentPlayer();
-{{INDENT}}{{INDENT}}if (currentPlayer.getPlayerId() !== playerId) {
+{{INDENT}}{{INDENT}}const currentPlayers = this.getCurrentTurnPlayers();
+{{INDENT}}{{INDENT}}const currentPlayerIds = Array.isArray(currentPlayers) 
+{{INDENT}}{{INDENT}}{{INDENT}}? currentPlayers.map(p => p.getPlayerId()) 
+{{INDENT}}{{INDENT}}{{INDENT}}: [currentPlayers?.getPlayerId()];
+{{INDENT}}{{INDENT}}if (!currentPlayerIds.includes(playerId)) {
 {{INDENT}}{{INDENT}}{{INDENT}}return PlayStatus.invalid(playerId, "It's not your turn");
 {{INDENT}}{{INDENT}}}
 {{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
@@ -177,12 +191,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}{{INDENT}}message: "Player wins!"
 {{INDENT}}{{INDENT}}{{INDENT}}});
 {{INDENT}}{{INDENT}}}
-
-{{INDENT}}{{INDENT}}// Advance turn for single-set games
-{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}{{INDENT}}this._engine.advanceTurn();
-{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
-
+{{NEWLINE}}
 {{INDENT}}{{INDENT}}return PlayStatus.success(playerId, {
 {{INDENT}}{{INDENT}}{{INDENT}}{{#USES_PIECES}}
 {{INDENT}}{{INDENT}}{{INDENT}}message: "Piece placed successfully"
@@ -206,28 +215,30 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{#HAS_INACTIVITY}}
 {{INDENT}}getInactivityTimeout() {
 {{INDENT}}{{INDENT}}// Return timeout in milliseconds (e.g., 30000 for 30 seconds)
-{{INDENT}}{{INDENT}}return 30000;
+{{INDENT}}{{INDENT}}return 30_000;
 {{INDENT}}}
 {{NEWLINE}}
-{{INDENT}}handleInactivity(playerId) {
-{{INDENT}}{{INDENT}}// TODO: Implement what happens when a player is inactive
+{{INDENT}}handleInactivity(playerId = null, player = null) {
+{{INDENT}}{{INDENT}}// Handle player inactivity - playerId and player entity are provided
 {{INDENT}}{{INDENT}}// For example: skip their turn, make random move, forfeit, etc.
-{{INDENT}}{{INDENT}}console.log(`Player ${playerId} is inactive`);
-{{INDENT}}{{INDENT}}
-{{INDENT}}{{INDENT}}// Example: Skip turn for single-set games
-{{INDENT}}{{INDENT}}{{#PLAY_STYLE_SINGLE_SET}}
-{{INDENT}}{{INDENT}}this._engine.advanceTurn();
-{{INDENT}}{{INDENT}}{{/PLAY_STYLE_SINGLE_SET}}
+{{INDENT}}{{INDENT}}// If no playerId provided, get the current players
+{{INDENT}}{{INDENT}}if (!playerId) {
+{{INDENT}}{{INDENT}}{{INDENT}}const currentPlayers = this.getCurrentTurnPlayers();
+{{INDENT}}{{INDENT}}{{INDENT}}const currentPlayer = Array.isArray(currentPlayers) ? currentPlayers[0] : currentPlayers;
+{{INDENT}}{{INDENT}}{{INDENT}}playerId = currentPlayer?.getPlayerId();
+{{INDENT}}{{INDENT}}{{INDENT}}player = currentPlayer;
+{{INDENT}}{{INDENT}}}
+{{INDENT}}{{INDENT}}kubicLog.info(`Player ${playerId} is inactive`);
 {{INDENT}}{{INDENT}}
 {{INDENT}}{{INDENT}}return PlayStatus.success(playerId, {
 {{INDENT}}{{INDENT}}{{INDENT}}message: "Player skipped due to inactivity",
 {{INDENT}}{{INDENT}}{{INDENT}}inactivityHandled: true
-{{INDENT}}{{INDENT}});
+{{INDENT}}{{INDENT}}});
 {{INDENT}}}
 {{INDENT}}{{/HAS_INACTIVITY}}
 {{NEWLINE}}
 {{INDENT}}{{#SUPPORTS_AI}}
-{{INDENT}}calculateComputerMove(playerId) {
+{{INDENT}}calculateComputerMove(playerId, currentPlayer) {
 {{INDENT}}{{INDENT}}// TODO: Implement AI logic for computer players
 {{INDENT}}{{INDENT}}// This is a simple random move implementation - replace with your AI logic
 {{INDENT}}{{INDENT}}const tileMap = this._engine.getTileMap();
@@ -266,7 +277,7 @@ class {{GAME_CLASS_NAME}}Game {
 {{INDENT}}{{INDENT}}{{INDENT}}gameStats: this.getGameStats(),
 {{INDENT}}{{INDENT}}{{INDENT}}tileMap: this._engine.getTileMap().toJSON(),
 {{INDENT}}{{INDENT}}{{INDENT}}playerCount: this._engine.getPlayerEntities().length,
-{{INDENT}}{{INDENT}}{{INDENT}}currentTurn: this.getCurrentPlayer()?.getPlayerId() || null
+{{INDENT}}{{INDENT}}{{INDENT}}currentTurn: this.getCurrentTurnPlayers()?.map(p => p.getPlayerId()) || []
 {{INDENT}}{{INDENT}}};
 {{INDENT}}}
 {{NEWLINE}}

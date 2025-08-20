@@ -24,20 +24,20 @@ The scrollable TileMap system consists of three main components:
 ### Basic Setup
 
 ```javascript
-import { GameEngine } from '../game-engine/game-engine.js';
-import { ViewportPlayer } from '../game-engine/game-entity/viewport-player.js';
+import { GameEngine } from "../game-engine/game-engine.js";
+import { ViewportPlayer } from "../game-engine/game-entity/viewport-player.js";
 
 // Create a game engine with scrollable tile map enabled
 const gameEngine = new GameEngine(100, 100, {
-    useScrollableTileMap: true,  // Enable scrollable tile map
-    playStyle: 'multi-set'
+  useScrollableTileMap: true,  // Enable scrollable tile map
+  playStyle: "multi-set"
 });
 
 // Create a player with viewport configuration
-const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, {
-    width: 15,        // Viewport width in tiles
-    height: 10,       // Viewport height in tiles
-    autoFollow: true  // Auto-follow player movement
+const player = new ViewportPlayer("player1", "Alice", { x: 10, y: 10 }, {
+  width: 15,        // Viewport width in tiles
+  height: 10,       // Viewport height in tiles
+  autoFollow: true  // Auto-follow player movement
 });
 
 // Register the player
@@ -51,14 +51,14 @@ When creating a `ViewportPlayer`, you can configure the viewport:
 
 ```javascript
 const viewportConfig = {
-    width: 15,        // Viewport width (default: 10)
-    height: 10,       // Viewport height (default: 10)
-    x: 5,            // Initial X position (optional, auto-calculated if not provided)
-    y: 5,            // Initial Y position (optional, auto-calculated if not provided)
-    autoFollow: true  // Auto-follow player movement (default: true)
+  width: 15,        // Viewport width (default: 10)
+  height: 10,       // Viewport height (default: 10)
+  x: 5,            // Initial X position (optional, auto-calculated if not provided)
+  y: 5,            // Initial Y position (optional, auto-calculated if not provided)
+  autoFollow: true  // Auto-follow player movement (default: true)
 };
 
-const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, viewportConfig);
+const player = new ViewportPlayer("player1", "Alice", { x: 10, y: 10 }, viewportConfig);
 ```
 
 ### Getting Visible Tiles
@@ -66,12 +66,12 @@ const player = new ViewportPlayer('player1', 'Alice', { x: 10, y: 10 }, viewport
 ```javascript
 // Get all tiles visible to a specific player
 const scrollable = gameEngine.getScrollable();
-const visibleTiles = scrollable.getVisibleTilesForPlayer('player1');
+const visibleTiles = scrollable.getVisibleTilesForPlayer("player1");
 
 // Each tile includes world coordinates and viewport-relative coordinates
 visibleTiles.forEach(tile => {
-    console.log(`Tile at (${tile.x}, ${tile.y}) with value "${tile.value}"`);
-    console.log(`Relative to viewport: (${tile.relativeX}, ${tile.relativeY})`);
+  console.log(`Tile at (${tile.x}, ${tile.y}) with value "${tile.value}"`);
+  console.log(`Relative to viewport: (${tile.relativeX}, ${tile.relativeY})`);
 });
 ```
 
@@ -80,10 +80,10 @@ visibleTiles.forEach(tile => {
 ```javascript
 // Scroll a player's viewport
 const scrollable = gameEngine.getScrollable();
-scrollable.scrollPlayerViewport('player1', 'right', 3);  // Scroll right by 3 tiles
-scrollable.scrollPlayerViewport('player1', 'up', 2);     // Scroll up by 2 tiles
+scrollable.scrollPlayerViewport("player1", "right", 3);  // Scroll right by 3 tiles
+scrollable.scrollPlayerViewport("player1", "up", 2);     // Scroll up by 2 tiles
 
-// Available directions: 'up', 'down', 'left', 'right'
+// Available directions: "up", "down", "left", "right"
 ```
 
 ### Centering Viewports
@@ -91,10 +91,10 @@ scrollable.scrollPlayerViewport('player1', 'up', 2);     // Scroll up by 2 tiles
 ```javascript
 // Center a player's viewport on a specific position
 const scrollable = gameEngine.getScrollable();
-scrollable.centerPlayerViewportOn('player1', 25, 25);
+scrollable.centerPlayerViewportOn("player1", 25, 25);
 
 // Follow a player's position with their viewport
-scrollable.followPlayerWithViewport('player1', player.position);
+scrollable.followPlayerWithViewport("player1", player.position);
 ```
 
 ### Visibility Checks
@@ -102,7 +102,7 @@ scrollable.followPlayerWithViewport('player1', player.position);
 ```javascript
 // Check if a position is visible to a player
 const scrollable = gameEngine.getScrollable();
-const isVisible = scrollable.isPositionVisibleToPlayer('player1', 15, 15);
+const isVisible = scrollable.isPositionVisibleToPlayer("player1", 15, 15);
 console.log(`Player can see position (15, 15): ${isVisible}`);
 ```
 
@@ -116,7 +116,7 @@ const viewport = player.getViewport();
 player.moveViewportTo(20, 20);
 
 // Scroll the viewport
-player.scrollViewport('left', 5);
+player.scrollViewport("left", 5);
 
 // Resize the viewport
 player.resizeViewport(20, 15);
@@ -170,12 +170,13 @@ player.setAutoFollow(false);
 - `getPlayerViewport(playerId)` - Get a player's viewport
 
 **For tile map operations, use `getTileMap()`:**
+
 ```javascript
 const scrollable = gameEngine.getScrollable();
 const tileMap = scrollable.getTileMap();
 
 // Use tile map methods directly
-tileMap.setTile(10, 10, 'treasure');
+tileMap.setTile(10, 10, "treasure");
 tileMap.getTile(10, 10);
 tileMap.inBounds(10, 10);
 tileMap.getTiles();
@@ -189,15 +190,15 @@ tileMap.getTiles();
 // Create a large world (200x200 tiles)
 const gameEngine = new GameEngine(200, 200, {
     useScrollableTileMap: true,
-    playStyle: 'multi-set'
+    playStyle: "multi-set"
 });
 
   // Create players with different viewport sizes
-  const warrior = new ViewportPlayer('warrior', 'Warrior', { x: 10, y: 10 }, {
+  const warrior = new ViewportPlayer("warrior", "Warrior", { x: 10, y: 10 }, {
     width: 20, height: 15, autoFollow: true
   });
 
-  const mage = new ViewportPlayer('mage', 'Mage', { x: 150, y: 150 }, {
+  const mage = new ViewportPlayer("mage", "Mage", { x: 150, y: 150 }, {
     width: 15, height: 12, autoFollow: false
   });
 
@@ -209,9 +210,9 @@ const gameEngine = new GameEngine(200, 200, {
 const scrollable = gameEngine.getScrollable();
 const tileMap = scrollable.getTileMap();
 for (let i = 0; i < 1000; i++) {
-    const x = Math.floor(Math.random() * 200);
-    const y = Math.floor(Math.random() * 200);
-    tileMap.setTile(x, y, 'terrain');
+  const x = Math.floor(Math.random() * 200);
+  const y = Math.floor(Math.random() * 200);
+  tileMap.setTile(x, y, "terrain");
 }
 ```
 
@@ -233,8 +234,8 @@ function getPlayerVisibleWorld(playerId) {
 
 // Send only visible tiles to each player
 gameEngine.getPlayerEntities().forEach(player => {
-    const visibleWorld = getPlayerVisibleWorld(player.id);
-    // Send visibleWorld to the player's client
+  const visibleWorld = getPlayerVisibleWorld(player.id);
+  // Send visibleWorld to the player's client
 });
 ```
 
@@ -260,5 +261,5 @@ const allTiles = gameEngine.getTileMap().getTiles();
 
 // After (scrollable TileMap)
 const scrollable = gameEngine.getScrollable();
-const visibleTiles = scrollable.getVisibleTilesForPlayer('player1');
+const visibleTiles = scrollable.getVisibleTilesForPlayer("player1");
 ```

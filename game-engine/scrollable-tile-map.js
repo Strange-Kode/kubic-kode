@@ -1,9 +1,22 @@
-import { TileMap } from './tile-map.js';
+import { TileMap } from "./tile-map.js";
+import { 
+  KubicSystemError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "./kubic-kode-error.js";
 
 export class ScrollableTileMap extends TileMap {
   constructor(width, height) {
     super(width, height);
-    this.viewports = new Map(); // playerId -> Viewport
+    this._viewports = new Map(); // playerId -> Viewport
+  }
+
+  get viewports() {
+    throw ErrorFactory.system(
+      "Attempting to access viewports property on ScrollableTileMap. Not allowed, viewports is a protected property.",
+      "ScrollableTileMap",
+      { context: { suggestion: "Use getViewport(playerId) method instead", property: "viewports" } }
+    );
   }
 
   /**
@@ -12,7 +25,7 @@ export class ScrollableTileMap extends TileMap {
    * @param {Viewport} viewport - The viewport instance
    */
   registerViewport(playerId, viewport) {
-    this.viewports.set(playerId, viewport);
+    this._viewports.set(playerId, viewport);
   }
 
   /**
@@ -20,7 +33,7 @@ export class ScrollableTileMap extends TileMap {
    * @param {string} playerId - The player's ID
    */
   unregisterViewport(playerId) {
-    this.viewports.delete(playerId);
+    this._viewports.delete(playerId);
   }
 
   /**
@@ -29,7 +42,7 @@ export class ScrollableTileMap extends TileMap {
    * @returns {Viewport|null} The viewport or null if not found
    */
   getViewport(playerId) {
-    return this.viewports.get(playerId) || null;
+    return this._viewports.get(playerId) || null;
   }
 
   /**
@@ -66,7 +79,7 @@ export class ScrollableTileMap extends TileMap {
   /**
    * Scroll a player's viewport in a specific direction
    * @param {string} playerId - The player's ID
-   * @param {string} direction - 'up', 'down', 'left', 'right'
+   * @param {string} direction - "up", "down", "left", "right"
    * @param {number} amount - Number of tiles to scroll (default: 1)
    * @returns {boolean} True if scroll was successful, false if out of bounds
    */
@@ -79,17 +92,17 @@ export class ScrollableTileMap extends TileMap {
     const newViewport = { ...viewport };
 
     switch (direction) {
-      case 'up':
+      case "up":
         newViewport.y = Math.max(0, viewport.y - amount);
         break;
-      case 'down':
-        newViewport.y = Math.min(this.height - viewport.height, viewport.y + amount);
+      case "down":
+        newViewport.y = Math.min(this._height - viewport.height, viewport.y + amount);
         break;
-      case 'left':
+      case "left":
         newViewport.x = Math.max(0, viewport.x - amount);
         break;
-      case 'right':
-        newViewport.x = Math.min(this.width - viewport.width, viewport.x + amount);
+      case "right":
+        newViewport.x = Math.min(this._width - viewport.width, viewport.x + amount);
         break;
       default:
         return false;
@@ -97,8 +110,8 @@ export class ScrollableTileMap extends TileMap {
 
     // Check if the new viewport is valid
     if (newViewport.x < 0 || newViewport.y < 0 || 
-        newViewport.x + newViewport.width > this.width || 
-        newViewport.y + newViewport.height > this.height) {
+        newViewport.x + newViewport.width > this._width || 
+        newViewport.y + newViewport.height > this._height) {
       return false;
     }
 
@@ -126,8 +139,8 @@ export class ScrollableTileMap extends TileMap {
     const centerY = Math.floor(viewport.height / 2);
 
     // Calculate new viewport position
-    const newX = Math.max(0, Math.min(this.width - viewport.width, x - centerX));
-    const newY = Math.max(0, Math.min(this.height - viewport.height, y - centerY));
+    const newX = Math.max(0, Math.min(this._width - viewport.width, x - centerX));
+    const newY = Math.max(0, Math.min(this._height - viewport.height, y - centerY));
 
     // Update viewport
     viewport.x = newX;
@@ -150,7 +163,7 @@ export class ScrollableTileMap extends TileMap {
    * @returns {Map} Map of playerId -> Viewport
    */
   getAllViewports() {
-    return new Map(this.viewports);
+    return new Map(this._viewports);
   }
 
   /**
@@ -173,7 +186,7 @@ export class ScrollableTileMap extends TileMap {
   toJSON() {
     return {
       ...super.toJSON(),
-      viewports: Object.fromEntries(this.viewports)
+      viewports: Object.fromEntries(this._viewports)
     };
   }
-} 
+}

@@ -1,22 +1,42 @@
+import { 
+  KubicSystemError, 
+  KubicValidationError, 
+  ErrorFactory,
+  ErrorCodes 
+} from "../game-engine/kubic-kode-error.js";
+
 export class GameHistory {
   // Define all possible game history event types
   static GAME_HISTORY_EVENT_TYPES = {
-    TURN_PLAYED: 'turnPlayed',
-    PLAYER_WON: 'playerWon',
-    GAME_STARTED: 'gameStarted',
-    GAME_ENDED: 'gameEnded',
-    GAME_TIED: 'gameTied',
-    PARTICIPANT_JOINED: 'participantJoined',
-    PARTICIPANT_LEFT: 'participantLeft',
-    RESTART_VOTE_STARTED: 'restartVoteStarted',
-    RESTART_VOTE_REGISTERED: 'restartVoteRegistered',
-    RESTART_VOTE_CLEARED: 'restartVoteCleared',
-    PLAYER_ADDED: 'playerAdded',
-    GAME_INSTANCE_STARTED: 'gameInstanceStarted',
-    GAME_INSTANCE_RESET: 'gameInstanceReset',
-    GAME_STOPPED: 'gameStopped',
-    INVALID_TURN_ATTEMPTED: 'invalidTurnAttempted'
+    TURN_PLAYED: "turnPlayed",
+    PLAYER_WON: "playerWon",
+    GAME_STARTED: "gameStarted",
+    GAME_ENDED: "gameEnded",
+    GAME_TIED: "gameTied",
+    PARTICIPANT_JOINED: "participantJoined",
+    PARTICIPANT_LEFT: "participantLeft",
+    RESTART_VOTE_STARTED: "restartVoteStarted",
+    RESTART_VOTE_REGISTERED: "restartVoteRegistered",
+    RESTART_VOTE_CLEARED: "restartVoteCleared",
+    PLAYER_ADDED: "playerAdded",
+    GAME_INSTANCE_STARTED: "gameInstanceStarted",
+    GAME_INSTANCE_RESET: "gameInstanceReset",
+    GAME_STOPPED: "gameStopped",
+    INVALID_TURN_ATTEMPTED: "invalidTurnAttempted"
   };
+
+  constructor(sessionId) {
+    this._sessionId = sessionId;
+    this._gameHistory = [];
+  }
+
+  get sessionId() {
+    throw ErrorFactory.system(
+      "Attempting to access sessionId property on GameHistory. Not allowed, sessionId is a protected property.",
+      "GameHistory",
+      { context: { suggestion: "Use getSessionId() method instead", property: "sessionId" } }
+    );
+  }
 
   // Get all valid game history event type strings
   static getValidEventTypes() {
@@ -26,11 +46,6 @@ export class GameHistory {
   // Check if an event type is a valid game history event
   static isValidEventType(eventType) {
     return GameHistory.getValidEventTypes().includes(eventType);
-  }
-
-  constructor(sessionId) {
-    this.sessionId = sessionId;
-    this._gameHistory = [];
   }
 
   // Read-only access to game history
@@ -51,7 +66,15 @@ export class GameHistory {
   addEvent(event) {
     // Validate that the event type is a valid game history event type
     if (!GameHistory.isValidEventType(event.type)) {
-      throw new Error(`Invalid game history event type: ${event.type}. Valid types are: ${GameHistory.getValidEventTypes().join(', ')}`);
+      throw ErrorFactory.validation(
+        `Invalid game history event type: ${event.type}`,
+        "event.type",
+        event.type,
+        { context: { 
+          validTypes: GameHistory.getValidEventTypes(),
+          method: "GameHistory.addEvent"
+        } }
+      );
     }
 
     const historyEvent = {
@@ -60,7 +83,7 @@ export class GameHistory {
       participantId: event.participantId || null,
       payload: event.payload || {},
       timestamp: event.timestamp || new Date(),
-      sessionId: this.sessionId
+      sessionId: this._sessionId
     };
     
     this._gameHistory.push(historyEvent);
@@ -214,7 +237,7 @@ export class GameHistory {
 
   /**
    * Add a game state change event to game history
-   * @param {string} eventType - Type of state change (e.g., 'gamePaused', 'gameResumed', 'timeout')
+   * @param {string} eventType - Type of state change (e.g., "gamePaused", "gameResumed", "timeout")
    * @param {Object} stateData - Additional state data
    * @returns {Object} The event that was added
    */
@@ -229,7 +252,7 @@ export class GameHistory {
    * Add a participant joined event to game history
    * @param {string} participantId - ID of the participant who joined
    * @param {string} participantName - Name of the participant
-   * @param {string} participantType - Type of the participant (e.g., 'user', 'computer', 'spectator')
+   * @param {string} participantType - Type of the participant (e.g., "user", "computer", "spectator")
    * @returns {Object} The event that was added
    */
   addParticipantJoinedEvent(participantId, participantName, participantType) {
@@ -392,4 +415,4 @@ export class GameHistory {
       payload: turnData
     });
   }
-} 
+}

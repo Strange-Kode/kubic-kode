@@ -29,7 +29,7 @@ export function useTicTacToe() {
 
   // Hook dependencies
   const session = useSession();
-  const game = useGame(session.sessionId, session.participantId);
+  const game = useGame(session.sessionId, session.participantId, session.getGameToken);
   const playerWins = usePlayerWins(session.sessionId);
 
   // Refresh all data function (needs to be defined before restart voting hook)
@@ -38,7 +38,13 @@ export function useTicTacToe() {
     setError(null);
 
     try {
-      await Promise.all([session.fetchParticipants(), game.refreshGameData()]);
+      // Always fetch participants, but be more selective about game data
+      await session.fetchParticipants();
+      
+      // Only refresh game data if we have a session and participant
+      if (session.sessionId && session.participantId) {
+        await game.refreshGameData();
+      }
     } catch (err) {
       console.error("[useTicTacToe] Error refreshing data:", err);
       setError(err.message);
@@ -56,6 +62,11 @@ export function useTicTacToe() {
     refreshTimeoutRef.current = setTimeout(() => {
       refreshData();
     }, 100); // 100ms debounce
+  }, [refreshData]);
+
+  // Immediate refresh function for turn updates (no debounce)
+  const immediateRefreshData = useCallback(() => {
+    refreshData();
   }, [refreshData]);
 
   // Live timer calculation with interpolation - always sync to backend authority
@@ -85,12 +96,22 @@ export function useTicTacToe() {
   );
 
   // Check if session is full and should show spectator modal instead
-  const sessionIsFull = playableParticipants.length >= session.maxParticipants;
+  const sessionIsFull = playableParticipants.length >= session.maxPlayers;
   const shouldShowSpectator = needsName && sessionIsFull;
 
   const shouldAutoStart =
-    playableParticipants.length === session.maxParticipants &&
+    playableParticipants.length === session.maxPlayers &&
     !game.gameStarted;
+    
+  // Debug logging for auto-start conditions (only when conditions change)
+  useEffect(() => {
+    console.log("[useTicTacToe] Auto-start conditions:", {
+      playableParticipantsCount: playableParticipants.length,
+      maxPlayers: session.maxPlayers,
+      gameStarted: game.gameStarted,
+      shouldAutoStart
+    });
+  }, [playableParticipants.length, session.maxPlayers, game.gameStarted, shouldAutoStart]);
 
   // Overall loading state
   const overallLoading =
@@ -114,20 +135,60 @@ export function useTicTacToe() {
     }
   }, [needsName, shouldShowSpectator]);
 
+  // Handle auto-start game logic (define this before the useEffect that uses it)
+  const handleAutoStartGame = useCallback(async () => {
+    console.log("[useTicTacToe] Starting game automatically");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await game.startGame();
+
+      if (result.success) {
+        console.log("[useTicTacToe] Game started successfully");
+        // Add a small delay and then refresh game data to ensure current player is set correctly
+        setTimeout(async () => {
+          console.log("[useTicTacToe] Refreshing game data after auto-start");
+          await game.refreshGameData();
+        }, 200);
+      } else {
+        setError(result.error || "Failed to start game");
+      }
+    } catch (err) {
+      console.error("[useTicTacToe] Error starting game:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [game, session.getGameToken]);
+
   // Auto-start game when 2 participants are present (only if current user is playable)
   useEffect(() => {
-    if (shouldAutoStart) {
+    if (shouldAutoStart && !game.gameStarted) {
       // Check if current participant is playable before attempting auto-start
       const currentParticipant = session.participants.find(p => p.id === session.participantId);
       const isCurrentUserPlayable = currentParticipant && (currentParticipant.type === "user" || currentParticipant.type === "computer");
       
       if (isCurrentUserPlayable) {
-        // console.log("[useTicTacToe] AUTO-START triggered: participants=2");
-        handleAutoStartGame();
+        console.log("[useTicTacToe] AUTO-START triggered: participants=2");
+        // Add a small delay to ensure game token is properly stored
+        setTimeout(() => {
+          handleAutoStartGame();
+        }, 100);
+      } else {
+        console.log("[useTicTacToe] Auto-start skipped: current user is not playable");
       }
       // If current user is spectator, let other playable participants handle the auto-start
     }
-  }, [shouldAutoStart, session.participants, session.participantId]);
+  }, [shouldAutoStart, game.gameStarted, session.participants, session.participantId, handleAutoStartGame]);
+
+  // Ensure current player is fetched when game becomes active
+  useEffect(() => {
+    if (game.gameStarted && game.gameActive && session.participantId && !game.currentPlayerId) {
+      console.log("[useTicTacToe] Game is active but no current player, fetching...");
+      game.fetchCurrentPlayer();
+    }
+  }, [game.gameStarted, game.gameActive, game.currentPlayerId, session.participantId]);
 
   // Handle name submission from modal
   const handleNameSubmit = useCallback(
@@ -183,27 +244,7 @@ export function useTicTacToe() {
     [session, refreshData]
   );
 
-  // Handle auto-start game logic
-  const handleAutoStartGame = useCallback(async () => {
-    // console.log("[useTicTacToe] Starting game automatically");
-    setIsLoading(true);
-    setError(null);
 
-    try {
-      const result = await game.startGame();
-
-      if (result.success) {
-        // console.log("[useTicTacToe] Game started successfully");
-      } else {
-        setError(result.error || "Failed to start game");
-      }
-    } catch (err) {
-      // console.error("[useTicTacToe] Error starting game:", err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [game]);
 
   // Handle move with error handling
   const handleMove = useCallback(
@@ -275,7 +316,7 @@ export function useTicTacToe() {
       if (data.type === "turnPlayed") {
         // Skip refresh if this is a winning move or tie - let win modal show
         if (!data.payload?.roundStatus?.player_has_won && !data.payload?.gameTied) {
-          debouncedRefreshData();
+          immediateRefreshData(); // Use immediate refresh for turn updates
         }
       } else if (
         data.type === "sessionParticipantJoined" ||
@@ -326,31 +367,37 @@ export function useTicTacToe() {
         setGameDisabledByInactivity(true);
 
         // Handle the win condition from inactivity
-        const inactivityStatus = data.payload?.inactivityStatus;
-        if (inactivityStatus?.winnerPlayerId) {
-          // Find the winner participant
-          const winnerParticipant = session.participants.find(
-            (p) => p.id === inactivityStatus.winnerPlayerId
-          );
+        const inactivePlayers = data.payload?.inactivePlayers;
+        if (inactivePlayers && inactivePlayers.length > 0) {
+          // Find the first inactive player's status
+          const firstInactiveResult = inactivePlayers[0];
+          const inactivityStatus = firstInactiveResult.inactivityStatus;
+          
+          if (inactivityStatus?.winnerPlayerId) {
+            // Find the winner participant
+            const winnerParticipant = session.participants.find(
+              (p) => p.id === inactivityStatus.winnerPlayerId
+            );
 
-          if (winnerParticipant) {
-            // console.log(
-            //   "[useTicTacToe] Game won by inactivity:",
-            //   winnerParticipant.name
-            // );
-            setWinner(winnerParticipant);
-            setShowWinModal(true);
+            if (winnerParticipant) {
+              console.log(
+                "[useTicTacToe] Game won by inactivity:",
+                winnerParticipant.name
+              );
+              setWinner(winnerParticipant);
+              setShowWinModal(true);
 
-            // Refresh data and win counts after inactivity win
-            debouncedRefreshData();
-            setTimeout(() => {
-              playerWins.fetchPlayerWins();
-            }, 100);
+              // Refresh data and win counts after inactivity win
+              debouncedRefreshData();
+              setTimeout(() => {
+                playerWins.fetchPlayerWins();
+              }, 100);
+            }
           }
         }
       }
     },
-    [session.participants, debouncedRefreshData, restartVoting, playerWins]
+    [session.participants, debouncedRefreshData, immediateRefreshData, restartVoting, playerWins]
   );
 
   // Only connect WebSocket after game has started (must be after refreshData is defined)
@@ -406,8 +453,11 @@ export function useTicTacToe() {
 
   // Check if it's current user's turn
   const isMyTurn = useCallback(() => {
-    return game.currentPlayerId === session.participantId;
-  }, [game.currentPlayerId, session.participantId]);
+    // Convert participant ID to player ID using mappings
+    const myPlayerId = game.playerMappings[session.participantId];
+    const isMyTurnResult = game.currentPlayerId === myPlayerId;
+    return isMyTurnResult;
+  }, [game.currentPlayerId, game.playerMappings, session.participantId, game.gameStarted, game.gameActive]);
 
   // Get opponent info
   const getOpponentInfo = useCallback(() => {
@@ -444,7 +494,7 @@ export function useTicTacToe() {
     // Player info
     playerName,
     participants: session.participants,
-    maxParticipants: session.maxParticipants,
+    maxPlayers: session.maxPlayers,
     currentPlayer: getCurrentPlayerInfo(),
     opponent: getOpponentInfo(),
     isMyTurn: isMyTurn(),
@@ -499,6 +549,8 @@ export function useTicTacToe() {
       try {
         await session.syncSessionState(newSessionId, newParticipantId);
         if (newPlayerName) setPlayerName(newPlayerName);
+        
+        // Force refresh all data after rejoining
         await refreshData();
       } catch (err) {
         console.error("[useTicTacToe] Error syncing session state:", err);
