@@ -124,7 +124,7 @@ export function useRestartVoting(session, game, refreshData) {
   // Handle restart vote WebSocket events
   const handleRestartVoteEvent = useCallback(
     (data, setError, setShowWinModal, setWinner) => {
-      if (data.type === "restartVoteStarted") {
+      if (data.type === "kubic::restartVoteStarted") {
         // Only show modal and set initiator for non-initiators
         // The initiator already has their modal open
         if (!showRestartVoteModal) {
@@ -158,14 +158,14 @@ export function useRestartVoting(session, game, refreshData) {
         });
       }
 
-      if (data.type === "restartVoteUpdate") {
+      if (data.type === "kubic::restartVoteUpdate") {
         setRestartVotes((prev) => ({
           ...prev,
           [data.payload.participantId]: data.payload.vote,
         }));
       }
 
-      if (data.type === "restartVoteResult") {
+      if (data.type === "kubic::restartVoteResult") {
         console.log("[useRestartVoting] Vote result received:", {
           allAgreed: data.payload.allAgreed,
           restartVoteInitiator,

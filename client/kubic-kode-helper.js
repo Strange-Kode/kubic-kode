@@ -329,21 +329,21 @@ class KubicKodeHelper {
       try {
         const data = JSON.parse(event.data);
         
-        // Handle heartbeat responses
-        if (data.type === "heartbeat") {
+        // Handle heartbeat responses (support both old and new namespaces)
+        if (data.type === "heartbeat" || data.type === "kubic::heartbeat") {
           this.handleHeartbeat(data);
-        } else if (data.type === "heartbeatResponse") {
+        } else if (data.type === "heartbeatResponse" || data.type === "kubic::heartbeatResponse") {
           this.handleHeartbeatResponse(data);
-        } else if (data.type === "connectionConfirmed") {
+        } else if (data.type === "kubic::connectionConfirmed") {
           console.log("🔌 Connection confirmed by server");
           this.events.emit("connectionConfirmed", data.payload);
-        } else if (data.type === "participantDisconnected") {
+        } else if (data.type === "kubic::participantDisconnected") {
           console.log("⚠️ Participant disconnected:", data.payload);
           this.events.emit("participantDisconnected", data.payload);
-        } else if (data.type === "participantReconnected") {
+        } else if (data.type === "kubic::participantReconnected") {
           console.log("✅ Participant reconnected:", data.payload);
           this.events.emit("participantReconnected", data.payload);
-        } else if (data.type === "sessionEnded") {
+        } else if (data.type === "kubic::sessionEnded") {
           console.log("🔚 Session ended:", data.payload);
           this.events.emit("sessionEnded", data.payload);
           this.stopHeartbeat();

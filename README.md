@@ -401,54 +401,56 @@ kubic-kode uses WebSocket broadcasts to provide real-time updates to connected c
 These events are automatically broadcasted to all connected clients in a session, regardless of subscription status:
 
 #### Game Events
-- `gameStarted` - Game has started
-- `gameStopped` - Game has stopped
-- `playerWon` - A player has won the game
-- `gameTied` - Game ended in a tie
-- `winCount` - Win counter updated
+- `kubic::gameStarted` - Game has started
+- `kubic::gameStopped` - Game has stopped
+- `kubic::playerWon` - A player has won the game
+- `kubic::gameTied` - Game ended in a tie
+- `kubic::winCount` - Win counter updated
 
 #### Session Events
-- `sessionParticipantJoined` - New participant joined
-- `sessionSpectatorJoined` - New spectator joined
-- `sessionParticipantLeft` - Participant left
-- `sessionEnded` - Session ended
-- `participantDisconnected` - Participant lost connection
-- `participantReconnected` - Participant reconnected
+- `kubic::sessionParticipantJoined` - New participant joined
+- `kubic::sessionSpectatorJoined` - New spectator joined
+- `kubic::sessionParticipantLeft` - Participant left
+- `kubic::sessionEnded` - Session ended
+- `kubic::participantDisconnected` - Participant lost connection
+- `kubic::participantReconnected` - Participant reconnected
 
 #### Lobby Events
-- `lobbyConfigUpdated` - Lobby settings changed
-- `lobbyConfigDeleted` - Lobby setting removed
-- `syncPhaseStarted` - Synchronization phase started
-- `participantReadyChanged` - Ready state changed
-- `participantKicked` - Participant was kicked
-- `hostTransferred` - Host privileges transferred
-- `lobbyChatMessage` - Chat message sent
+- `kubic::lobbyConfigUpdated` - Lobby settings changed
+- `kubic::lobbyConfigDeleted` - Lobby setting removed
+- `kubic::syncPhaseStarted` - Synchronization phase started
+- `kubic::participantReadyChanged` - Ready state changed
+- `kubic::participantKicked` - Participant was kicked
+- `kubic::hostTransferred` - Host privileges transferred
+- `kubic::lobbyChatMessage` - Chat message sent
 
 #### Restart Events
-- `restartVoteStarted` - Restart vote initiated
-- `restartVoteUpdate` - Restart vote updated
-- `restartVoteResult` - Restart vote completed
+- `kubic::restartVoteStarted` - Restart vote initiated
+- `kubic::restartVoteUpdate` - Restart vote updated
+- `kubic::restartVoteResult` - Restart vote completed
 
 ### Subscription-Based Events
 
 These events are only broadcasted to sessions that have explicitly subscribed to them:
 
 #### Game History Events
-- `turnPlayed` - A turn was played
-- `gameStarted` - Game started (also critical)
-- `gameEnded` - Game ended
-- `gameTied` - Game tied (also critical)
-- `playerWon` - Player won (also critical)
-- `participantJoined` - Participant joined
-- `participantLeft` - Participant left
-- `restartVoteStarted` - Restart vote started
-- `restartVoteRegistered` - Restart vote registered
-- `restartVoteCleared` - Restart vote cleared
-- `playerAdded` - Player added to game
-- `gameInstanceStarted` - Game instance started
-- `gameInstanceReset` - Game instance reset
-- `gameStopped` - Game stopped
-- `invalidTurnAttempted` - Invalid turn attempted
+- `kubic::turnPlayed` - A turn was played
+- `kubic::gameStarted` - Game started (also critical)
+- `kubic::gameEnded` - Game ended
+- `kubic::gameTied` - Game tied (also critical)
+- `kubic::playerWon` - Player won (also critical)
+- `kubic::participantJoined` - Participant joined
+- `kubic::participantLeft` - Participant left
+- `kubic::restartVoteStarted` - Restart vote started
+- `kubic::restartVoteRegistered` - Restart vote registered
+- `kubic::restartVoteCleared` - Restart vote cleared
+- `kubic::playerAdded` - Player added to game
+- `kubic::gameInstanceStarted` - Game instance started
+- `kubic::gameInstanceReset` - Game instance reset
+- `kubic::gameStopped` - Game stopped
+- `kubic::invalidTurnAttempted` - Invalid turn attempted
+- `kubic::playerInactive` - Player became inactive
+- `kubic::timeLeft` - Inactivity timer countdown
 
 ### Enabling Subscriptions
 
@@ -461,7 +463,7 @@ POST /api/session/:sessionId/subscribe
 Content-Type: application/json
 
 {
-  "eventTypes": ["turnPlayed", "participantJoined", "invalidTurnAttempted"]
+  "eventTypes": ["kubic::turnPlayed", "kubic::participantJoined", "kubic::invalidTurnAttempted"]
 }
 ```
 
@@ -470,12 +472,12 @@ Content-Type: application/json
 ```javascript
 // Subscribe to specific event types
 await KubicKode.route.session("subscribe", {
-  eventTypes: ["turnPlayed", "participantJoined"]
+  eventTypes: ["kubic::turnPlayed", "kubic::participantJoined"]
 });
 
 // Unsubscribe from event types
 await KubicKode.route.session("unsubscribe", {
-  eventTypes: ["invalidTurnAttempted"]
+  eventTypes: ["kubic::invalidTurnAttempted"]
 });
 
 // Get current subscriptions

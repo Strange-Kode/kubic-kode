@@ -5,6 +5,8 @@ import {
   ErrorCodes 
 } from "../../game-engine/kubic-kode-error.js";
 
+import { kubicLog } from "../../kubic-log.js";
+
 export class SessionChatManager {
   constructor(participantManager) {
     this._participantManager = participantManager;

@@ -283,7 +283,7 @@ export function useTicTacToe() {
       // console.log("[useTicTacToe] WebSocket event received:", data);
 
       // Handle player won event
-      if (data.type === "playerWon") {
+      if (data.type === "kubic::playerWon") {
         console.log("[useTicTacToe] Player won event:", data.payload);
         // Find the winner participant using playerId from backend
         const winnerParticipant = session.participants.find(
@@ -303,7 +303,7 @@ export function useTicTacToe() {
       }
 
       // Handle game tied condition
-      if (data.type === "gameTied") {
+      if (data.type === "kubic::gameTied") {
         setWinner({ id: null, name: "Tie", isTie: true });
         setShowWinModal(true);
 
@@ -313,23 +313,23 @@ export function useTicTacToe() {
       }
 
       // Only refresh for non-winning turns and participant changes
-      if (data.type === "turnPlayed") {
+      if (data.type === "kubic::turnPlayed") {
         // Skip refresh if this is a winning move or tie - let win modal show
         if (!data.payload?.roundStatus?.player_has_won && !data.payload?.gameTied) {
           immediateRefreshData(); // Use immediate refresh for turn updates
         }
       } else if (
-        data.type === "sessionParticipantJoined" ||
-        data.type === "sessionParticipantLeft"
+        data.type === "kubic::sessionParticipantJoined" ||
+        data.type === "kubic::sessionParticipantLeft"
       ) {
         debouncedRefreshData();
       }
 
       // Handle restart voting events
       if (
-        data.type === "restartVoteStarted" ||
-        data.type === "restartVoteUpdate" ||
-        data.type === "restartVoteResult"
+        data.type === "kubic::restartVoteStarted" ||
+        data.type === "kubic::restartVoteUpdate" ||
+        data.type === "kubic::restartVoteResult"
       ) {
         restartVoting.handleRestartVoteEvent(
           data,
@@ -340,7 +340,7 @@ export function useTicTacToe() {
       }
 
       // Refresh win counts when game is restarted and re-enable UI
-      if (data.type === "gameStarted") {
+      if (data.type === "kubic::gameStarted") {
         setGameDisabledByInactivity(false);
         setTimeout(() => {
           playerWins.fetchPlayerWins();
@@ -348,7 +348,7 @@ export function useTicTacToe() {
       }
 
       // Handle inactivity timer updates - reset baseline on each backend update
-      if (data.type === "timeLeft") {
+      if (data.type === "kubic::timeLeft") {
         const backendTimeLeft = data.payload?.secondsLeft;
         if (typeof backendTimeLeft === "number") {
           // Always use backend time as authoritative source
@@ -361,7 +361,7 @@ export function useTicTacToe() {
       }
 
       // Handle player inactivity and resulting win
-      if (data.type === "playerInactive") {
+      if (data.type === "kubic::playerInactive") {
         setInactivityTimer(null);
         setLastTimerUpdate(null);
         setGameDisabledByInactivity(true);

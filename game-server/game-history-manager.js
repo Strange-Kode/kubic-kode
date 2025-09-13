@@ -187,8 +187,11 @@ class GameHistoryManager {
    */
   _broadcast(sessionId, historyEvent) {
     // Always broadcast critical game events regardless of subscription
-    const criticalEvents = ["playerWon", "gameStarted", "gameEnded", "gameTied", "winCount"];
+    const criticalEvents = ["playerWon", "gameStarted", "gameEnded", "gameTied", "winCount", "turnPlayed"];
     const shouldAlwaysBroadcast = criticalEvents.includes(historyEvent.type);
+    
+    // Map event type to kubic:: namespace for broadcasting
+    const broadcastEventType = `kubic::${historyEvent.type}`;
     
     if (!this.isSubscribed(sessionId, historyEvent.type) && !shouldAlwaysBroadcast) {
       kubicLog.warn(`[GameHistoryManager] Session ${sessionId} not subscribed to game history event type "${historyEvent.type}", skipping broadcast`);
@@ -208,7 +211,7 @@ class GameHistoryManager {
     };
 
     GameEventService.broadcastToSession(sessionLike, {
-      type: historyEvent.type,
+      type: broadcastEventType,
       payload: {
         ...historyEvent.payload,
         playerId: historyEvent.playerId,
