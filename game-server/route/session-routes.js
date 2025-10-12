@@ -189,7 +189,40 @@ sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMid
     return res.json({ vote_inited: true, message: "Restart vote already in progress" });
   }
 
-  gameSession.getVoteManager().startRestartVote(gameSession.getPlayableParticipants());
+  // Callback for when AI votes (for broadcasting)
+  const onAiVote = (participantId, participantName) => {
+    try {
+      // Broadcast AI vote update
+      GameEventService.broadcastToSession(gameSession, {
+        type: "restartVoteUpdate",
+        payload: {
+          participantId,
+          vote: true,
+        },
+      });
+
+      kubicLog.info(`session-routes.js::AI participant ${participantName} (${participantId}) auto-voted Yes`);
+
+      // Check if voting is complete after AI vote
+      if (gameSession.getVoteManager().isRestartVoteComplete()) {
+        const allAgreed = gameSession.getVoteManager().getRestartVoteResult();
+
+        GameEventService.broadcastToSession(gameSession, {
+          type: "restartVoteResult",
+          payload: {
+            allAgreed,
+            votes: gameSession.getVoteManager().getRestartVote().votes,
+          },
+        });
+
+        gameSession.getVoteManager().clearRestartVote();
+      }
+    } catch (error) {
+      kubicLog.error("session-routes.js::Error handling AI vote:", error);
+    }
+  };
+
+  gameSession.getVoteManager().startRestartVote(gameSession.getPlayableParticipants(), onAiVote);
 
   res.json({ vote_inited: true });
 

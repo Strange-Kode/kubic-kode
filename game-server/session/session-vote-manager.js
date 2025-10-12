@@ -9,6 +9,7 @@ export class SessionVoteManager {
   constructor(sessionId) {
     this._sessionId = sessionId;
     this._restartVote = null; // { votes: {}, totalParticipants: N }
+    this._aiVoteTimers = []; // Track AI vote timers for cleanup
   }
 
   // Restart Vote Management
@@ -17,13 +18,36 @@ export class SessionVoteManager {
   /**
    * Start a restart game vote for the session
    * @param {Array<Object>} playableParticipants - Array of playable participant objects
+   * @param {Function} onAiVoteCallback - Optional callback when AI votes (for broadcasting)
    */
-  startRestartVote(playableParticipants) {
+  startRestartVote(playableParticipants, onAiVoteCallback = null) {
     // Only count playable participants (users and computers) for voting
     this._restartVote = {
       votes: {}, // participantId => true/false
       totalParticipants: playableParticipants.length,
     };
+
+    // Auto-vote for AI participants if enabled
+    const aiAutoVoteEnabled = process.env.KUBIC_AI_AUTO_VOTE_ENABLED === 'true';
+
+    if (aiAutoVoteEnabled) {
+      const aiParticipants = playableParticipants.filter(p => p.type === 'computer');
+      const delay = parseInt(process.env.KUBIC_AI_AUTO_VOTE_DELAY) || 1500;
+
+      aiParticipants.forEach(aiParticipant => {
+        const timer = setTimeout(() => {
+          // AI always votes yes
+          this.registerRestartVote(aiParticipant.id, true);
+
+          // Notify via callback if provided
+          if (onAiVoteCallback) {
+            onAiVoteCallback(aiParticipant.id, aiParticipant.name);
+          }
+        }, delay);
+
+        this._aiVoteTimers.push(timer);
+      });
+    }
   }
 
   /**
@@ -91,6 +115,11 @@ export class SessionVoteManager {
   clearRestartVote() {
     const voteResult = this._restartVote ? this.getRestartVoteResult() : null;
     this._restartVote = null;
+
+    // Clear any pending AI vote timers
+    this._aiVoteTimers.forEach(timer => clearTimeout(timer));
+    this._aiVoteTimers = [];
+
     return voteResult;
   }
 

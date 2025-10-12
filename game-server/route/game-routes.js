@@ -254,9 +254,15 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
 
   // Broadcast the event after sending the response to avoid blocking the request
   try {
+    const inactivityTimeoutMs = gameInstance.getInactivityTimeout();
+    const inactivityTimeoutSeconds = Math.floor(inactivityTimeoutMs / 1000);
+
     GameEventService.broadcastToSession(gameSession, {
       type: "gameStarted",
-      payload: { playerMappings: serializeRecursively(playerMappings) },
+      payload: {
+        playerMappings: serializeRecursively(playerMappings),
+        inactivityTimeout: inactivityTimeoutSeconds
+      },
     });
       } catch (broadcastError) {
     kubicLog.error("game-routes.js::Broadcast error (non-blocking):", broadcastError);
@@ -498,9 +504,16 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   
   // Broadcast the turn event to all connected clients after sending the response
   try {
+    // Get current tilemap to include in the WebSocket event
+    const currentTileMap = gameInstance.getGameEngine().getTileMap();
+    const serializedTileMap = processTileMapData(currentTileMap);
+    
     GameEventService.broadcastToSession(gameSession, {
       type: "turnPlayed",
-      payload: { roundStatus: responseData }
+      payload: { 
+        roundStatus: responseData,
+        updatedTileMap: serializedTileMap
+      }
     });
     
     // If the player won, also broadcast a win event
@@ -619,10 +632,17 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         // Convert PlayStatus to snake_case for broadcast
         const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
 
+        // Get current tilemap for computer turn broadcast
+        const compCurrentTileMap = gameInstance.getGameEngine().getTileMap();
+        const compSerializedTileMap = processTileMapData(compCurrentTileMap);
+        
         // Broadcast computer turn
         GameEventService.broadcastToSession(gameSession, {
           type: "turnPlayed",
-          payload: { roundStatus: compResponseData },
+          payload: { 
+            roundStatus: compResponseData,
+            updatedTileMap: compSerializedTileMap
+          },
         });
         
         // If the computer won, also broadcast a win event

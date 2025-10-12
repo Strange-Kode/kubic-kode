@@ -1,58 +1,67 @@
-import { useState, useCallback } from "react";
-import { useFetch } from "./useFetch.js";
+import { useState, useCallback, useEffect } from "react";
+import "../../../../kubic-kode-helper.js";
 
-/**
- * Hook for managing per-player win counts using GameHistory API
- * Fetches playerWon events and processes them into win counts per participant
- */
 export function usePlayerWins(sessionId) {
-  const [playerWinCounts, setPlayerWinCounts] = useState({});
-  const { post, isLoading, error } = useFetch();
+  const [winsState, setWinsState] = useState({});
 
-  const fetchPlayerWins = useCallback(async () => {
-    if (!sessionId) return;
+  const KubicKode = window.KubicKode;
 
-    const result = await post(`/api/session/${sessionId}/history`, {
-      type: 'playerWon'
+  useEffect(() => {
+    if (!KubicKode) return;
+
+    const handleWinsStateUpdate = (state) => {
+      setWinsState(state);
+    };
+
+    KubicKode.events.on("winCountsUpdated", handleWinsStateUpdate);
+    KubicKode.events.on("winsLoadingChanged", () => {
+      setWinsState(KubicKode.wins.getState());
+    });
+    KubicKode.events.on("winsErrorChanged", () => {
+      setWinsState(KubicKode.wins.getState());
     });
 
-    if (result.success && result.data) {
-      console.log('[usePlayerWins] Raw GameHistory response:', result.data);
-      
-      // Process the history events to count wins per participant
-      const winCounts = {};
-      
-      if (result.data.history && Array.isArray(result.data.history)) {
-        console.log('[usePlayerWins] Processing', result.data.history.length, 'playerWon events');
-        result.data.history.forEach((event, index) => {
-          console.log(`[usePlayerWins] Event ${index}:`, event);
-          if (event.participantId) {
-            winCounts[event.participantId] = (winCounts[event.participantId] || 0) + 1;
-          }
-        });
-      }
+    // Initialize with current state
+    setWinsState(KubicKode.wins.getState());
 
-      console.log('[usePlayerWins] Final win counts:', winCounts);
-      setPlayerWinCounts(winCounts);
-    } else {
-      console.error('[usePlayerWins] Failed to fetch player wins:', result.error);
+    return () => {
+      KubicKode.events.off("winCountsUpdated", handleWinsStateUpdate);
+    };
+  }, [KubicKode]);
+
+  // Delegate to KubicKode.wins for all win fetching logic
+  const fetchPlayerWins = useCallback(async () => {
+    if (!KubicKode) {
+      console.error("[usePlayerWins] KubicKode helper not available");
+      return { success: false, error: "KubicKode helper not available" };
     }
-  }, [sessionId, post]);
 
-  const getWinCountForPlayer = useCallback((participantId) => {
-    return playerWinCounts[participantId] || 0;
-  }, [playerWinCounts]);
+    // Sync session ID and delegate to helper
+    KubicKode.sessionId = sessionId;
+    return await KubicKode.wins.refreshWinCounts();
+  }, [sessionId, KubicKode]);
+
+  // Delegate helper methods to KubicKode.wins
+  const getWinCountForPlayer = useCallback(
+    (participantId) => {
+      return KubicKode.wins.getWinCountForPlayer(participantId);
+    },
+    [KubicKode]
+  );
 
   const getTotalGames = useCallback(() => {
-    return Object.values(playerWinCounts).reduce((sum, count) => sum + count, 0);
-  }, [playerWinCounts]);
+    return KubicKode.wins.getTotalGames();
+  }, [KubicKode]);
 
   return {
-    playerWinCounts,
-    isLoading,
-    error,
+    // State from KubicKode.wins
+    playerWinCounts: winsState.playerWinCounts || {},
+    isLoading: winsState.isLoading || false,
+    error: winsState.error || null,
+
+    // Methods delegated to KubicKode.wins
     fetchPlayerWins,
     getWinCountForPlayer,
-    getTotalGames
+    getTotalGames,
   };
 }

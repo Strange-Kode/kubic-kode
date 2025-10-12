@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { useFetch } from "./useFetch.js";
 
 /**
  * Custom hook for game management
@@ -7,18 +6,30 @@ import { useFetch } from "./useFetch.js";
  * All game routes use POST with game tokens for authentication
  */
 export function useGame(sessionId, participantId, getGameToken) {
-  // Game state
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameActive, setGameActive] = useState(false);
-  const [tileMap, setTileMap] = useState(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState(null);
-  const [playerMappings, setPlayerMappings] = useState({});
   const [isGameLoading, setIsGameLoading] = useState(false);
   const [gameError, setGameError] = useState(null);
-  const [lastMoveResult, setLastMoveResult] = useState(null);
+  const [gameState, setGameState] = useState({});
 
-  // Fetch helper
-  const { get, post } = useFetch();
+  const KubicKode = window.KubicKode;
+
+  useEffect(() => {
+    if (!KubicKode) return;
+
+    const handleGameStateUpdate = (state) => {
+      setGameState(state);
+    };
+
+    KubicKode.events.on("gameStateUpdated", handleGameStateUpdate);
+    KubicKode.events.on("tilemapUpdated", () => {
+      setGameState(KubicKode.game.getState());
+    });
+
+    setGameState(KubicKode.game.getState());
+
+    return () => {
+      KubicKode.events.off("gameStateUpdated", handleGameStateUpdate);
+    };
+  }, [KubicKode]);
 
   // Helper function to extract current player ID from response data
   const extractCurrentPlayerId = useCallback((data) => {
@@ -26,7 +37,9 @@ export function useGame(sessionId, participantId, getGameToken) {
     if (data.current_player_id !== undefined) {
       return data.current_player_id;
     } else if (data.current_player_ids) {
-      return data.current_player_ids.length > 0 ? data.current_player_ids[0] : null;
+      return data.current_player_ids.length > 0
+        ? data.current_player_ids[0]
+        : null;
     }
     return null;
   }, []);
@@ -39,18 +52,16 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn('[useGame] No game token available for fetchGameState');
+      console.warn("[useGame] No game token available for fetchGameState");
       return;
     }
 
     try {
-      const result = await post(`/api/game/${sessionId}/get-tilemap`, {
-        gameToken: gameToken
-      });
+      const KubicKode = window.KubicKode;
+      const result = await KubicKode.route.game("get-tilemap");
 
       if (result.success) {
-        // console.log("[useGame] Fetched game state:", result.data);
-        setTileMap(result.data);
+        KubicKode.game.updateTilemap(result.data);
       } else {
         console.error("[useGame] Failed to fetch game state:", result.error);
         setGameError(result.error);
@@ -59,29 +70,27 @@ export function useGame(sessionId, participantId, getGameToken) {
       console.error("[useGame] Error fetching game state:", error);
       setGameError(error.message);
     }
-  }, [sessionId, post, getGameToken]);
+  }, [sessionId, getGameToken]);
 
   // Fetch current player - now uses POST with game token
   const fetchCurrentPlayer = useCallback(async () => {
     if (!sessionId || !getGameToken) {
-      console.log("[useGame] Cannot fetch current player - missing sessionId or getGameToken");
       return;
     }
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn('[useGame] No game token available for fetchCurrentPlayer');
+      console.warn("[useGame] No game token available for fetchCurrentPlayer");
       return;
     }
 
     try {
-      const result = await post(`/api/game/${sessionId}/get-current-player`, {
-        gameToken: gameToken
-      });
+      const KubicKode = window.KubicKode;
+      const result = await KubicKode.route.game("get-current-player");
 
       if (result.success) {
         const newCurrentPlayerId = extractCurrentPlayerId(result.data);
-        setCurrentPlayerId(newCurrentPlayerId);
+        KubicKode.game.updateGame({ currentPlayerId: newCurrentPlayerId });
       } else {
         console.error(
           "[useGame] Failed to fetch current player:",
@@ -91,7 +100,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error fetching current player:", error);
     }
-  }, [sessionId, post, getGameToken, extractCurrentPlayerId]);
+  }, [sessionId, getGameToken, extractCurrentPlayerId]);
 
   // Fetch player mappings - now uses POST with game token
   const fetchPlayerMappings = useCallback(async () => {
@@ -101,17 +110,18 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn('[useGame] No game token available for fetchPlayerMappings');
+      console.warn("[useGame] No game token available for fetchPlayerMappings");
       return;
     }
 
     try {
-      const result = await post(`/api/game/${sessionId}/get-player-mappings`, {
-        gameToken: gameToken
-      });
+      const KubicKode = window.KubicKode;
+      const result = await KubicKode.route.game("get-player-mappings");
 
       if (result.success) {
-        setPlayerMappings(result.data.player_mappings);
+        KubicKode.game.updateGame({
+          playerMappings: result.data.player_mappings,
+        });
       } else {
         console.error(
           "[useGame] Failed to fetch player mappings:",
@@ -121,7 +131,7 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error fetching player mappings:", error);
     }
-  }, [sessionId, post, getGameToken]);
+  }, [sessionId, getGameToken]);
 
   // Start the game (called when session has 2 participants) - now uses POST with game token
   const startGame = useCallback(async () => {
@@ -142,25 +152,26 @@ export function useGame(sessionId, participantId, getGameToken) {
       throw new Error("No game token available to start game");
     }
 
-    // console.log("[useGame] Starting game for session:", sessionId);
     setIsGameLoading(true);
     setGameError(null);
 
     try {
-      const result = await post(`/api/game/${sessionId}/start`, {
+      const KubicKode = window.KubicKode;
+      const result = await KubicKode.route.game("start", {
         participantId: participantId,
-        gameToken: gameToken
       });
 
       if (result.success) {
-        setGameStarted(true);
-        setGameActive(true);
         const currentPlayerId = extractCurrentPlayerId(result.data);
-        setCurrentPlayerId(currentPlayerId);
+        KubicKode.game.updateGame({
+          started: true,
+          active: true,
+          currentPlayerId: currentPlayerId,
+        });
 
         // Fetch initial game state after starting
         await fetchGameState();
-        
+
         // Fetch player mappings after starting
         await fetchPlayerMappings();
 
@@ -177,7 +188,13 @@ export function useGame(sessionId, participantId, getGameToken) {
     } finally {
       setIsGameLoading(false);
     }
-  }, [sessionId, participantId, post, fetchGameState, getGameToken, extractCurrentPlayerId]);
+  }, [
+    sessionId,
+    participantId,
+    fetchGameState,
+    getGameToken,
+    extractCurrentPlayerId,
+  ]);
 
   // Check if game is active - now uses POST with game token
   const checkGameStatus = useCallback(async () => {
@@ -187,36 +204,36 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn('[useGame] No game token available for checkGameStatus');
+      console.warn("[useGame] No game token available for checkGameStatus");
       return;
     }
 
     // Only check game status if we don't already know the game is active
-    if (gameActive && gameStarted) {
+    const currentGameState = KubicKode.game.getState();
+    if (currentGameState.active && currentGameState.started) {
       return;
     }
 
     try {
-      const result = await post(`/api/game/${sessionId}/is-active`, {
-        gameToken: gameToken
-      });
+      const KubicKode = window.KubicKode;
+      const result = await KubicKode.route.game("is-active");
 
       if (result.success) {
-        console.log("[useGame] Game active status:", result.data.is_active);
-        const wasStarted = gameStarted;
-        const wasActive = gameActive;
-        
-        setGameActive(result.data.is_active);
-        if (result.data.is_active) {
-          setGameStarted(true);
-          
-          // If game just became active, fetch current player once
-          if (!wasActive) {
-            console.log("[useGame] Game just became active, fetching current player");
-            setTimeout(async () => {
-              await fetchCurrentPlayer();
-            }, 500);
-          }
+        const wasStarted = currentGameState.started;
+        const wasActive = currentGameState.active;
+
+        KubicKode.game.updateGame({
+          active: result.data.is_active,
+          started: result.data.is_active ? true : currentGameState.started,
+        });
+
+        // If game is active and we didn't know it before, fetch all game data
+        if (result.data.is_active && (!wasActive || !wasStarted)) {
+          await Promise.all([
+            fetchGameState(),
+            fetchPlayerMappings(),
+            fetchCurrentPlayer(),
+          ]);
         }
       } else {
         console.error("[useGame] Failed to check game status:", result.error);
@@ -224,7 +241,13 @@ export function useGame(sessionId, participantId, getGameToken) {
     } catch (error) {
       console.error("[useGame] Error checking game status:", error);
     }
-  }, [sessionId, post, getGameToken, gameActive, gameStarted]);
+  }, [
+    sessionId,
+    getGameToken,
+    fetchGameState,
+    fetchPlayerMappings,
+    fetchCurrentPlayer,
+  ]);
 
   // Make a move (play turn) - now uses POST with game token
   const makeMove = useCallback(
@@ -246,24 +269,15 @@ export function useGame(sessionId, participantId, getGameToken) {
         throw new Error("No game token available to make move");
       }
 
-      // console.log(
-      //   `[useGame] Making move at (${x}, ${y}) for player ${playerId}`
-      // );
-
       try {
-        const result = await post(
-          `/api/game/${sessionId}/play-turn`,
-          {
-            participantId: participantId,
-            gameToken: gameToken,
-            xPos: x,
-            yPos: y,
-          }
-        );
+        const KubicKode = window.KubicKode;
+        const result = await KubicKode.route.game("play-turn", {
+          xPos: x,
+          yPos: y,
+        });
 
         if (result.success) {
-          // console.log("[useGame] Move result:", result.data);
-          setLastMoveResult(result.data);
+          KubicKode.game.updateGame({ lastMoveResult: result.data });
 
           // If move was successful, fetch updated game state
           if (result.data.status === "ok") {
@@ -274,8 +288,7 @@ export function useGame(sessionId, participantId, getGameToken) {
               await fetchCurrentPlayer();
             } else {
               // Game ended, player won
-              // console.log("[useGame] Game ended - player won!");
-              setGameActive(false);
+              KubicKode.game.updateGame({ active: false });
             }
           }
 
@@ -289,7 +302,7 @@ export function useGame(sessionId, participantId, getGameToken) {
         return { success: false, error: error.message };
       }
     },
-    [sessionId, participantId, post, fetchGameState, fetchCurrentPlayer, getGameToken]
+    [sessionId, participantId, fetchGameState, fetchCurrentPlayer, getGameToken]
   );
 
   // Refresh all game data
@@ -298,15 +311,17 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
+    const currentGameState = KubicKode.game.getState();
+
     // Only refresh game data if the game has started
-    if (gameStarted) {
+    if (currentGameState.started) {
       await Promise.all([
         fetchGameState(),
         fetchPlayerMappings(),
         fetchCurrentPlayer(), // Always fetch current player to ensure turn updates
       ]);
       // Only check game status if we don't already know it's active
-      if (!gameActive) {
+      if (!currentGameState.active) {
         await checkGameStatus();
       }
     } else {
@@ -316,63 +331,74 @@ export function useGame(sessionId, participantId, getGameToken) {
         await checkGameStatus();
       }, 100);
     }
-  }, [sessionId, gameStarted, gameActive, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
+  }, [sessionId, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
 
   // Reset game state when session changes
   useEffect(() => {
     if (sessionId) {
-      console.log("[useGame] Session changed, resetting game state");
-      setGameStarted(false);
-      setGameActive(false);
-      setCurrentPlayerId(null);
-      setTileMap(null);
-      setPlayerMappings({});
-      setLastMoveResult(null);
+      KubicKode.game.reset();
       setGameError(null);
     }
-  }, [sessionId]);
+  }, [sessionId, KubicKode]);
+
+  // Auto-check game status when entering game screen (sessionId + gameToken available)
+  useEffect(() => {
+    const checkInitialGameStatus = async () => {
+      if (sessionId && getGameToken && getGameToken()) {
+        await checkGameStatus();
+      }
+    };
+
+    checkInitialGameStatus();
+  }, [sessionId, getGameToken, checkGameStatus]);
 
   // Auto-fetch current player when game is active but no current player is set
   useEffect(() => {
-    if (gameStarted && gameActive && !currentPlayerId) {
-      console.log("[useGame] Game is active but no current player, auto-fetching...");
+    const currentGameState = KubicKode.game.getState();
+    if (
+      currentGameState.started &&
+      currentGameState.active &&
+      !currentGameState.currentPlayerId
+    ) {
       setTimeout(async () => {
         await fetchCurrentPlayer();
-      }, 1000); // Increased delay to reduce spam
+      }, 1000);
     }
-  }, [gameStarted, gameActive, currentPlayerId]);
+  }, [
+    gameState.started,
+    gameState.active,
+    gameState.currentPlayerId,
+    fetchCurrentPlayer,
+  ]);
 
-  // Helper to get tile at position (for UI rendering only)
   const getTile = useCallback(
     (x, y) => {
-      if (!tileMap || !tileMap.tiles) {
-        return null;
-      }
-
-      // Simple array access - no validation (let backend handle bounds checking)
-      return tileMap.tiles[y]?.[x] || null;
+      return KubicKode.game.getTile(x, y);
     },
-    [tileMap]
+    [KubicKode]
   );
 
-  // Helper to get game grid dimensions
   const getGridDimensions = useCallback(() => {
-    if (!tileMap) {
-      return { width: 0, height: 0 };
-    }
-    return { width: tileMap.width, height: tileMap.height };
-  }, [tileMap]);
+    return KubicKode.game.getGridDimensions();
+  }, [KubicKode]);
+
+  const setTileMapFromWebSocket = useCallback(
+    (newTileMap) => {
+      KubicKode.game.updateTilemap(newTileMap);
+    },
+    [KubicKode]
+  );
 
   return {
-    // Game state
-    gameStarted,
-    gameActive,
-    tileMap,
-    currentPlayerId,
-    playerMappings,
+    gameStarted: gameState.started || false,
+    gameActive: gameState.active || false,
+    tileMap: gameState.tilemap || null,
+    currentPlayerId: gameState.currentPlayerId || null,
+    playerMappings: gameState.playerMappings || {},
+    lastMoveResult: gameState.lastMoveResult || null,
+
     isGameLoading,
     gameError,
-    lastMoveResult,
 
     // Game actions
     startGame,
@@ -382,11 +408,11 @@ export function useGame(sessionId, participantId, getGameToken) {
     fetchCurrentPlayer,
     fetchPlayerMappings,
     checkGameStatus,
+    setTileMapFromWebSocket,
 
-    // Helper functions
     getTile,
     getGridDimensions,
-    
+
     // Debug/utility functions
     forceRefreshCurrentPlayer: fetchCurrentPlayer,
   };
