@@ -105,6 +105,25 @@ gameRegistry.register("tic-tac-toe-configurable", ConfigurableTicTacToeFactory);
 // Security middleware - helmet.js for security headers
 app.use(helmet());
 
+// CORS middleware  
+const allowedOrigins = process.env.KUBIC_ALLOWED_ORIGINS 
+  ? process.env.KUBIC_ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3001'];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 

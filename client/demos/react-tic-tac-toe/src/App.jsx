@@ -38,6 +38,8 @@ function AppContent() {
     showSpectatorModal,
     showWinModal,
     winner,
+    showSessionEndedModal,
+    sessionEndedReason,
     playerName,
     participants,
     maxPlayers,
@@ -57,6 +59,7 @@ function AppContent() {
     handleMove,
     refreshData,
     handleWinModalClose,
+    handleSessionEndedModalClose,
     getTile,
     getGridDimensions,
     // Player wins data
@@ -85,7 +88,6 @@ function AppContent() {
   const [testName, setTestName] = useState("");
   const [spectatorName, setSpectatorName] = useState("");
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
-  // Removed manualModalOpen and suppressAutoModal state
 
   // Define handlers before using them
   const handleJoinWithName = async (name) => {
@@ -94,24 +96,10 @@ function AppContent() {
   };
 
   const handleSessionBrowserJoin = async (joinResult) => {
-    // console.log("[App] Session browser join result:", joinResult);
-
-    if (
-      joinResult.sessionId &&
-      joinResult.participantId &&
-      joinResult.playerName
-    ) {
+    if (joinResult.sessionId && joinResult.participantId) {
       // Sync the main app state with the session browser join result
-      syncSessionState(
-        joinResult.sessionId,
-        joinResult.participantId,
-        joinResult.playerName
-      );
-
-      // Ensure loading state is reset after sync
-      // The syncSessionState triggers data fetching which should reset loading states
+      await syncSessionState(joinResult.sessionId, joinResult.participantId);
     } else {
-      // console.error("[App] Invalid join result:", joinResult);
       await refreshData();
     }
   };
@@ -122,19 +110,26 @@ function AppContent() {
       <WelcomeScreen
         onCreateGame={async (playerName) => {
           // Initialize session with forceNew=true to always create a fresh session
-          const initResult = await initializeSession(true);
+          const initResult = await initializeSession(
+            "tic-tac-toe-classic",
+            true
+          );
           if (initResult.success) {
             // Use joinSession directly with the session ID from initialization
-            const joinResult = await joinSession(
-              playerName,
-              "user",
-              initResult.sessionId
-            );
+            const joinResult = await joinSession(playerName, "user");
             if (!joinResult.success) {
-              // console.error("[App] Failed to join newly created session:", joinResult.error);
+              console.error(
+                "[App] Failed to join newly created session:",
+                joinResult.error
+              );
+              alert(`Failed to join session: ${joinResult.error}`);
             }
           } else {
-            // console.error("[App] Failed to initialize session:", initResult.error);
+            console.error(
+              "[App] Failed to initialize session:",
+              initResult.error
+            );
+            alert(`Failed to create session: ${initResult.error}`);
           }
         }}
         onSessionJoined={handleSessionBrowserJoin}
@@ -206,7 +201,6 @@ function AppContent() {
         {Array.from({ length: height }, (_, y) =>
           Array.from({ length: width }, (_, x) => {
             const tile = getTile(x, y);
-            // console.log(`[App-test] Tile at (${x},${y}):`, tile);
             const cellValue = tile?.type || ""; // Use tile.type instead of tile.mark
 
             return (
@@ -669,18 +663,8 @@ function AppContent() {
                 const playableCount = participants.filter(
                   (p) => p.type === "user" || p.type === "computer"
                 ).length;
-                // console.log("AI Button Debug:", {
-                //   participantId,
-                //   participants,
-                //   playableCount,
-                //   maxPlayers,
-                //   gameStarted,
-                //   shouldShow: participantId && playableCount < maxPlayers && !gameStarted
-                // });
                 return (
-                  participantId &&
-                  playableCount < maxPlayers &&
-                  !gameStarted
+                  participantId && playableCount < maxPlayers && !gameStarted
                 );
               })() && (
                 <Container bg="orange.50" w="100%">
@@ -874,20 +858,6 @@ function AppContent() {
                 <Button size="sm" onClick={refreshData}>
                   Refresh All Data
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    // console.log("useTicTacToe state:", {
-                    //   gamePhase,
-                    //   participants,
-                    //   currentPlayer,
-                    //   isMyTurn,
-                    // })
-                    {}
-                  }
-                >
-                  Log Hook State
-                </Button>
               </HStack>
             </VStack>
           </Container>
@@ -929,6 +899,23 @@ function AppContent() {
         type={getWinModalType()}
         primaryButton={getWinModalPrimaryButton()}
         secondaryButton={getWinModalSecondaryButton()}
+      />
+
+      {/* Session Ended Modal */}
+      <GameModal
+        isOpen={showSessionEndedModal}
+        onClose={() => {}} // Can't close - session is terminated
+        title="Session Ended"
+        message={
+          sessionEndedReason
+            ? `The game session has ended: ${sessionEndedReason.reason}`
+            : "The game session has ended unexpectedly."
+        }
+        type="error"
+        primaryButton={{
+          text: "Return to Welcome",
+          onClick: handleSessionEndedModalClose,
+        }}
       />
 
       {/* Session Browser Modal */}

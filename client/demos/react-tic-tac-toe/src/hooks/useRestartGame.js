@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import "../../../../kubic-kode-helper.js";
 
 export function useRestartVoting(session, game, refreshData) {
   // Restart voting state
@@ -6,8 +7,24 @@ export function useRestartVoting(session, game, refreshData) {
   const [restartVoteInitiator, setRestartVoteInitiator] = useState(null);
   const [restartVotes, setRestartVotes] = useState({});
 
-  // Request restart vote
+  // Get KubicKode helper
+  const KubicKode = window.KubicKode;
+
+  // Sync KubicKode helper state with session
+  useEffect(() => {
+    if (KubicKode && session.sessionId && session.participantId) {
+      KubicKode.sessionId = session.sessionId;
+      KubicKode.participantId = session.participantId;
+      KubicKode.gameToken = session.getGameToken();
+    }
+  }, [session.sessionId, session.participantId, KubicKode]);
+
+  // Request restart vote using KubicKode helper
   const requestRestart = useCallback(async () => {
+    if (!KubicKode) {
+      throw new Error("KubicKode helper not available");
+    }
+
     if (!session.sessionId) {
       throw new Error("No session available");
     }
@@ -18,33 +35,8 @@ export function useRestartVoting(session, game, refreshData) {
       setShowRestartVoteModal(true);
       setRestartVotes({});
 
-      const response = await fetch(
-        `/api/session/${session.sessionId}/request-restart-vote`
-      );
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to request restart");
-      }
-
-      // Automatically submit "Yes" vote for the initiator
-      const voteResponse = await fetch(
-        `/api/session/${session.sessionId}/submit-restart-vote`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            participantId: session.participantId,
-            voteYes: true,
-          }),
-        }
-      );
-
-      if (!voteResponse.ok) {
-        console.error("[useRestartVoting] Failed to auto-vote for initiator");
-      }
+      // Use KubicKode helper's voting system
+      await KubicKode.voting.initiate(session.participants);
     } catch (err) {
       console.error("[useRestartVoting] Error requesting restart:", err);
       // Reset on error
@@ -53,41 +45,32 @@ export function useRestartVoting(session, game, refreshData) {
       setRestartVotes({});
       throw err;
     }
-  }, [session.sessionId, session.participantId]);
+  }, [
+    session.sessionId,
+    session.participantId,
+    session.participants,
+    KubicKode,
+  ]);
 
-  // Submit restart vote
+  // Submit restart vote using KubicKode helper
   const submitRestartVote = useCallback(
     async (voteYes) => {
+      if (!KubicKode) {
+        throw new Error("KubicKode helper not available");
+      }
+
       if (!session.sessionId || !session.participantId) {
         throw new Error("No session or participant ID available");
       }
 
       try {
-        const response = await fetch(
-          `/api/session/${session.sessionId}/submit-restart-vote`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              participantId: session.participantId,
-              voteYes: voteYes,
-            }),
-          }
-        );
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to submit vote");
-        }
+        await KubicKode.voting.vote(voteYes);
       } catch (err) {
         console.error("[useRestartVoting] Error submitting restart vote:", err);
         throw err;
       }
     },
-    [session.sessionId, session.participantId]
+    [session.sessionId, session.participantId, KubicKode]
   );
 
   // Handle restart sequence for initiator
@@ -133,29 +116,7 @@ export function useRestartVoting(session, game, refreshData) {
           setRestartVotes({});
         }
 
-        // AI auto-voting: Check if there are any AI participants that need to auto-vote
-        // Only include playable participants (users and computers) in voting
-        const aiParticipants = session.participants.filter(p => p.type === "computer");
-        aiParticipants.forEach(aiParticipant => {
-          // Add a small delay to make it feel more realistic
-          setTimeout(() => {
-            console.log(`[AI Auto-Vote] AI participant ${aiParticipant.name} (ID: ${aiParticipant.id}) automatically voting Yes`);
-            
-            // Submit AI vote directly via API call
-            fetch(`/api/session/${session.sessionId}/submit-restart-vote`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                participantId: aiParticipant.id,
-                voteYes: true,
-              }),
-            }).catch(err => {
-              console.error(`[AI Auto-Vote] Failed to submit vote for AI ${aiParticipant.name}:`, err);
-            });
-          }, 500 + Math.random() * 1000); // 500-1500ms delay
-        });
+        // AI auto-voting is now handled by KubicKode helper
       }
 
       if (data.type === "restartVoteUpdate") {
@@ -166,13 +127,6 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteResult") {
-        console.log("[useRestartVoting] Vote result received:", {
-          allAgreed: data.payload.allAgreed,
-          restartVoteInitiator,
-          sessionParticipantId: session.participantId,
-          shouldExecuteRestart: restartVoteInitiator === session.participantId
-        });
-
         if (data.payload.allAgreed) {
           // All players agreed to restart - restart the game!
           setShowRestartVoteModal(false);
@@ -182,7 +136,6 @@ export function useRestartVoting(session, game, refreshData) {
 
           // Only the vote initiator should handle the actual restart
           if (restartVoteInitiator === session.participantId) {
-            console.log("[useRestartVoting] Executing restart sequence as initiator");
             setRestartVoteInitiator(null);
 
             // Execute restart sequence
@@ -194,7 +147,6 @@ export function useRestartVoting(session, game, refreshData) {
               setError(err.message || "Failed to restart game");
             });
           } else {
-            console.log("[useRestartVoting] Not executing restart - not initiator, waiting for initiator");
             setRestartVoteInitiator(null);
             // Add a 2-second delay before refreshing for non-initiators
             setTimeout(() => {
