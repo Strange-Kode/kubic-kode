@@ -803,7 +803,7 @@ function AppContent() {
                         <strong>Inactivity Timer:</strong>
                       </Text>
                       <LiveTimer
-                        getLiveTimer={getLiveTimer}
+                        inactivityTimer={inactivityTimer}
                         gameActive={gameActive}
                       />
                     </HStack>

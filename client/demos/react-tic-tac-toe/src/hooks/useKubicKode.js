@@ -106,16 +106,16 @@ export function useKubicKode(gameId = null) {
       }},
       
       // Game events
-      { type: "gameStarted", handler: () => {
+      { type: "kubic::gameStarted", handler: () => {
         setGameState("active");
         setError(null);
       }},
       
-      { type: "gameStopped", handler: () => {
+      { type: "kubic::gameStopped", handler: () => {
         setGameState("stopped");
       }},
       
-      { type: "turnPlayed", handler: () => {
+      { type: "kubic::turnPlayed", handler: () => {
         // Refresh tile map and current player
         fetchTileMap();
         fetchCurrentPlayer();
@@ -369,11 +369,16 @@ export function useKubicKode(gameId = null) {
       return;
     }
 
-    // Construct WebSocket URL
+    if (!participantId) {
+      console.warn("🔌 Cannot connect WebSocket: No participantId available");
+      return;
+    }
+
+    // Construct WebSocket URL with both sessionId and participantId
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const hostIP = window.location.hostname;
     const hostPort = window.location.port || "3000";
-    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}`;
+    const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}&participantId=${participantId}`;
     
     console.log("🔌 Attempting WebSocket connection to:", wsUrl);
     const websocket = new WebSocket(wsUrl);
@@ -409,7 +414,7 @@ export function useKubicKode(gameId = null) {
 
     // Store websocket reference for cleanup
     eventListeners.current.add({ websocket, off: () => websocket.close() });
-  }, [sessionId]);
+  }, [sessionId, participantId]);
 
   const disconnectWebSocket = useCallback(() => {
     eventListeners.current.forEach(listener => {

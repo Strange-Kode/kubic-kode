@@ -127,7 +127,13 @@ export function useTicTacToe() {
     };
 
     const handleInactivityTimerUpdate = (data) => {
+      console.log("[useTicTacToe] handleInactivityTimerUpdate called with:", data);
       setInactivityTimer(data.secondsLeft);
+    };
+
+    const handleInactivityTimerCleared = () => {
+      console.log("[useTicTacToe] handleInactivityTimerCleared called - setting inactivityTimer to null");
+      setInactivityTimer(null);
     };
 
     // Handle restart voting events from KubicKode.flow
@@ -148,6 +154,7 @@ export function useTicTacToe() {
     };
 
     const handleRestartVotingUpdated = (data) => {
+      console.log("[useTicTacToe] handleRestartVotingUpdated called with:", data);
       restartVoting.handleRestartVoteEvent(
         { type: "restartVoteUpdate", payload: data },
         (error) => {
@@ -164,6 +171,7 @@ export function useTicTacToe() {
     };
 
     const handleRestartVotingCompleted = (data) => {
+      console.log("[useTicTacToe] handleRestartVotingCompleted called with:", data);
       restartVoting.handleRestartVoteEvent(
         { type: "restartVoteResult", payload: data },
         (error) => {
@@ -189,6 +197,7 @@ export function useTicTacToe() {
     KubicKode.events.on("gameDisabledByInactivity", handleGameDisabled);
     KubicKode.events.on("gameReEnabled", handleGameReEnabled);
     KubicKode.events.on("inactivityTimerUpdate", handleInactivityTimerUpdate);
+    KubicKode.events.on("inactivityTimerCleared", handleInactivityTimerCleared);
     KubicKode.events.on("restartVotingStarted", handleRestartVotingStarted);
     KubicKode.events.on("restartVotingUpdated", handleRestartVotingUpdated);
     KubicKode.events.on("restartVotingCompleted", handleRestartVotingCompleted);
@@ -207,6 +216,7 @@ export function useTicTacToe() {
         "inactivityTimerUpdate",
         handleInactivityTimerUpdate
       );
+      KubicKode.events.off("inactivityTimerCleared", handleInactivityTimerCleared);
       KubicKode.events.off("restartVotingStarted", handleRestartVotingStarted);
       KubicKode.events.off("restartVotingUpdated", handleRestartVotingUpdated);
       KubicKode.events.off(
@@ -335,7 +345,7 @@ export function useTicTacToe() {
     } catch (err) {
       console.error("[useTicTacToe] Error refreshing data:", err);
     }
-  }, [session, game]);
+  }, [session.fetchParticipants, session.sessionId, session.participantId, game.refreshGameData]);
 
   const gamePhase = KubicKode?.flow.getCurrentPhase() || "initializing";
 

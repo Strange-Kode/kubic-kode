@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import "../../../../kubic-kode-helper.js";
 
-export function usePlayerWins(sessionId) {
+export function usePlayerWins() {
   const [winsState, setWinsState] = useState({});
 
   const KubicKode = window.KubicKode;
@@ -29,18 +29,6 @@ export function usePlayerWins(sessionId) {
     };
   }, [KubicKode]);
 
-  // Delegate to KubicKode.wins for all win fetching logic
-  const fetchPlayerWins = useCallback(async () => {
-    if (!KubicKode) {
-      console.error("[usePlayerWins] KubicKode helper not available");
-      return { success: false, error: "KubicKode helper not available" };
-    }
-
-    // Sync session ID and delegate to helper
-    KubicKode.sessionId = sessionId;
-    return await KubicKode.wins.refreshWinCounts();
-  }, [sessionId, KubicKode]);
-
   // Delegate helper methods to KubicKode.wins
   const getWinCountForPlayer = useCallback(
     (participantId) => {
@@ -54,13 +42,12 @@ export function usePlayerWins(sessionId) {
   }, [KubicKode]);
 
   return {
-    // State from KubicKode.wins
+    // State from KubicKode.wins (updated automatically via kubic::winCount WebSocket events)
     playerWinCounts: winsState.playerWinCounts || {},
     isLoading: winsState.isLoading || false,
     error: winsState.error || null,
 
-    // Methods delegated to KubicKode.wins
-    fetchPlayerWins,
+    // Helper methods delegated to KubicKode.wins
     getWinCountForPlayer,
     getTotalGames,
   };

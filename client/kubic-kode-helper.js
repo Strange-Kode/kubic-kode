@@ -453,23 +453,22 @@ const KubicClientError = class extends Error {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle heartbeat responses
-          if (data.type === "heartbeat") {
+          // Log restart vote related messages and game events
+          if (data.type && (data.type.includes("restartVote") || data.type.includes("turnPlayed") || data.type.includes("gameStarted"))) {
+            console.log("[WebSocket] Received:", data.type, data.payload);
+          }
+
+          // Handle heartbeat responses (support both old and new namespaces for backwards compatibility)
+          if (data.type === "heartbeat" || data.type === "kubic::heartbeat") {
             this.handleHeartbeat(data);
-          } else if (data.type === "heartbeatResponse") {
+          } else if (data.type === "heartbeatResponse" || data.type === "kubic::heartbeatResponse") {
             this.handleHeartbeatResponse(data);
-          } else if (data.type === "connectionConfirmed") {
-            this.events.emit("connectionConfirmed", data.payload);
-          } else if (data.type === "participantDisconnected") {
-            this.events.emit("participantDisconnected", data.payload);
-          } else if (data.type === "participantReconnected") {
-            this.events.emit("participantReconnected", data.payload);
-          } else if (data.type === "participantRemoved") {
-            this.events.emit("participantRemoved", data.payload);
-          } else if (data.type === "sessionEnded") {
-            this.events.emit("sessionEnded", data.payload);
+          } else if (data.type === "kubic::sessionEnded") {
+            // Special handling for session ended - stop heartbeat
+            this.events.emit(data.type, data.payload);
             this.stopHeartbeat();
           } else {
+            // Emit all other events with their full type name (preserves kubic:: prefix)
             this.events.emit(data.type, data.payload);
           }
         } catch (error) {
@@ -808,10 +807,21 @@ const KubicClientError = class extends Error {
         participantId: this.participantId,
       });
       if (result.success) {
+        // Clear session identifiers
         this.participantId = null;
         this.sessionId = null;
         this.gameToken = null;
+
+        // Disconnect WebSocket
         this.disconnectWebSocket();
+
+        // Reset all state to prevent stale data in new sessions
+        this.session.reset();
+        this.game.reset();
+        this.wins.reset();
+        this.voting.reset();
+        this.inactivity.clearTimer(); // inactivity uses clearTimer() not reset()
+        this.flow.reset();
       }
       return result;
     }
@@ -1662,6 +1672,20 @@ const KubicClientError = class extends Error {
       },
 
       /**
+       * Handle winCount WebSocket event
+       * @param {Object} payload - Event payload with winCounts and totalGames
+       */
+      _handleWinCount: (payload) => {
+        console.log("[KubicKode.flow] Received kubic::winCount:", payload);
+
+        // Update win counts from WebSocket payload
+        this.wins.updateWinCounts({
+          playerWinCounts: payload.winCounts || {},
+          totalGames: payload.totalGames || 0
+        });
+      },
+
+      /**
        * Handle playerWon WebSocket event
        * @param {Object} payload - Event payload with playerId
        */
@@ -1676,16 +1700,16 @@ const KubicClientError = class extends Error {
           this.flow.phase = "ended";
           this.game.updateGame({ active: false });
 
+          // Refresh win counts from game history after someone wins
+          setTimeout(() => {
+            this.wins.refreshWinCounts();
+          }, 100);
+
           // Emit high-level event for UI
           this.events.emit("gameEnded", {
             winner: winnerParticipant,
             isTie: false,
           });
-
-          // Refresh win counts
-          setTimeout(() => {
-            this.wins.refreshWinCounts();
-          }, 100);
         } else {
           console.warn(
             "[KubicKode.flow] Winner participant not found for playerId:",
@@ -1703,16 +1727,16 @@ const KubicClientError = class extends Error {
         this.flow.phase = "ended";
         this.game.updateGame({ active: false });
 
+        // Refresh win counts from game history after a tie
+        setTimeout(() => {
+          this.wins.refreshWinCounts();
+        }, 100);
+
         // Emit high-level event for UI
         this.events.emit("gameEnded", {
           winner: this.flow.winner,
           isTie: true,
         });
-
-        // Refresh win counts
-        setTimeout(() => {
-          this.wins.refreshWinCounts();
-        }, 100);
       },
 
       /**
@@ -1720,9 +1744,14 @@ const KubicClientError = class extends Error {
        * @param {Object} payload - Event payload with updatedTileMap
        */
       _handleTurnPlayed: (payload) => {
+        console.log("[KubicKode.flow] Received kubic::turnPlayed:", payload);
+
         // Update tilemap if provided
         if (payload.updatedTileMap) {
+          console.log("[KubicKode.flow] Updating tilemap from WebSocket");
           this.game.updateTilemap(payload.updatedTileMap);
+        } else {
+          console.warn("[KubicKode.flow] No updatedTileMap in payload!");
         }
 
         // Refresh current player
@@ -1769,6 +1798,9 @@ const KubicClientError = class extends Error {
       _handleSessionEnded: (payload) => {
         this.flow.phase = "session-ended";
         this.stopHeartbeat();
+
+        // Clear inactivity timer since session has ended
+        this.inactivity.clearTimer();
 
         // Emit high-level event for UI
         this.events.emit("sessionTerminated", {
@@ -1845,10 +1877,16 @@ const KubicClientError = class extends Error {
       _handleTimeLeft: (payload) => {
         const secondsLeft = payload.secondsLeft;
         if (typeof secondsLeft === "number") {
-          this.inactivity.updateTimer(secondsLeft);
+          // Only update timer if there are enough players for the game to be playable
+          const playableParticipants = this.session.getPlayableParticipants();
 
-          // Emit event to trigger React re-render
-          this.events.emit("inactivityTimerUpdate", { secondsLeft });
+          // Only proceed if maxPlayers is set and we have enough players
+          if (this.session.maxPlayers && playableParticipants.length >= this.session.maxPlayers) {
+            this.inactivity.updateTimer(secondsLeft);
+
+            // Emit event to trigger React re-render
+            this.events.emit("inactivityTimerUpdate", { secondsLeft });
+          }
         }
       },
 
@@ -1885,11 +1923,6 @@ const KubicClientError = class extends Error {
                 isTie: false,
                 reason: "inactivity",
               });
-
-              // Refresh win counts and participants
-              setTimeout(() => {
-                this.wins.refreshWinCounts();
-              }, 100);
             }
           }
         }
@@ -1934,10 +1967,39 @@ const KubicClientError = class extends Error {
        * @param {Object} payload - Event payload
        */
       _handleSessionParticipantLeft: () => {
-        // Refresh participants list
-        this.getParticipants().catch((err) => {
-          console.error("[KubicKode.flow] Error refreshing participants:", err);
-        });
+        // Refresh participants list and update session state
+        this.getParticipants()
+          .then((result) => {
+            if (result.success) {
+              // Update session participants from the API response
+              const participants = Array.isArray(result.data)
+                ? result.data
+                : result.data.participants;
+              this.session.updateParticipants(participants);
+
+              // Update maxPlayers if provided
+              if (result.data.maxPlayers) {
+                this.session.updateSession({
+                  maxPlayers: result.data.maxPlayers,
+                });
+              }
+
+              // Check if there are enough playable participants for the game to continue
+              const playableParticipants = participants.filter(
+                (p) => p.type === "user" || p.type === "computer"
+              );
+              const maxPlayers = result.data.maxPlayers || this.session.maxPlayers;
+
+              // If not enough players remain, clear the inactivity timer
+              if (maxPlayers && playableParticipants.length < maxPlayers) {
+                console.log("[KubicKode.flow] Not enough players to continue game, clearing timer");
+                this.inactivity.clearTimer();
+              }
+            }
+          })
+          .catch((err) => {
+            console.error("[KubicKode.flow] Error refreshing participants:", err);
+          });
       },
 
       /**
@@ -1975,7 +2037,7 @@ const KubicClientError = class extends Error {
        * Handle gameStarted WebSocket event
        * @param {Object} payload - Event payload
        */
-      _handleGameStarted: (payload) => {
+      _handleGameStarted: async (payload) => {
         // Update game state to reflect that game has started
         this.game.updateGame({
           started: true,
@@ -1992,6 +2054,34 @@ const KubicClientError = class extends Error {
           this.game.updateGame({ tilemap: payload.updatedTileMap });
         }
 
+        // Fetch complete game state (tilemap, player mappings, current player)
+        // This ensures all clients get the initial game state when the game starts
+        try {
+          const [tilemapResult, playerMappingsResult, currentPlayerResult] = await Promise.all([
+            this.route.game("get-tilemap"),
+            this.route.game("get-player-mappings"),
+            this.route.game("get-current-player")
+          ]);
+
+          if (tilemapResult.success) {
+            this.game.updateGame({ tilemap: tilemapResult.data });
+          }
+
+          if (playerMappingsResult.success) {
+            this.game.updateGame({ playerMappings: playerMappingsResult.data.player_mappings });
+          }
+
+          if (currentPlayerResult.success) {
+            const currentPlayerId = currentPlayerResult.data.current_player_id ||
+              (currentPlayerResult.data.current_player_ids && currentPlayerResult.data.current_player_ids.length > 0
+                ? currentPlayerResult.data.current_player_ids[0]
+                : null);
+            this.game.updateGame({ currentPlayerId });
+          }
+        } catch (error) {
+          console.error("[KubicKode.flow] Error fetching game state after gameStarted:", error);
+        }
+
         // Initialize inactivity timer from backend
         const initialTimer = payload.inactivityTimeout;
         this.inactivity.initialTimer = initialTimer; // Store for later resets
@@ -2002,11 +2092,6 @@ const KubicClientError = class extends Error {
 
         // Re-enable game UI if it was disabled by inactivity
         this.events.emit("gameReEnabled");
-
-        // Refresh win counts
-        setTimeout(() => {
-          this.wins.refreshWinCounts();
-        }, 100);
       },
 
       /**
@@ -2026,12 +2111,15 @@ const KubicClientError = class extends Error {
        * @param {Object} payload - Event payload with participantId and vote
        */
       _handleRestartVoteUpdate: (payload) => {
+        console.log("[KubicKode.flow] Received kubic::restartVoteUpdate:", payload);
         // Update voting state in KubicKode.voting
         if (payload.participantId && payload.vote !== undefined) {
           this.voting.votes[payload.participantId] = payload.vote;
+          console.log("[KubicKode.flow] Updated voting state:", this.voting.votes);
         }
 
         // Emit high-level event for UI
+        console.log("[KubicKode.flow] Emitting restartVotingUpdated event");
         this.events.emit("restartVotingUpdated", {
           participantId: payload.participantId,
           vote: payload.vote,
@@ -2085,51 +2173,52 @@ const KubicClientError = class extends Error {
        */
       setupEventHandlers: () => {
         // Game lifecycle events
-        this.events.on("playerWon", this.flow._handlePlayerWon);
-        this.events.on("gameTied", this.flow._handleGameTied);
-        this.events.on("turnPlayed", this.flow._handleTurnPlayed);
-        this.events.on("gameStarted", this.flow._handleGameStarted);
+        this.events.on("kubic::playerWon", this.flow._handlePlayerWon);
+        this.events.on("kubic::gameTied", this.flow._handleGameTied);
+        this.events.on("kubic::turnPlayed", this.flow._handleTurnPlayed);
+        this.events.on("kubic::gameStarted", this.flow._handleGameStarted);
+        this.events.on("kubic::winCount", this.flow._handleWinCount);
 
         // Session lifecycle events
-        this.events.on("sessionEnded", this.flow._handleSessionEnded);
+        this.events.on("kubic::sessionEnded", this.flow._handleSessionEnded);
         this.events.on(
-          "sessionParticipantJoined",
+          "kubic::sessionParticipantJoined",
           this.flow._handleSessionParticipantJoined
         );
         this.events.on(
-          "sessionSpectatorJoined",
+          "kubic::sessionSpectatorJoined",
           this.flow._handleSessionSpectatorJoined
         );
         this.events.on(
-          "sessionParticipantLeft",
+          "kubic::sessionParticipantLeft",
           this.flow._handleSessionParticipantLeft
         );
 
         // Connection lifecycle events
         this.events.on(
-          "participantDisconnected",
+          "kubic::participantDisconnected",
           this.flow._handleParticipantDisconnected
         );
         this.events.on(
-          "participantRemoved",
+          "kubic::participantRemoved",
           this.flow._handleParticipantRemoved
         );
         this.events.on(
-          "participantReconnected",
+          "kubic::participantReconnected",
           this.flow._handleParticipantReconnected
         );
 
         // Inactivity events
-        this.events.on("timeLeft", this.flow._handleTimeLeft);
-        this.events.on("playerInactive", this.flow._handlePlayerInactive);
+        this.events.on("kubic::timeLeft", this.flow._handleTimeLeft);
+        this.events.on("kubic::playerInactive", this.flow._handlePlayerInactive);
 
         // Restart voting events
         this.events.on(
-          "restartVoteStarted",
+          "kubic::restartVoteStarted",
           this.flow._handleRestartVoteStarted
         );
-        this.events.on("restartVoteUpdate", this.flow._handleRestartVoteUpdate);
-        this.events.on("restartVoteResult", this.flow._handleRestartVoteResult);
+        this.events.on("kubic::restartVoteUpdate", this.flow._handleRestartVoteUpdate);
+        this.events.on("kubic::restartVoteResult", this.flow._handleRestartVoteResult);
 
         return this;
       },
@@ -2141,55 +2230,56 @@ const KubicClientError = class extends Error {
        */
       teardownEventHandlers: () => {
         // Game lifecycle events
-        this.events.off("playerWon", this.flow._handlePlayerWon);
-        this.events.off("gameTied", this.flow._handleGameTied);
-        this.events.off("turnPlayed", this.flow._handleTurnPlayed);
-        this.events.off("gameStarted", this.flow._handleGameStarted);
+        this.events.off("kubic::playerWon", this.flow._handlePlayerWon);
+        this.events.off("kubic::gameTied", this.flow._handleGameTied);
+        this.events.off("kubic::turnPlayed", this.flow._handleTurnPlayed);
+        this.events.off("kubic::gameStarted", this.flow._handleGameStarted);
+        this.events.off("kubic::winCount", this.flow._handleWinCount);
 
         // Session lifecycle events
-        this.events.off("sessionEnded", this.flow._handleSessionEnded);
+        this.events.off("kubic::sessionEnded", this.flow._handleSessionEnded);
         this.events.off(
-          "sessionParticipantJoined",
+          "kubic::sessionParticipantJoined",
           this.flow._handleSessionParticipantJoined
         );
         this.events.off(
-          "sessionSpectatorJoined",
+          "kubic::sessionSpectatorJoined",
           this.flow._handleSessionSpectatorJoined
         );
         this.events.off(
-          "sessionParticipantLeft",
+          "kubic::sessionParticipantLeft",
           this.flow._handleSessionParticipantLeft
         );
 
         // Connection lifecycle events
         this.events.off(
-          "participantDisconnected",
+          "kubic::participantDisconnected",
           this.flow._handleParticipantDisconnected
         );
         this.events.off(
-          "participantRemoved",
+          "kubic::participantRemoved",
           this.flow._handleParticipantRemoved
         );
         this.events.off(
-          "participantReconnected",
+          "kubic::participantReconnected",
           this.flow._handleParticipantReconnected
         );
 
         // Inactivity events
-        this.events.off("timeLeft", this.flow._handleTimeLeft);
-        this.events.off("playerInactive", this.flow._handlePlayerInactive);
+        this.events.off("kubic::timeLeft", this.flow._handleTimeLeft);
+        this.events.off("kubic::playerInactive", this.flow._handlePlayerInactive);
 
         // Restart voting events
         this.events.off(
-          "restartVoteStarted",
+          "kubic::restartVoteStarted",
           this.flow._handleRestartVoteStarted
         );
         this.events.off(
-          "restartVoteUpdate",
+          "kubic::restartVoteUpdate",
           this.flow._handleRestartVoteUpdate
         );
         this.events.off(
-          "restartVoteResult",
+          "kubic::restartVoteResult",
           this.flow._handleRestartVoteResult
         );
 

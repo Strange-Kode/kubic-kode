@@ -120,14 +120,14 @@ KubicKode.events
 
 // Game events
 KubicKode.events
-    .on("gameStarted", (data) => {
-        console.log("Game started:", data);
+    .on("kubic::gameStarted", (data) => {
+      console.log("Game started:", data);
     })
-    .on("turnPlayed", (data) => {
-        console.log("Turn played:", data);
+    .on("kubic::turnPlayed", (data) => {
+      console.log("Turn played:", data);
     })
-    .on("gameEnded", (data) => {
-        console.log("Game ended:", data);
+    .on("kubic::gameEnded", (data) => {
+      console.log("Game ended:", data);
     });
 ```
 
@@ -189,15 +189,52 @@ try {
 
 The helper automatically handles WebSocket connections and provides these events:
 
-- `websocketConnected` - Connection established
-- `websocketDisconnected` - Connection lost
-- `websocketError` - Connection error
-- `sessionInitialized` - Session created
-- `gameStarted` - Game started
-- `turnPlayed` - Turn completed
-- `gameEnded` - Game finished
-- `playerJoined` - Player joined session
-- `playerLeft` - Player left session
+- `kubic::websocketConnected` - Connection established
+- `kubic::websocketDisconnected` - Connection lost
+- `kubic::websocketError` - Connection error
+- `kubic::sessionInitialized` - Session created
+- `kubic::gameStarted` - Game started
+- `kubic::turnPlayed` - Turn completed
+- `kubic::gameEnded` - Game finished
+- `kubic::playerJoined` - Player joined session
+- `kubic::playerLeft` - Player left session
+
+Built in broadcasts are prefixed with the kubic:: namespace.
+kubic:: namespaces cannot be redefined. Custom broadcasts cannot belong to
+the kubic:: namespace.
+Instead, custom broadcasts can be defined/redefined in the game server
+Broadcast names do not have to be prefixed with :: but it is recommended.
+
+For example:
+
+```javascript
+// In your game server file
+import { GameEventService } from "kubic-kode";
+
+// Register your custom events at startup
+GameEventService.registerBroadcast("myGame::cardDrawn");
+GameEventService.registerBroadcast("myGame::specialPowerActivated");
+GameEventService.registerBroadcast("myGame::playerLevelUp");
+
+// Later in your game logic...
+function drawCard(gameSession, playerId, card) {
+  // Your game logic here...
+  
+  // Broadcast the custom event
+  GameEventService.broadcastToSession(gameSession, {
+    type: "myGame::cardDrawn",
+    payload: {
+      playerId: playerId,
+      card: {
+        id: card.id,
+        name: card.name,
+        type: card.type
+      },
+      remainingCards: deck.length
+    }
+  });
+}
+```
 
 ## Customization
 
