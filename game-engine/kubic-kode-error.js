@@ -301,6 +301,20 @@ export class KubicContractError extends KubicKodeError {
 }
 
 /**
+ * Broadcast event system errors
+ */
+export class KubicBroadcastError extends KubicKodeError {
+  constructor(message, eventType = null, reason = null, options = {}) {
+    super(message, {
+      code: "BROADCAST_ERROR",
+      context: { eventType, reason, ...options.context },
+      severity: "error",
+      ...options
+    });
+  }
+}
+
+/**
  * Error factory for creating specific error types
  */
 export class ErrorFactory {
@@ -394,6 +408,13 @@ export class ErrorFactory {
   static contract(message, component = null, className = null, context = {}) {
     return new KubicContractError(message, component, className, { context });
   }
+
+  /**
+   * Create a broadcast error
+   */
+  static broadcast(message, eventType = null, reason = null, context = {}) {
+    return new KubicBroadcastError(message, eventType, reason, { context });
+  }
 }
 
 /**
@@ -480,7 +501,13 @@ export const ErrorCodes = {
   // Contract errors
   CONTRACT_ERROR: "CONTRACT_ERROR",
   MISSING_REQUIRED_METHOD: "MISSING_REQUIRED_METHOD",
-  INVALID_INTERFACE: "INVALID_INTERFACE"
+  INVALID_INTERFACE: "INVALID_INTERFACE",
+  
+  // Broadcast errors
+  BROADCAST_ERROR: "BROADCAST_ERROR",
+  ILLEGAL_BROADCAST_NAMESPACE: "ILLEGAL_BROADCAST_NAMESPACE",
+  DUPLICATE_BROADCAST_NAME: "DUPLICATE_BROADCAST_NAME",
+  BROADCAST_NOT_FOUND: "BROADCAST_NOT_FOUND"
 };
 
 /**

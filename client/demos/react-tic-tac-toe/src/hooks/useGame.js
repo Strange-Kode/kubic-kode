@@ -19,8 +19,14 @@ export function useGame(sessionId, participantId, getGameToken) {
       setGameState(state);
     };
 
+    const handleGameReset = () => {
+      setGameState(KubicKode.game.getState());
+    };
+
     KubicKode.events.on("gameStateUpdated", handleGameStateUpdate);
-    KubicKode.events.on("tilemapUpdated", () => {
+    KubicKode.events.on("gameReset", handleGameReset);
+    KubicKode.events.on("tilemapUpdated", (tilemap) => {
+      console.log("[useGame] Received tilemapUpdated event:", tilemap);
       setGameState(KubicKode.game.getState());
     });
 
@@ -28,6 +34,7 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     return () => {
       KubicKode.events.off("gameStateUpdated", handleGameStateUpdate);
+      KubicKode.events.off("gameReset", handleGameReset);
     };
   }, [KubicKode]);
 
@@ -208,9 +215,26 @@ export function useGame(sessionId, participantId, getGameToken) {
       return;
     }
 
-    // Only check game status if we don't already know the game is active
     const currentGameState = KubicKode.game.getState();
+    console.log("[useGame] checkGameStatus - current game state:", currentGameState);
+
+    // If game is already active but missing critical data, fetch it
     if (currentGameState.active && currentGameState.started) {
+      const missingData = !currentGameState.tilemap ||
+                         !currentGameState.currentPlayerId ||
+                         Object.keys(currentGameState.playerMappings || {}).length === 0;
+
+      if (missingData) {
+        console.log("[useGame] Game active but missing data, fetching game state...");
+        await Promise.all([
+          fetchGameState(),
+          fetchPlayerMappings(),
+          fetchCurrentPlayer(),
+        ]);
+        return;
+      }
+
+      console.log("[useGame] checkGameStatus - early exit, game already active with all data");
       return;
     }
 
@@ -224,7 +248,7 @@ export function useGame(sessionId, participantId, getGameToken) {
 
         KubicKode.game.updateGame({
           active: result.data.is_active,
-          started: result.data.is_active ? true : currentGameState.started,
+          started: result.data.is_active,
         });
 
         // If game is active and we didn't know it before, fetch all game data
@@ -314,43 +338,46 @@ export function useGame(sessionId, participantId, getGameToken) {
     const currentGameState = KubicKode.game.getState();
 
     // Only refresh game data if the game has started
+    // We rely on WebSocket events (kubic::gameStarted) to know when game starts
+    // No need to poll with checkGameStatus - WebSockets handle that
     if (currentGameState.started) {
       await Promise.all([
         fetchGameState(),
         fetchPlayerMappings(),
         fetchCurrentPlayer(), // Always fetch current player to ensure turn updates
       ]);
-      // Only check game status if we don't already know it's active
-      if (!currentGameState.active) {
-        await checkGameStatus();
-      }
-    } else {
-      // If game hasn't started, only check game status occasionally
-      // Add a small delay to prevent spam
-      setTimeout(async () => {
-        await checkGameStatus();
-      }, 100);
     }
-  }, [sessionId, checkGameStatus, fetchGameState, fetchCurrentPlayer]);
+  }, [sessionId, fetchGameState, fetchPlayerMappings, fetchCurrentPlayer]);
 
   // Reset game state when session changes
   useEffect(() => {
     if (sessionId) {
+      console.log("[useGame] Resetting game state for new session:", sessionId);
       KubicKode.game.reset();
       setGameError(null);
+      console.log("[useGame] Game state after reset:", KubicKode.game.getState());
     }
   }, [sessionId, KubicKode]);
 
   // Auto-check game status when entering game screen (sessionId + gameToken available)
   useEffect(() => {
     const checkInitialGameStatus = async () => {
+      console.log("[useGame] checkInitialGameStatus triggered for session:", sessionId);
+      console.log("[useGame] Has getGameToken function:", !!getGameToken);
+      console.log("[useGame] Game token value:", getGameToken ? getGameToken() : "no function");
+
       if (sessionId && getGameToken && getGameToken()) {
+        console.log("[useGame] Auto-checking game status for session:", sessionId);
+        console.log("[useGame] Game state BEFORE checkGameStatus:", KubicKode.game.getState());
         await checkGameStatus();
+      } else {
+        console.log("[useGame] NOT checking game status - missing sessionId or gameToken");
       }
     };
 
     checkInitialGameStatus();
-  }, [sessionId, getGameToken, checkGameStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   // Auto-fetch current player when game is active but no current player is set
   useEffect(() => {

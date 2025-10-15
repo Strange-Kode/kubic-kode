@@ -370,15 +370,15 @@
                                 this.sessionId = data.sessionId;
                                 this.showSuccess('Session initialized');
                             })
-                            .on('gameStarted', (data) => {
+                            .on('kubic::gameStarted', (data) => {
                                 this.gameStarted = true;
                                 this.isMyTurn = data.currentPlayer === this.playerName;
                                 this.showSuccess('Game started!');
                             })
-                            .on('turnPlayed', (data) => {
+                            .on('kubic::turnPlayed', (data) => {
                                 this.handleTurnPlayed(data);
                             })
-                            .on('gameEnded', (data) => {
+                            .on('kubic::gameEnded', (data) => {
                                 this.handleGameEnded(data);
                             });
 

@@ -12,6 +12,8 @@ import {
   ErrorCodes 
 } from "../../game-engine/kubic-kode-error.js";
 
+import { kubicLog } from "../../kubic-log.js";
+
 export class GameSession {
   /**
    * Create a new game session

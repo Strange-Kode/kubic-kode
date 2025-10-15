@@ -258,7 +258,7 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     const inactivityTimeoutSeconds = Math.floor(inactivityTimeoutMs / 1000);
 
     GameEventService.broadcastToSession(gameSession, {
-      type: "gameStarted",
+      type: "kubic::gameStarted",
       payload: {
         playerMappings: serializeRecursively(playerMappings),
         inactivityTimeout: inactivityTimeoutSeconds
@@ -322,7 +322,7 @@ gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessio
   // Broadcast the event after sending the response to avoid blocking the request
   try {
     GameEventService.broadcastToSession(gameSession, {
-      type: "gameStopped",
+      type: "kubic::gameStopped",
     });
   } catch (broadcastError) {
     kubicLog.error("game-routes.js::Broadcast error (non-blocking):", broadcastError);
@@ -481,7 +481,7 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
     let winCount = gameSession.getWinCounter();
     kubicLog.debug(`[game-routes] Win counter increased to: ${winCount}`);
     GameEventService.broadcastToSession(gameSession, {
-      type: "winCount",
+      type: "kubic::winCount",
       payload: { winCount },
     });
   }
@@ -490,7 +490,7 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   if (playStatus.access("gameIsTied")) {
     let winCount = gameSession.getWinCounter();
     GameEventService.broadcastToSession(gameSession, {
-      type: "winCount",
+      type: "kubic::winCount",
       payload: { winCount },
     });
   }
@@ -509,8 +509,8 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
     const serializedTileMap = processTileMapData(currentTileMap);
     
     GameEventService.broadcastToSession(gameSession, {
-      type: "turnPlayed",
-      payload: { 
+      type: "kubic::turnPlayed",
+      payload: {
         roundStatus: responseData,
         updatedTileMap: serializedTileMap
       }
@@ -519,7 +519,7 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
     // If the player won, also broadcast a win event
     if (playStatus.access("playerHasWon")) {
       GameEventService.broadcastToSession(gameSession, {
-        type: "playerWon",
+        type: "kubic::playerWon",
         payload: { 
           playerId: playStatus.access("playerId"),
           winCondition: playStatus.access("winCondition") || "unknown"
@@ -530,7 +530,7 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
     // If the game is tied, broadcast a tie event
     if (playStatus.access("gameIsTied")) {
       GameEventService.broadcastToSession(gameSession, {
-        type: "gameTied",
+        type: "kubic::gameTied",
         payload: { 
           message: "Game ended in a tie"
         }
@@ -615,7 +615,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
           gameSession.increaseWinCounter();
           let winCount = gameSession.getWinCounter();
           GameEventService.broadcastToSession(gameSession, {
-            type: "winCount",
+            type: "kubic::winCount",
             payload: { winCount },
           });
         }
@@ -624,7 +624,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         if (compPlayStatus.access("gameIsTied")) {
           let winCount = gameSession.getWinCounter();
           GameEventService.broadcastToSession(gameSession, {
-            type: "winCount",
+            type: "kubic::winCount",
             payload: { winCount },
           });
         }
@@ -638,8 +638,8 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         
         // Broadcast computer turn
         GameEventService.broadcastToSession(gameSession, {
-          type: "turnPlayed",
-          payload: { 
+          type: "kubic::turnPlayed",
+          payload: {
             roundStatus: compResponseData,
             updatedTileMap: compSerializedTileMap
           },
@@ -648,7 +648,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         // If the computer won, also broadcast a win event
         if (compPlayStatus.access("playerHasWon")) {
           GameEventService.broadcastToSession(gameSession, {
-            type: "playerWon",
+            type: "kubic::playerWon",
             payload: { 
               playerId: compPlayStatus.access("playerId"),
               winCondition: compPlayStatus.access("winCondition") || "unknown"
@@ -662,7 +662,7 @@ const processComputerTurns = async (gameSession, initialPlayStatus = null) => {
         // If the game is tied, broadcast a tie event
         if (compPlayStatus.access("gameIsTied")) {
           GameEventService.broadcastToSession(gameSession, {
-            type: "gameTied",
+            type: "kubic::gameTied",
             payload: { 
               message: "Game ended in a tie"
             }

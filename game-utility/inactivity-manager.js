@@ -122,7 +122,7 @@ export class InactivityManager {
 
     // Broadcast inactivity event with all inactive players
     GameEventService.broadcastToSession(this._gameSession, {
-      type: "playerInactive",
+      type: "kubic::playerInactive",
       payload: { 
         sessionId: this._gameSession.getSessionId(), 
         inactivePlayers: inactivityResults 
@@ -140,7 +140,7 @@ export class InactivityManager {
 
     this._broadcastInterval = setInterval(() => {
       GameEventService.broadcastToSession(this._gameSession, {
-        type: "timeLeft",
+        type: "kubic::timeLeft",
         payload: { secondsLeft: this.getTimeRemaining() }
       });
     }, interval);

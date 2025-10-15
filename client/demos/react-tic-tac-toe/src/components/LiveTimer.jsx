@@ -1,33 +1,39 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@chakra-ui/react";
 
-export function LiveTimer({ getLiveTimer, gameActive }) {
-  const [liveTime, setLiveTime] = useState(null);
+export function LiveTimer({ inactivityTimer, gameActive }) {
+  const [liveTime, setLiveTime] = useState(inactivityTimer);
 
+  // Update local timer when inactivityTimer changes (from WebSocket events)
   useEffect(() => {
-    if (!gameActive) {
+    setLiveTime(inactivityTimer);
+  }, [inactivityTimer]);
+
+  // Interpolate timer locally every second for smooth countdown
+  useEffect(() => {
+    if (!gameActive || inactivityTimer === null) {
       setLiveTime(null);
       return;
     }
 
-    const updateTimer = () => {
-      const time = getLiveTimer();
-      setLiveTime(time);
-    };
-
-    // Update immediately
-    updateTimer();
-
-    // Update every second
-    const interval = setInterval(updateTimer, 1000);
+    const interval = setInterval(() => {
+      const KubicKode = window.KubicKode;
+      if (KubicKode) {
+        const interpolated = KubicKode.inactivity.getLiveTimer();
+        setLiveTime(interpolated);
+      }
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [getLiveTimer, gameActive]);
+  }, [gameActive]); // Only depend on gameActive, not inactivityTimer
 
-  if (liveTime === null) return null;
+  // Don't show timer if game is not active or timer is null
+  if (!gameActive || liveTime === null) {
+    return null;
+  }
 
   return (
-    <Badge 
+    <Badge
       colorScheme={liveTime <= 10 ? "red" : liveTime <= 20 ? "yellow" : "green"}
       variant="solid"
     >

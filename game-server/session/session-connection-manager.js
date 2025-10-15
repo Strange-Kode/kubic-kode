@@ -1,5 +1,7 @@
 import { GameEventService } from "../game-event-service.js";
 
+import { kubicLog } from "../../kubic-log.js";
+
 export class SessionConnectionManager {
   constructor(sessionId, participantManager) {
     this._sessionId = sessionId;
@@ -57,7 +59,7 @@ export class SessionConnectionManager {
     if (connectedParticipants.length < requiredPlayers) {
       // Broadcast session ended event
       GameEventService.broadcastToSession({ getSessionId: () => this._sessionId }, {
-        type: "sessionEnded",
+        type: "kubic::sessionEnded",
         payload: {
           reason: "insufficient_players",
           message: "Session ended due to insufficient connected players",
@@ -85,7 +87,7 @@ export class SessionConnectionManager {
       const participant = this._participantManager.getParticipantById(participantId);
       if (participant) {
         GameEventService.broadcastToSession({ getSessionId: () => this._sessionId }, {
-          type: "participantReconnected",
+          type: "kubic::participantReconnected",
           payload: {
             participantId: participantId,
             participantName: participant.name,
@@ -111,7 +113,7 @@ export class SessionConnectionManager {
       const participant = this._participantManager.getParticipantById(participantId);
       if (participant) {
         GameEventService.broadcastToSession({ getSessionId: () => this._sessionId }, {
-          type: "participantDisconnected",
+          type: "kubic::participantDisconnected",
           payload: {
             participantId: participantId,
             participantName: participant.name,
@@ -181,7 +183,7 @@ export class SessionConnectionManager {
       const participant = this._participantManager.getParticipantById(participantId);
       if (participant) {
         GameEventService.broadcastToSession({ getSessionId: () => this._sessionId }, {
-          type: "participantForceDisconnected",
+          type: "kubic::participantForceDisconnected",
           payload: {
             participantId: participantId,
             participantName: participant.name,

@@ -1,7 +1,49 @@
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+
+// Check if .env file exists before loading
+const envPath = path.resolve(process.cwd(), '.env');
+if (!fs.existsSync(envPath)) {
+  console.error("❌ Missing .env file!");
+  console.error(`Expected .env file at: ${envPath}`);
+  console.error("");
+  console.error("📋 To fix this issue:");
+  console.error("1. Copy the example environment file:");
+  console.error("   cp .env.example .env");
+  console.error("");
+  console.error("2. Or create a .env file manually with required variables:");
+  console.error("   KUBIC_GAME_TOKEN_SECRET_KEY=your-secret-key-here-at-least-32-chars");
+  console.error("   KUBIC_PORT=3000");
+  console.error("");
+  console.error("3. Ensure your secret key is at least 32 characters long");
+  console.error("");
+  process.exit(1);
+}
 
 // Load environment variables from .env file FIRST, before any other imports
 dotenv.config();
+
+// Check critical environment variables
+const requiredEnvVars = [
+  'KUBIC_GAME_TOKEN_SECRET_KEY'
+];
+
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error("❌ Missing required environment variables:");
+  missingVars.forEach(varName => {
+    console.error(`   ${varName}`);
+  });
+  console.error("");
+  console.error("📋 Please add these to your .env file:");
+  console.error("   KUBIC_GAME_TOKEN_SECRET_KEY=your-secret-key-here-at-least-32-chars");
+  console.error("");
+  console.error("💡 The secret key must be at least 32 characters long");
+  console.error("");
+  process.exit(1);
+}
 
 // Log only KUBIC_ environment variables (protecting sensitive ones)
 console.log("=== KUBIC Environment Variables Loaded ===");

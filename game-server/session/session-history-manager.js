@@ -1,5 +1,7 @@
 import { gameHistoryManager } from "../game-history-manager.js";
 
+import { kubicLog } from "../../kubic-log.js";
+
 export class SessionHistoryManager {
   constructor(sessionId) {
     this._sessionId = sessionId;

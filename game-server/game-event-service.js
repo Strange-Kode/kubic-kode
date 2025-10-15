@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import { kubicLog } from "../kubic-log.js";
+import { KubicBroadcastError, ErrorCodes } from "../game-engine/kubic-kode-error.js";
 
 const connectionsBySession = new Map();
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
@@ -7,10 +8,141 @@ const heartbeatIntervals = new Map(); // sessionId -> interval
 const connectionTimeouts = new Map(); // sessionId -> Map(participantId -> timeout)
 let wss = null;
 
+// Broadcast event management
+const registeredBroadcasts = new Set();
+const KUBIC_NAMESPACE = "kubic::";
+
+// Built-in broadcast events with kubic:: namespace
+const KUBIC_BUILT_IN_EVENTS = new Set([
+  // Session Events
+  "kubic::sessionParticipantJoined",
+  "kubic::sessionSpectatorJoined", 
+  "kubic::sessionParticipantLeft",
+  "kubic::sessionEnded",
+  "kubic::participantDisconnected",
+  "kubic::participantReconnected",
+  "kubic::participantRemoved",
+  "kubic::participantForceDisconnected",
+  
+  // Game Events
+  "kubic::gameStarted",
+  "kubic::gameStopped", 
+  "kubic::gameEnded",
+  "kubic::turnPlayed",
+  "kubic::playerWon",
+  "kubic::gameTied",
+  "kubic::winCount",
+  
+  // Lobby Events
+  "kubic::lobbyConfigUpdated",
+  "kubic::lobbyConfigDeleted",
+  "kubic::syncPhaseStarted", 
+  "kubic::participantReadyChanged",
+  "kubic::participantKicked",
+  "kubic::hostTransferred",
+  "kubic::lobbyChatMessage",
+  
+  // Restart Events
+  "kubic::restartVoteStarted",
+  "kubic::restartVoteUpdate", 
+  "kubic::restartVoteResult",
+  "kubic::restartVoteRegistered",
+  "kubic::restartVoteCleared",
+  
+  // Game Management Events
+  "kubic::playerAdded",
+  "kubic::gameInstanceStarted",
+  "kubic::gameInstanceReset",
+  "kubic::invalidTurnAttempted",
+  "kubic::playerInactive",
+  "kubic::timeLeft",
+  
+  // Connection Events
+  "kubic::connectionConfirmed",
+  "kubic::heartbeat",
+  "kubic::heartbeatResponse"
+]);
+
+// Initialize built-in events as registered
+KUBIC_BUILT_IN_EVENTS.forEach(event => registeredBroadcasts.add(event));
+
 // Heartbeat configuration
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 const HEARTBEAT_TIMEOUT = 60000; // 60 seconds - if no heartbeat for 60s, consider disconnected
 const RECONNECTION_WINDOW = 120000; // 2 minutes - time to allow reconnection
+
+/**
+ * Register a new broadcast event type
+ * @param {string} eventType - The event type to register
+ * @throws {KubicBroadcastError} If the event type is illegal or already exists
+ */
+function registerBroadcast(eventType) {
+  if (eventType.startsWith(KUBIC_NAMESPACE)) {
+    throw new KubicBroadcastError(
+      `Attempting to register broadcast with reserved kubic:: namespace: ${eventType}`,
+      eventType,
+      "illegal_namespace",
+      { code: ErrorCodes.ILLEGAL_BROADCAST_NAMESPACE }
+    );
+  }
+  
+  if (registeredBroadcasts.has(eventType)) {
+    throw new KubicBroadcastError(
+      `Broadcast event type already exists: ${eventType}`,
+      eventType,
+      "duplicate_name",
+      { code: ErrorCodes.DUPLICATE_BROADCAST_NAME }
+    );
+  }
+  
+  registeredBroadcasts.add(eventType);
+  kubicLog.info(`[GameEventService]::registerBroadcast: Registered broadcast event type: ${eventType}`);
+}
+
+/**
+ * Deregister an existing broadcast event type
+ * @param {string} eventType - The event type to deregister
+ * @throws {KubicBroadcastError} If attempting to deregister kubic:: namespace events
+ */
+function deregisterBroadcast(eventType) {
+  if (eventType.startsWith(KUBIC_NAMESPACE)) {
+    throw new KubicBroadcastError(
+      `Cannot deregister built-in kubic:: broadcast event: ${eventType}`,
+      eventType,
+      "illegal_deregister",
+      { code: ErrorCodes.ILLEGAL_BROADCAST_NAMESPACE }
+    );
+  }
+  
+  if (!registeredBroadcasts.has(eventType)) {
+    throw new KubicBroadcastError(
+      `Cannot deregister unregistered broadcast event: ${eventType}`,
+      eventType,
+      "not_found",
+      { code: ErrorCodes.BROADCAST_NOT_FOUND }
+    );
+  }
+  
+  registeredBroadcasts.delete(eventType);
+  kubicLog.info(`[GameEventService]::deregisterBroadcast: Deregistered broadcast event type: ${eventType}`);
+}
+
+/**
+ * Check if a broadcast event type is registered
+ * @param {string} eventType - The event type to check
+ * @returns {boolean} True if registered, false otherwise
+ */
+function isBroadcastRegistered(eventType) {
+  return registeredBroadcasts.has(eventType);
+}
+
+/**
+ * Get all registered broadcast event types
+ * @returns {Array<string>} Array of registered event types
+ */
+function getRegisteredBroadcasts() {
+  return Array.from(registeredBroadcasts);
+}
 
 function initWebSocketServer(server) {
   wss = new WebSocketServer({ server });
@@ -39,7 +171,7 @@ function initWebSocketServer(server) {
       
       // Send immediate connection confirmation
       ws.send(JSON.stringify({
-        type: "connectionConfirmed",
+        type: "kubic::connectionConfirmed",
         payload: { sessionId, participantId }
       }));
     }
@@ -51,7 +183,7 @@ function initWebSocketServer(server) {
       try {
         const message = JSON.parse(data.toString());
         
-        if (message.type === "heartbeat") {
+        if (message.type === "heartbeat" || message.type === "kubic::heartbeat") {
           handleHeartbeat(sessionId, participantId, ws);
         }
       } catch (error) {
@@ -88,7 +220,7 @@ function handleHeartbeat(sessionId, participantId, ws) {
     
     // Send heartbeat response
     ws.send(JSON.stringify({
-      type: "heartbeatResponse",
+      type: "kubic::heartbeatResponse",
       payload: { timestamp: Date.now() }
     }));
   }
@@ -149,7 +281,7 @@ function handleParticipantDisconnection(sessionId, participantId) {
         
         // Broadcast disconnection event
         broadcastToSession(session, {
-          type: "participantDisconnected",
+          type: "kubic::participantDisconnected",
           payload: { 
             participantId: participantId,
             participantName: participant.name,
@@ -182,7 +314,7 @@ function handleSessionTermination(sessionId, participantId) {
         
         // Broadcast participant removal
         broadcastToSession(session, {
-          type: "participantRemoved",
+          type: "kubic::participantRemoved",
           payload: { 
             participantId: participantId,
             participantName: participant.name,
@@ -236,7 +368,7 @@ function checkSessionViability(session) {
     
     // Broadcast session ended due to disconnection
     broadcastToSession(session, {
-      type: "sessionEnded",
+      type: "kubic::sessionEnded",
       payload: { 
         reason: "insufficient_players",
         message: "Session ended due to insufficient connected players",
@@ -266,7 +398,7 @@ function startHeartbeatForSession(sessionId) {
     conns.forEach(ws => {
       if (ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({
-          type: "heartbeat",
+          type: "kubic::heartbeat",
           payload: { timestamp: Date.now() }
         }));
       }
@@ -311,6 +443,24 @@ function broadcastToSession(gameSession, messageObj) {
   const sessionId = gameSession.getSessionId()
   const gameInstance = gameSession.getGameInstance();
   const conns = connectionsBySession.get(sessionId) || [];
+  
+  // Validate broadcast event type
+  const eventType = messageObj.type;
+  if (!isBroadcastRegistered(eventType)) {
+    // If it's a kubic:: event that's not registered, it's likely a built-in event that should be allowed
+    if (eventType.startsWith(KUBIC_NAMESPACE)) {
+      kubicLog.debug(`[GameEventService]::broadcastToSession: Broadcasting built-in kubic:: event: ${eventType}`);
+      // Don't try to register it, just allow it to broadcast
+    } else {
+      kubicLog.warn(`[GameEventService]::broadcastToSession: Attempting to broadcast unregistered event type: ${eventType}. Auto-registering...`);
+      try {
+        registerBroadcast(eventType);
+      } catch (error) {
+        kubicLog.error(`[GameEventService]::broadcastToSession: Failed to auto-register broadcast event ${eventType}:`, error);
+        // For non-kubic events, log and continue (backwards compatibility)
+      }
+    }
+  }
   
   // intercept and add message data
   const finalMessageObj = { ... messageObj };
@@ -387,5 +537,9 @@ export const GameEventService = {
   stopHeartbeatForSession,
   isParticipantConnected,
   getConnectedParticipants,
-  cleanupSession
+  cleanupSession,
+  registerBroadcast,
+  deregisterBroadcast,
+  isBroadcastRegistered,
+  getRegisteredBroadcasts
 };

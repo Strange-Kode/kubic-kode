@@ -124,13 +124,13 @@ function setupEventHandlers() {
     
     // Game events
     KubicKode.events
-        .on("gameStarted", (data) => {
+        .on("kubic::gameStarted", (data) => {
             console.log("🎮 Game started:", data);
         })
-        .on("turnPlayed", (data) => {
+        .on("kubic::turnPlayed", (data) => {
             console.log("🎲 Turn played:", data);
         })
-        .on("gameEnded", (data) => {
+        .on("kubic::gameEnded", (data) => {
             console.log("🏁 Game ended:", data);
         })
         .on("playerJoined", (data) => {

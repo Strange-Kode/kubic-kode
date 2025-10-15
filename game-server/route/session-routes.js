@@ -76,7 +76,7 @@ sessionRouter.post("/session/:sessionId/join", validateSessionMiddleware, async 
     // Broadcast the event after sending the response to avoid blocking the request
     try {
       GameEventService.broadcastToSession(gameSession, {
-        type: "sessionParticipantJoined",
+        type: "kubic::sessionParticipantJoined",
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
@@ -113,7 +113,7 @@ sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, as
     // Broadcast the event after sending the response to avoid blocking the request
     try {
       GameEventService.broadcastToSession(gameSession, {
-        type: "sessionSpectatorJoined",
+        type: "kubic::sessionSpectatorJoined",
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
@@ -141,7 +141,7 @@ sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req,
     // Broadcast the event after sending the response to avoid blocking the request
     try {
       GameEventService.broadcastToSession(gameSession, {
-        type: "sessionParticipantLeft",
+        type: "kubic::sessionParticipantLeft",
         payload: { participant: serializeRecursively(participant) },
       });
     } catch (broadcastError) {
@@ -191,10 +191,12 @@ sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMid
 
   // Callback for when AI votes (for broadcasting)
   const onAiVote = (participantId, participantName) => {
+    console.log(`[AI VOTE] Callback triggered for ${participantName} (${participantId})`);
     try {
+      console.log(`[AI VOTE] Broadcasting kubic::restartVoteUpdate for ${participantId}`);
       // Broadcast AI vote update
       GameEventService.broadcastToSession(gameSession, {
-        type: "restartVoteUpdate",
+        type: "kubic::restartVoteUpdate",
         payload: {
           participantId,
           vote: true,
@@ -208,7 +210,7 @@ sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMid
         const allAgreed = gameSession.getVoteManager().getRestartVoteResult();
 
         GameEventService.broadcastToSession(gameSession, {
-          type: "restartVoteResult",
+          type: "kubic::restartVoteResult",
           payload: {
             allAgreed,
             votes: gameSession.getVoteManager().getRestartVote().votes,
@@ -222,14 +224,18 @@ sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMid
     }
   };
 
-  gameSession.getVoteManager().startRestartVote(gameSession.getPlayableParticipants(), onAiVote);
+  const participants = gameSession.getPlayableParticipants();
+  console.log(`[AI VOTE] Starting restart vote with ${participants.length} participants:`,
+    participants.map(p => `${p.name} (${p.type})`));
+
+  gameSession.getVoteManager().startRestartVote(participants, onAiVote);
 
   res.json({ vote_inited: true });
 
   // Broadcast the event after sending the response to avoid blocking the request
   try {
     GameEventService.broadcastToSession(gameSession, {
-      type: "restartVoteStarted",
+      type: "kubic::restartVoteStarted",
       payload: {
         participants: gameSession.getParticipants().map((p) => p.id),
       },
@@ -253,7 +259,7 @@ sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMid
     // Broadcast the event after sending the response to avoid blocking the request
     try {
       GameEventService.broadcastToSession(gameSession, {
-        type: "restartVoteUpdate",
+        type: "kubic::restartVoteUpdate",
         payload: {
           participantId,
           vote: voteYes === true,
@@ -264,7 +270,7 @@ sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMid
         const allAgreed = gameSession.getVoteManager().getRestartVoteResult();
 
         GameEventService.broadcastToSession(gameSession, {
-          type: "restartVoteResult",
+          type: "kubic::restartVoteResult",
           payload: {
             allAgreed,
             votes: gameSession.getVoteManager().getRestartVote().votes,
@@ -527,7 +533,7 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
           // Broadcast configuration changes
     try {
       GameEventService.broadcastToSession(session, {
-        type: "lobbyConfigUpdated",
+        type: "kubic::lobbyConfigUpdated",
         payload: {
           hostId: participantId,
           hostName: session.getParticipantManager().getHost().name,
@@ -540,7 +546,7 @@ sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req
       const changesList = configChanges.map(c => `${c.key}: ${c.newValue}`).join(", ");
       const systemMessage = session.getChatManager().addSystemMessage(`Host updated game settings: ${changesList}`);
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
@@ -599,7 +605,7 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
     // Broadcast configuration deletion
     try {
       GameEventService.broadcastToSession(session, {
-        type: "lobbyConfigDeleted",
+        type: "kubic::lobbyConfigDeleted",
         payload: {
         hostId: participantId,
         hostName: session.getParticipantManager().getHost().name,
@@ -612,7 +618,7 @@ sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMid
       // Add system message
       const systemMessage = session.getChatManager().addSystemMessage(`Host removed setting: ${configKey}`);
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
@@ -698,7 +704,7 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", async (req, res) => {
 
     // Broadcast the join event
     try {
-      const eventType = participantType === "spectator" ? "sessionSpectatorJoined" : "sessionParticipantJoined";
+      const eventType = participantType === "spectator" ? "kubic::sessionSpectatorJoined" : "kubic::sessionParticipantJoined";
       GameEventService.broadcastToSession(targetSession, {
         type: eventType,
         payload: { participant: serializeRecursively(participant) },
@@ -708,7 +714,7 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", async (req, res) => {
       if (!sessionCreated) {
         const systemMessage = targetSession.getChatManager().addSystemMessage(`${participantName} joined via auto-match`);
         GameEventService.broadcastToSession(targetSession, {
-          type: "lobbyChatMessage",
+          type: "kubic::lobbyChatMessage",
           payload: { message: systemMessage },
         });
       }
@@ -761,7 +767,7 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
     // Broadcast sync phase start
     try {
       GameEventService.broadcastToSession(session, {
-        type: "syncPhaseStarted",
+        type: "kubic::syncPhaseStarted",
         payload: {
           hostId: participantId,
           hostName: session.getHost().name,
@@ -772,7 +778,7 @@ sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, 
 
       const systemMessage = session.getChatManager().addSystemMessage("Synchronization phase started. Please indicate when you're ready!");
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
@@ -812,7 +818,7 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, valid
     // Broadcast ready state change
     try {
       GameEventService.broadcastToSession(session, {
-        type: "participantReadyChanged",
+        type: "kubic::participantReadyChanged",
         payload: {
           participantId: participantId,
           participantName: participant.name,
@@ -826,7 +832,7 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, valid
       const readyText = ready ? "ready" : "not ready";
       const systemMessage = session.getChatManager().addSystemMessage(`${participant.name} is ${readyText}`);
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
 
@@ -834,7 +840,7 @@ sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, valid
       if (allReady) {
         const allReadyMessage = session.getChatManager().addSystemMessage("All players are ready! Host can now start the game.");
         GameEventService.broadcastToSession(session, {
-          type: "lobbyChatMessage",
+          type: "kubic::lobbyChatMessage",
           payload: { message: allReadyMessage }
         });
       }
@@ -897,7 +903,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
     // Broadcast kick event
     try {
       GameEventService.broadcastToSession(session, {
-        type: "participantKicked",
+        type: "kubic::participantKicked",
         payload: {
           hostId: hostId,
           hostName: session.getParticipantManager().getHost().name,
@@ -910,7 +916,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
 
       const systemMessage = session.getChatManager().addSystemMessage(`${participantToKick.name} was removed from the session by the host`);
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
@@ -951,7 +957,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
     // Broadcast host transfer
     try {
       GameEventService.broadcastToSession(session, {
-        type: "hostTransferred",
+        type: "kubic::hostTransferred",
         payload: {
           oldHost: oldHost,
           newHost: newHost
@@ -960,7 +966,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
 
       const systemMessage = session.getChatManager().addSystemMessage(`${newHost.name} is now the host`);
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: systemMessage }
       });
     } catch (broadcastError) {
@@ -1005,7 +1011,7 @@ sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, valida
     // Broadcast chat message
     try {
       GameEventService.broadcastToSession(session, {
-        type: "lobbyChatMessage",
+        type: "kubic::lobbyChatMessage",
         payload: { message: chatMessage }
       });
     } catch (broadcastError) {
@@ -1150,7 +1156,7 @@ sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, 
     
     // Broadcast disconnection event
     GameEventService.broadcastToSession(session, {
-      type: "participantDisconnected",
+      type: "kubic::participantDisconnected",
       payload: {
         participantId: participantId,
         participantName: participant.name,
