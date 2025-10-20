@@ -31,6 +31,7 @@ import { useTicTacToe } from "./hooks/useTicTacToe";
 function AppContent() {
   // Use the orchestration hook instead of individual hooks
   const {
+    sessionPhase,
     gamePhase,
     isLoading,
     error,
@@ -138,12 +139,12 @@ function AppContent() {
   }
 
   // Show loading while session initializes
-  if (gamePhase === "loading" || isLoading) {
+  if (sessionPhase === "loading" || isLoading) {
     return <LoadingScreen message="Initializing session..." />;
   }
 
   // Show error if session failed to initialize
-  if (gamePhase === "error" || error) {
+  if (sessionPhase === "error" || error) {
     return (
       <ChakraContainer maxW="md" centerContent>
         <VStack spacing={4} py={8}>
@@ -509,10 +510,13 @@ function AppContent() {
             </Text>
           </Box>
 
-          {/* Game Phase Info */}
+          {/* Phase Info */}
           <Container bg="yellow.50" w="100%">
             <Text>
-              <strong>Game Phase:</strong> {gamePhase}
+              <strong>Session Phase:</strong> {sessionPhase}
+            </Text>
+            <Text>
+              <strong>Game Phase:</strong> {gamePhase || "none"}
             </Text>
             <Text>
               <strong>Your Name:</strong> {playerName || "Not set"}

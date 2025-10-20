@@ -348,7 +348,8 @@ export function useTicTacToe() {
     }
   }, [session.fetchParticipants, session.sessionId, session.participantId, game.refreshGameData]);
 
-  const gamePhase = KubicKode?.flow.getCurrentPhase() || "initializing";
+  const flowState = KubicKode?.flow.getState() || { sessionPhase: "initializing", gamePhase: null };
+  const { sessionPhase, gamePhase } = flowState;
 
   const getCurrentPlayerInfo = useCallback(() => {
     if (
@@ -384,6 +385,7 @@ export function useTicTacToe() {
 
   return {
     // Game phase and state
+    sessionPhase,
     gamePhase,
     isLoading: session.isSessionLoading || game.isGameLoading,
     error: session.sessionError || game.gameError,
