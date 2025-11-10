@@ -26,7 +26,6 @@ export function useGame(sessionId, participantId, getGameToken) {
     KubicKode.events.on("gameStateUpdated", handleGameStateUpdate);
     KubicKode.events.on("gameReset", handleGameReset);
     KubicKode.events.on("tilemapUpdated", (tilemap) => {
-      console.log("[useGame] Received tilemapUpdated event:", tilemap);
       setGameState(KubicKode.game.getState());
     });
 
@@ -216,16 +215,15 @@ export function useGame(sessionId, participantId, getGameToken) {
     }
 
     const currentGameState = KubicKode.game.getState();
-    console.log("[useGame] checkGameStatus - current game state:", currentGameState);
 
     // If game is already active but missing critical data, fetch it
     if (currentGameState.active && currentGameState.started) {
-      const missingData = !currentGameState.tilemap ||
-                         !currentGameState.currentPlayerId ||
-                         Object.keys(currentGameState.playerMappings || {}).length === 0;
+      const missingData =
+        !currentGameState.tilemap ||
+        !currentGameState.currentPlayerId ||
+        Object.keys(currentGameState.playerMappings || {}).length === 0;
 
       if (missingData) {
-        console.log("[useGame] Game active but missing data, fetching game state...");
         await Promise.all([
           fetchGameState(),
           fetchPlayerMappings(),
@@ -234,7 +232,6 @@ export function useGame(sessionId, participantId, getGameToken) {
         return;
       }
 
-      console.log("[useGame] checkGameStatus - early exit, game already active with all data");
       return;
     }
 
@@ -352,26 +349,16 @@ export function useGame(sessionId, participantId, getGameToken) {
   // Reset game state when session changes
   useEffect(() => {
     if (sessionId) {
-      console.log("[useGame] Resetting game state for new session:", sessionId);
       KubicKode.game.reset();
       setGameError(null);
-      console.log("[useGame] Game state after reset:", KubicKode.game.getState());
     }
   }, [sessionId, KubicKode]);
 
   // Auto-check game status when entering game screen (sessionId + gameToken available)
   useEffect(() => {
     const checkInitialGameStatus = async () => {
-      console.log("[useGame] checkInitialGameStatus triggered for session:", sessionId);
-      console.log("[useGame] Has getGameToken function:", !!getGameToken);
-      console.log("[useGame] Game token value:", getGameToken ? getGameToken() : "no function");
-
       if (sessionId && getGameToken && getGameToken()) {
-        console.log("[useGame] Auto-checking game status for session:", sessionId);
-        console.log("[useGame] Game state BEFORE checkGameStatus:", KubicKode.game.getState());
         await checkGameStatus();
-      } else {
-        console.log("[useGame] NOT checking game status - missing sessionId or gameToken");
       }
     };
 

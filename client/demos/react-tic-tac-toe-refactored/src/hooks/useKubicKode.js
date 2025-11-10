@@ -31,7 +31,9 @@ export function useKubicKode(gameId = null) {
       // returnSinglePlayerId format: single player ID
       return data.current_player_id;
     } else if (data.current_player_ids) {
-      return data.current_player_ids.length > 0 ? data.current_player_ids[0] : null;
+      return data.current_player_ids.length > 0
+        ? data.current_player_ids[0]
+        : null;
     }
     return null;
   }, []);
@@ -43,7 +45,6 @@ export function useKubicKode(gameId = null) {
       tokens[sessionId] = tokens[sessionId] || {};
       tokens[sessionId][participantId] = gameToken;
       localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
-      console.log(`🔐 Stored game token for session: ${sessionId}, participant: ${participantId}`);
     } catch (error) {
       console.error("Error storing game token:", error);
     }
@@ -68,7 +69,6 @@ export function useKubicKode(gameId = null) {
           delete tokens[sessionId];
         }
         localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
-        console.log(`🔐 Cleared game token for session: ${sessionId}, participant: ${participantId}`);
       }
     } catch (error) {
       console.error("Error clearing game token:", error);
@@ -97,33 +97,48 @@ export function useKubicKode(gameId = null) {
       // WebSocket connection events
       { type: "websocketConnected", handler: () => setIsConnected(true) },
       { type: "websocketDisconnected", handler: () => setIsConnected(false) },
-      { type: "websocketError", handler: (error) => setError(`WebSocket error: ${error.message}`) },
-      
+      {
+        type: "websocketError",
+        handler: (error) => setError(`WebSocket error: ${error.message}`),
+      },
+
       // Session events
-      { type: "sessionInitialized", handler: ({ sessionId }) => {
-        setSessionId(sessionId);
-        setError(null);
-      }},
-      
+      {
+        type: "sessionInitialized",
+        handler: ({ sessionId }) => {
+          setSessionId(sessionId);
+          setError(null);
+        },
+      },
+
       // Game events
-      { type: "kubic::gameStarted", handler: () => {
-        setGameState("active");
-        setError(null);
-      }},
-      
-      { type: "kubic::gameStopped", handler: () => {
-        setGameState("stopped");
-      }},
-      
-      { type: "kubic::turnPlayed", handler: () => {
-        // Refresh tile map and current player
-        fetchTileMap();
-        fetchCurrentPlayer();
-      }},
+      {
+        type: "kubic::gameStarted",
+        handler: () => {
+          setGameState("active");
+          setError(null);
+        },
+      },
+
+      {
+        type: "kubic::gameStopped",
+        handler: () => {
+          setGameState("stopped");
+        },
+      },
+
+      {
+        type: "kubic::turnPlayed",
+        handler: () => {
+          // Refresh tile map and current player
+          fetchTileMap();
+          fetchCurrentPlayer();
+        },
+      },
     ];
 
     // Store listeners for cleanup
-    listeners.forEach(listener => eventListeners.current.add(listener));
+    listeners.forEach((listener) => eventListeners.current.add(listener));
 
     // Connect WebSocket if session is available
     if (sessionId) {
@@ -132,7 +147,7 @@ export function useKubicKode(gameId = null) {
 
     // Cleanup function
     return () => {
-      eventListeners.current.forEach(listener => {
+      eventListeners.current.forEach((listener) => {
         if (listener && typeof listener.off === "function") {
           listener.off();
         }
@@ -145,7 +160,7 @@ export function useKubicKode(gameId = null) {
   const apiCall = useCallback(async (apiFunction, ...args) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await apiFunction.apply(null, args);
       return result;
@@ -158,30 +173,40 @@ export function useKubicKode(gameId = null) {
   }, []);
 
   // Session management
-  const initSession = useCallback(async (gameType = gameId) => {
-    return await apiCall(get, `/api/session/init/${gameType}`);
-  }, [apiCall, gameId, get]);
+  const initSession = useCallback(
+    async (gameType = gameId) => {
+      return await apiCall(get, `/api/session/init/${gameType}`);
+    },
+    [apiCall, gameId, get]
+  );
 
-  const joinSession = useCallback(async (participantName, participantType = "user") => {
-    if (!sessionId) {
-      throw new Error("Session not initialized");
-    }
-
-    const result = await apiCall(post, `/api/session/${sessionId}/join`, {
-      participantName,
-      participantType
-    });
-
-    if (result.success) {
-      setParticipantId(result.data.participant_id);
-      
-      // Store the game token if it's provided
-      if (result.data.game_token) {
-        storeGameToken(sessionId, result.data.participant_id, result.data.game_token);
+  const joinSession = useCallback(
+    async (participantName, participantType = "user") => {
+      if (!sessionId) {
+        throw new Error("Session not initialized");
       }
-    }
-    return result;
-  }, [sessionId, apiCall, post, storeGameToken]);
+
+      const result = await apiCall(post, `/api/session/${sessionId}/join`, {
+        participantName,
+        participantType,
+      });
+
+      if (result.success) {
+        setParticipantId(result.data.participant_id);
+
+        // Store the game token if it's provided
+        if (result.data.game_token) {
+          storeGameToken(
+            sessionId,
+            result.data.participant_id,
+            result.data.game_token
+          );
+        }
+      }
+      return result;
+    },
+    [sessionId, apiCall, post, storeGameToken]
+  );
 
   const leaveSession = useCallback(async () => {
     if (!sessionId || !participantId) {
@@ -189,13 +214,13 @@ export function useKubicKode(gameId = null) {
     }
 
     const result = await apiCall(post, `/api/session/${sessionId}/leave`, {
-      participantId: participantId
+      participantId: participantId,
     });
 
     if (result.success) {
       // Clear the game token
       clearGameToken(sessionId, participantId);
-      
+
       // Reset state
       setParticipantId(null);
       setSessionId(null);
@@ -203,7 +228,7 @@ export function useKubicKode(gameId = null) {
       setGameState(null);
       setTileMap(null);
       setCurrentPlayer(null);
-      
+
       // Disconnect WebSocket
       disconnectWebSocket();
     }
@@ -212,8 +237,11 @@ export function useKubicKode(gameId = null) {
 
   const fetchParticipants = useCallback(async () => {
     if (!sessionId) return;
-    
-    const result = await apiCall(get, `/api/session/${sessionId}/participants/list`);
+
+    const result = await apiCall(
+      get,
+      `/api/session/${sessionId}/participants/list`
+    );
     if (result.success) {
       setParticipants(result.data);
     }
@@ -221,27 +249,30 @@ export function useKubicKode(gameId = null) {
   }, [sessionId, apiCall, get]);
 
   // Game management - All now use POST with game tokens
-  const startGame = useCallback(async (options = {}) => {
-    if (!sessionId || !participantId) {
-      throw new Error("Session and participant required to start game");
-    }
+  const startGame = useCallback(
+    async (options = {}) => {
+      if (!sessionId || !participantId) {
+        throw new Error("Session and participant required to start game");
+      }
 
-    const gameToken = getGameToken(sessionId, participantId);
-    if (!gameToken) {
-      throw new Error("No game token available to start game");
-    }
+      const gameToken = getGameToken(sessionId, participantId);
+      if (!gameToken) {
+        throw new Error("No game token available to start game");
+      }
 
-    const result = await apiCall(post, `/api/game/${sessionId}/start`, {
-      participantId: participantId,
-      gameToken: gameToken,
-      ...options
-    });
+      const result = await apiCall(post, `/api/game/${sessionId}/start`, {
+        participantId: participantId,
+        gameToken: gameToken,
+        ...options,
+      });
 
-    if (result.success) {
-      setGameState("active");
-    }
-    return result;
-  }, [sessionId, participantId, apiCall, post, getGameToken]);
+      if (result.success) {
+        setGameState("active");
+      }
+      return result;
+    },
+    [sessionId, participantId, apiCall, post, getGameToken]
+  );
 
   const stopGame = useCallback(async () => {
     if (!sessionId || !participantId) {
@@ -255,7 +286,7 @@ export function useKubicKode(gameId = null) {
 
     const result = await apiCall(post, `/api/game/${sessionId}/stop`, {
       participantId: participantId,
-      gameToken: gameToken
+      gameToken: gameToken,
     });
 
     if (result.success) {
@@ -266,7 +297,7 @@ export function useKubicKode(gameId = null) {
 
   const fetchTileMap = useCallback(async () => {
     if (!sessionId) return;
-    
+
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
       console.warn("[useKubicKode] No game token available for fetchTileMap");
@@ -274,7 +305,7 @@ export function useKubicKode(gameId = null) {
     }
 
     const result = await apiCall(post, `/api/game/${sessionId}/get-tilemap`, {
-      gameToken: gameToken
+      gameToken: gameToken,
     });
 
     if (result.success) {
@@ -290,32 +321,47 @@ export function useKubicKode(gameId = null) {
 
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn("[useKubicKode] No game token available for getCurrentPlayer");
+      console.warn(
+        "[useKubicKode] No game token available for getCurrentPlayer"
+      );
       return;
     }
 
-    const result = await apiCall(post, `/api/game/${sessionId}/get-current-player`, {
-      gameToken: gameToken
-    });
+    const result = await apiCall(
+      post,
+      `/api/game/${sessionId}/get-current-player`,
+      {
+        gameToken: gameToken,
+      }
+    );
 
     if (result.success) {
       const currentPlayerId = extractCurrentPlayerId(result.data);
       setCurrentPlayer(currentPlayerId);
     }
     return result;
-  }, [sessionId, participantId, apiCall, post, getGameToken, extractCurrentPlayerId]);
+  }, [
+    sessionId,
+    participantId,
+    apiCall,
+    post,
+    getGameToken,
+    extractCurrentPlayerId,
+  ]);
 
   const checkGameActive = useCallback(async () => {
     if (!sessionId) return false;
-    
+
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn("[useKubicKode] No game token available for checkGameActive");
+      console.warn(
+        "[useKubicKode] No game token available for checkGameActive"
+      );
       return false;
     }
 
-      const result = await apiCall(post, `/api/game/${sessionId}/is-active`, {
-      gameToken: gameToken
+    const result = await apiCall(post, `/api/game/${sessionId}/is-active`, {
+      gameToken: gameToken,
     });
 
     if (result.success) {
@@ -326,41 +372,51 @@ export function useKubicKode(gameId = null) {
   }, [sessionId, participantId, apiCall, post, getGameToken]);
 
   // Game-specific actions
-  const playTurn = useCallback(async (x, y, additionalData = {}) => {
-    if (!sessionId || !participantId) {
-      throw new Error("Session and participant required to play turn");
-    }
+  const playTurn = useCallback(
+    async (x, y, additionalData = {}) => {
+      if (!sessionId || !participantId) {
+        throw new Error("Session and participant required to play turn");
+      }
 
-    const gameToken = getGameToken(sessionId, participantId);
-    if (!gameToken) {
-      throw new Error("No game token available to play turn");
-    }
+      const gameToken = getGameToken(sessionId, participantId);
+      if (!gameToken) {
+        throw new Error("No game token available to play turn");
+      }
 
-    const result = await apiCall(post, `/api/game/${sessionId}/play-turn`, {
-      participantId: participantId,
-      gameToken: gameToken,
-      xPos: x,
-      yPos: y,
-      ...additionalData
-    });
+      const result = await apiCall(post, `/api/game/${sessionId}/play-turn`, {
+        participantId: participantId,
+        gameToken: gameToken,
+        xPos: x,
+        yPos: y,
+        ...additionalData,
+      });
 
-    return result;
-  }, [sessionId, participantId, apiCall, post, getGameToken]);
+      return result;
+    },
+    [sessionId, participantId, apiCall, post, getGameToken]
+  );
 
   // Voting
   const requestRestartVote = useCallback(async () => {
     return await apiCall(get, `/api/session/${sessionId}/request-restart-vote`);
   }, [sessionId, apiCall, get]);
 
-  const submitRestartVote = useCallback(async (voteYes) => {
-    if (!participantId) {
-      throw new Error("No participant ID. Join session first.");
-    }
-    return await apiCall(post, `/api/session/${sessionId}/submit-restart-vote`, {
-      participantId,
-      voteYes
-    });
-  }, [participantId, sessionId, apiCall, post]);
+  const submitRestartVote = useCallback(
+    async (voteYes) => {
+      if (!participantId) {
+        throw new Error("No participant ID. Join session first.");
+      }
+      return await apiCall(
+        post,
+        `/api/session/${sessionId}/submit-restart-vote`,
+        {
+          participantId,
+          voteYes,
+        }
+      );
+    },
+    [participantId, sessionId, apiCall, post]
+  );
 
   // WebSocket management
   const connectWebSocket = useCallback(() => {
@@ -379,12 +435,10 @@ export function useKubicKode(gameId = null) {
     const hostIP = window.location.hostname;
     const hostPort = window.location.port || "3000";
     const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}&participantId=${participantId}`;
-    
-    console.log("🔌 Attempting WebSocket connection to:", wsUrl);
+
     const websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {
-      console.log("🔌 WebSocket connected successfully");
       setIsConnected(true);
     };
 
@@ -392,7 +446,7 @@ export function useKubicKode(gameId = null) {
       try {
         const data = JSON.parse(event.data);
         // Handle WebSocket events
-        eventListeners.current.forEach(listener => {
+        eventListeners.current.forEach((listener) => {
           if (listener.type === data.type) {
             listener.handler(data.payload);
           }
@@ -403,7 +457,6 @@ export function useKubicKode(gameId = null) {
     };
 
     websocket.onclose = (event) => {
-      console.log("🔌 WebSocket disconnected:", event.code, event.reason);
       setIsConnected(false);
     };
 
@@ -417,7 +470,7 @@ export function useKubicKode(gameId = null) {
   }, [sessionId, participantId]);
 
   const disconnectWebSocket = useCallback(() => {
-    eventListeners.current.forEach(listener => {
+    eventListeners.current.forEach((listener) => {
       if (listener.websocket) {
         listener.websocket.close();
       }
@@ -433,13 +486,20 @@ export function useKubicKode(gameId = null) {
       getCurrentPlayer();
       checkGameActive();
     }
-  }, [sessionId, fetchParticipants, fetchTileMap, getCurrentPlayer, checkGameActive]);
+  }, [
+    sessionId,
+    fetchParticipants,
+    fetchTileMap,
+    getCurrentPlayer,
+    checkGameActive,
+  ]);
 
   // Determine if current user is host (first participant)
-  const isHost = participants.length > 0 && participants[0]?.id === participantId;
+  const isHost =
+    participants.length > 0 && participants[0]?.id === participantId;
 
   // Get current participant
-  const currentParticipant = participants.find(p => p.id === participantId);
+  const currentParticipant = participants.find((p) => p.id === participantId);
 
   return {
     // State
@@ -479,8 +539,8 @@ export function useKubicKode(gameId = null) {
       participantId,
       gameState,
       isConnected,
-      hasGameToken: !!getGameToken(sessionId, participantId)
+      hasGameToken: !!getGameToken(sessionId, participantId),
     }),
-    clearError: () => setError(null)
+    clearError: () => setError(null),
   };
-} 
+}
