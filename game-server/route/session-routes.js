@@ -5,6 +5,7 @@ import { GameHistory } from "../game-history.js"; // GameHistory contains getVal
 import { kubicLog } from "../../kubic-log.js";
 
 import { serializeRecursively, validateSession, validateParticipant, validatePlayableParticipant } from "../../game-utility/game-utility.js";
+import { modules as kubicModules } from "../../game-module/module-system/index.js";
 
 const sessionRouter = express.Router();
 
@@ -1179,7 +1180,7 @@ sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, 
 // Test session routes
 sessionRouter.get("/session/test", (req, res) => {
   res.json({
-    status: "session works",
+    status: kubicModules.test.echo("session works"),
   });
 });
 

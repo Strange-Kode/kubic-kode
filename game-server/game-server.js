@@ -63,6 +63,7 @@ console.log("=====================================");
 import express from "express";
 import helmet from "helmet";
 import { kubicLog } from "../kubic-log.js";
+import { initModuleSystem } from "../game-module/module-system/index.js";
 
 const app = express();
 const PORT = process.env.KUBIC_PORT || 3000;
@@ -184,6 +185,11 @@ gameRouters.forEach(({ path, router }) => {
 app.get("/", (req, res) => {
   res.send("It works!");
 });
+
+// Initialize module system
+const modulesPath = path.resolve(process.cwd(), 'game-module/modules');
+await initModuleSystem(modulesPath);
+kubicLog.info("Module system initialized");
 
 const server = app.listen(PORT, () => {
   console.log(`Kubic Kode Server running at http://localhost:${PORT}`);
