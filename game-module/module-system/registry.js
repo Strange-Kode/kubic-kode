@@ -13,21 +13,25 @@ export async function initRegistry(basePath, { watch = true } = {}) {
 
   for (const file of files) {
     if (file.endsWith('.js')) {
-      const modName = path.basename(file, '.js');
-      await loadModule(modName, { lockOnReload: false });
+      const fileName = path.basename(file, '.js');
+      await loadModule(fileName, { lockOnReload: false });
     }
   }
 
   if (watch) {
     chokidar.watch(basePath).on('change', async filePath => {
-      const modName = path.basename(filePath, '.js');
-      await reloadModule(modName);
+      const fileName = path.basename(filePath, '.js');
+      await reloadModule(fileName);
     });
   }
 }
 
-export async function loadModule(modName, { lockOnReload = false } = {}) {
-  const filePath = path.join(moduleBasePath, `${modName}.js`);
+export async function loadModule(fileName, { lockOnReload = false } = {}) {
+  const filePath = path.join(moduleBasePath, `${fileName}.js`);
+  
+  // Strip '-module' suffix from fileName to get the module name
+  // e.g., 'auth-module' => 'auth', 'game-module' => 'game'
+  const modName = fileName.endsWith('-module') ? fileName.slice(0, -7) : fileName;
 
   await runHooks('before:load', modName);
 
@@ -48,11 +52,14 @@ export async function loadModule(modName, { lockOnReload = false } = {}) {
   return instance;
 }
 
-export async function reloadModule(modName) {
+export async function reloadModule(fileName) {
+  // Strip '-module' suffix to get the actual module name for lookup
+  const modName = fileName.endsWith('-module') ? fileName.slice(0, -7) : fileName;
+  
   if (!modules[modName]) return;
 
   await runHooks('before:reload', modName);
-  await loadModule(modName);
+  await loadModule(fileName);
   await runHooks('after:reload', modName);
 }
 

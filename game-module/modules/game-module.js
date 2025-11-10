@@ -243,3 +243,4 @@ export default {
     return gameInstance.getGameEngine().isGameStarted();
   }
 };
+
