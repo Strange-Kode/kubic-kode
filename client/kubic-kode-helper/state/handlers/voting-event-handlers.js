@@ -21,15 +21,12 @@ export function createVotingEventHandlers(helper) {
      * @param {Object} payload - Event payload with participantId and vote
      */
     handleRestartVoteUpdate: (payload) => {
-      console.log("[KubicKode.flow] Received kubic::restartVoteUpdate:", payload);
       // Update voting state in KubicKode.voting
       if (payload.participantId && payload.vote !== undefined) {
         helper.voting.votes[payload.participantId] = payload.vote;
-        console.log("[KubicKode.flow] Updated voting state:", helper.voting.votes);
       }
 
       // Emit high-level event for UI
-      console.log("[KubicKode.flow] Emitting restartVotingUpdated event");
       helper.events.emit("restartVotingUpdated", {
         participantId: payload.participantId,
         vote: payload.vote,

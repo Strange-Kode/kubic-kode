@@ -115,8 +115,6 @@ export function useRestartVoting(session, game, refreshData) {
   // Handle restart vote WebSocket events
   const handleRestartVoteEvent = useCallback(
     (data, setError, setShowWinModal, setWinner) => {
-      console.log("[useRestartGame] handleRestartVoteEvent called with:", data);
-
       if (data.type === "restartVoteStarted") {
         // Only show modal and set initiator for non-initiators
         // The initiator already has their modal open
@@ -130,7 +128,6 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteUpdate") {
-        console.log("[useRestartGame] Updating votes with:", data.payload);
         setRestartVotes((prev) => ({
           ...prev,
           [data.payload.participantId]: data.payload.vote,
@@ -138,13 +135,6 @@ export function useRestartVoting(session, game, refreshData) {
       }
 
       if (data.type === "restartVoteResult") {
-        console.log("[useRestartVoting] Vote result received:", {
-          allAgreed: data.payload.allAgreed,
-          restartVoteInitiator,
-          sessionParticipantId: session.participantId,
-          shouldExecuteRestart: restartVoteInitiator === session.participantId
-        });
-
         if (data.payload.allAgreed) {
           // All players agreed to restart - restart the game!
           setShowRestartVoteModal(false);

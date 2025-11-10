@@ -9,8 +9,6 @@ export function createGameEventHandlers(helper) {
      * @param {Object} payload - Event payload with winCounts and totalGames
      */
     handleWinCount: (payload) => {
-      console.log("[KubicKode.flow] Received kubic::winCount:", payload);
-
       // Update win counts from WebSocket payload
       helper.wins.updateWinCounts({
         playerWinCounts: payload.winCounts || {},
@@ -43,11 +41,6 @@ export function createGameEventHandlers(helper) {
           winner: winnerParticipant,
           isTie: false,
         });
-      } else {
-        console.warn(
-          "[KubicKode.flow] Winner participant not found for playerId:",
-          payload.playerId
-        );
       }
     },
 
@@ -77,8 +70,6 @@ export function createGameEventHandlers(helper) {
      * @param {Object} payload - Event payload with optional updatedTileMap
      */
     handleTurnPlayed: async (payload) => {
-      console.log("[KubicKode.flow] Received kubic::turnPlayed:", payload);
-
       // Always fetch fresh tilemap and current player from server
       try {
         const [tilemapResult, currentPlayerResult] = await Promise.all([
@@ -112,10 +103,6 @@ export function createGameEventHandlers(helper) {
         helper.events.emit("inactivityTimerUpdate", {
           secondsLeft: helper.inactivity.initialTimer,
         });
-      } else {
-        console.warn(
-          "[KubicKode.flow] Cannot reset timer - initialTimer is null"
-        );
       }
 
       // Emit event for UI

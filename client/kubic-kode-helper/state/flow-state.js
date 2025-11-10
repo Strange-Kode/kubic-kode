@@ -166,12 +166,6 @@ export function createFlowState(helper) {
         const validModes = ["on-ai", "on-full", "manual", "immediate"];
         if (validModes.includes(options.autoStartMode)) {
           helper.flow.autoStartMode = options.autoStartMode;
-        } else {
-          console.warn(
-            `[KubicKode.flow] Invalid autoStartMode: ${
-              options.autoStartMode
-            }. Valid modes: ${validModes.join(", ")}`
-          );
         }
       }
     },
