@@ -58,7 +58,6 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn("[useGame] No game token available for fetchGameState");
       return;
     }
 
@@ -86,7 +85,6 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn("[useGame] No game token available for fetchCurrentPlayer");
       return;
     }
 
@@ -116,7 +114,6 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn("[useGame] No game token available for fetchPlayerMappings");
       return;
     }
 
@@ -210,7 +207,6 @@ export function useGame(sessionId, participantId, getGameToken) {
 
     const gameToken = getGameToken();
     if (!gameToken) {
-      console.warn("[useGame] No game token available for checkGameStatus");
       return;
     }
 

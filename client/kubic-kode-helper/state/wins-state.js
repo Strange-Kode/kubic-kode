@@ -47,7 +47,6 @@ export function createWinsState(helper) {
     // Refresh win counts from backend
     async refreshWinCounts() {
       if (!helper.sessionId) {
-        console.warn("[KubicKode] Cannot refresh win counts: No session ID");
         return { success: false, error: "No session ID" };
       }
 

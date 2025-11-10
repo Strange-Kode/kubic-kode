@@ -68,7 +68,6 @@ export function createSessionEventHandlers(helper) {
 
             // If not enough players remain, clear the inactivity timer
             if (maxPlayers && playableParticipants.length < maxPlayers) {
-              console.log("[KubicKode.flow] Not enough players to continue game, clearing timer");
               helper.inactivity.clearTimer();
             }
           }

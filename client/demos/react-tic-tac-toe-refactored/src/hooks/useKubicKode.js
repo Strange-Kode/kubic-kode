@@ -300,7 +300,6 @@ export function useKubicKode(gameId = null) {
 
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn("[useKubicKode] No game token available for fetchTileMap");
       return;
     }
 
@@ -321,9 +320,6 @@ export function useKubicKode(gameId = null) {
 
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn(
-        "[useKubicKode] No game token available for getCurrentPlayer"
-      );
       return;
     }
 
@@ -354,9 +350,6 @@ export function useKubicKode(gameId = null) {
 
     const gameToken = getGameToken(sessionId, participantId);
     if (!gameToken) {
-      console.warn(
-        "[useKubicKode] No game token available for checkGameActive"
-      );
       return false;
     }
 
@@ -421,12 +414,10 @@ export function useKubicKode(gameId = null) {
   // WebSocket management
   const connectWebSocket = useCallback(() => {
     if (!sessionId) {
-      console.warn("🔌 Cannot connect WebSocket: No sessionId available");
       return;
     }
 
     if (!participantId) {
-      console.warn("🔌 Cannot connect WebSocket: No participantId available");
       return;
     }
 

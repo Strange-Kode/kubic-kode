@@ -15,7 +15,6 @@ export function createWebSocketClient(helper) {
      */
     connect() {
       if (!helper.sessionId) {
-        console.warn("🔌 Cannot connect WebSocket: No sessionId available");
         return helper;
       }
 
@@ -49,11 +48,6 @@ export function createWebSocketClient(helper) {
       helper.websocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-
-          // Log restart vote related messages and game events
-          if (data.type && (data.type.includes("restartVote") || data.type.includes("turnPlayed") || data.type.includes("gameStarted"))) {
-            console.log("[WebSocket] Received:", data.type, data.payload);
-          }
 
           // Handle heartbeat responses (support both old and new namespaces for backwards compatibility)
           if (data.type === "heartbeat" || data.type === "kubic::heartbeat") {

@@ -65,7 +65,6 @@ export function createHttpClient(helper) {
           };
         } catch (error) {
           lastError = error;
-          console.warn(`Request attempt ${attempt} failed:`, error.message);
 
           if (attempt < helper.config.retryAttempts) {
             await new Promise((resolve) =>
