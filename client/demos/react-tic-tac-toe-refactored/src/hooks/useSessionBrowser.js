@@ -28,7 +28,6 @@ export function useSessionBrowser() {
           success: true,
           sessions: result.data.sessions || [],
           total: result.data.total_sessions || 0,
-          total: result.data.total_sessions || 0,
         };
       } else {
         throw new Error(result.error || "Failed to fetch sessions");
@@ -43,10 +42,6 @@ export function useSessionBrowser() {
   }, [KubicKode]);
 
   // Fetch sessions by game type
-  const fetchSessionsByGame = useCallback(
-    async (gameVariantId, onlyJoinable = true) => {
-      setIsLoading(true);
-      setError(null);
   const fetchSessionsByGame = useCallback(
     async (gameVariantId, onlyJoinable = true) => {
       setIsLoading(true);
@@ -97,19 +92,11 @@ export function useSessionBrowser() {
 
     const prevMap = new Map(prevSessions.map((s) => [s.sessionId, s]));
 
-
-    const prevMap = new Map(prevSessions.map((s) => [s.sessionId, s]));
-
     for (const newSession of newSessions) {
       const prevSession = prevMap.get(newSession.sessionId);
       if (!prevSession) return false;
 
-
       if (
-        prevSession.participantCount.players !==
-          newSession.participantCount.players ||
-        prevSession.participantCount.spectators !==
-          newSession.participantCount.spectators ||
         prevSession.participantCount.players !==
           newSession.participantCount.players ||
         prevSession.participantCount.spectators !==
@@ -123,7 +110,6 @@ export function useSessionBrowser() {
       }
     }
 
-
     return true;
   };
 
@@ -135,16 +121,7 @@ export function useSessionBrowser() {
         setError(error);
         return { success: false, error };
       }
-  const joinSpecificSession = useCallback(
-    async (sessionId, participantName, participantType = "user") => {
-      if (!sessionId || !participantName?.trim()) {
-        const error = "Session ID and participant name are required";
-        setError(error);
-        return { success: false, error };
-      }
 
-      setIsLoading(true);
-      setError(null);
       setIsLoading(true);
       setError(null);
 
@@ -199,21 +176,7 @@ export function useSessionBrowser() {
         setError(error);
         return { success: false, error };
       }
-  const autoJoinSession = useCallback(
-    async (
-      gameVariantId,
-      participantName,
-      participantType = "user",
-      createIfNone = true
-    ) => {
-      if (!gameVariantId || !participantName?.trim()) {
-        const error = "Game variant ID and participant name are required";
-        setError(error);
-        return { success: false, error };
-      }
 
-      setIsLoading(true);
-      setError(null);
       setIsLoading(true);
       setError(null);
 
@@ -251,13 +214,6 @@ export function useSessionBrowser() {
   );
 
   // Get detailed lobby status for a specific session
-  const getSessionLobbyStatus = useCallback(
-    async (sessionId) => {
-      if (!sessionId) {
-        const error = "Session ID is required";
-        setError(error);
-        return { success: false, error };
-      }
   const getSessionLobbyStatus = useCallback(
     async (sessionId) => {
       if (!sessionId) {
@@ -305,7 +261,6 @@ export function useSessionBrowser() {
     isLoading,
     error,
 
-
     // Actions
     fetchAllSessions,
     fetchSessionsByGame,
@@ -313,11 +268,8 @@ export function useSessionBrowser() {
     autoJoinSession,
     getSessionLobbyStatus,
 
-
     // Utilities
     clearError,
     clearSessions,
-    clearSessions,
   };
 }
-
