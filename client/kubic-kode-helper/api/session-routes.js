@@ -113,6 +113,58 @@ export function createSessionRoutes(helper) {
           data
         );
 
+      case "list-all":
+        // GET /sessions/list
+        // Returns: { success, sessions, total_sessions }
+        return await helper._makeRequest("GET", "/sessions/list");
+
+      case "list-by-game":
+        // GET /sessions/game/:gameId?onlyJoinable=true
+        // Requires: data.gameId
+        // Optional: data.onlyJoinable (default: true)
+        // Returns: { success, sessions, total_sessions, game_variant_id, only_joinable }
+        const onlyJoinable = data.onlyJoinable !== false;
+        const queryParams = onlyJoinable ? "?onlyJoinable=true" : "";
+        return await helper._makeRequest(
+          "GET",
+          `/sessions/game/${data.gameId}${queryParams}`
+        );
+
+      case "auto-join":
+        // POST /sessions/auto-join/:gameId
+        // Requires: data.gameId, data.participantName
+        // Optional: data.participantType, data.createIfNone
+        // Returns: { success, session_id, participant_id, session_created, lobby_status, game_token }
+        const autoJoinResult = await helper._makeRequest(
+          "POST",
+          `/sessions/auto-join/${data.gameId}`,
+          {
+            participantName: data.participantName,
+            participantType: data.participantType || "user",
+            createIfNone: data.createIfNone !== false,
+          }
+        );
+        // Store game token if provided
+        if (autoJoinResult.success && autoJoinResult.data.game_token) {
+          helper.gameToken = autoJoinResult.data.game_token;
+          helper._storeGameToken(
+            autoJoinResult.data.session_id,
+            autoJoinResult.data.participant_id,
+            autoJoinResult.data.game_token
+          );
+        }
+        return autoJoinResult;
+
+      case "lobby-status":
+        // GET /session/lobby/:sessionId
+        // Requires: data.sessionId (or uses helper.sessionId)
+        // Returns: { success, lobby }
+        const sessionIdForLobby = data.sessionId || helper.sessionId;
+        return await helper._makeRequest(
+          "GET",
+          `/session/lobby/${sessionIdForLobby}`
+        );
+
       default:
         const KubicClientError = helper.KubicClientError || Error;
         throw new KubicClientError(
@@ -130,6 +182,10 @@ export function createSessionRoutes(helper) {
               "restart-vote",
               "submit-vote",
               "history",
+              "list-all",
+              "list-by-game",
+              "auto-join",
+              "lobby-status",
             ],
           }
         );

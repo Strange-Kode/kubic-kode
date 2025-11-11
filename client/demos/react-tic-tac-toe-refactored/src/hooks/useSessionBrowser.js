@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { useFetch } from "./useFetch";
+import "../../../../kubic-kode-helper/index.js";
 
 /**
- * Custom hook for session discovery and joining
+ * Custom hook for session discovery and joining using KubicKodeHelper
  * Handles browsing existing sessions, auto-joining, and direct session joining
  */
 export function useSessionBrowser() {
@@ -11,8 +11,8 @@ export function useSessionBrowser() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch helper
-  const { get, post } = useFetch();
+  // Get KubicKode helper singleton
+  const KubicKode = window.KubicKode;
 
   // Fetch all available sessions
   const fetchAllSessions = useCallback(async () => {
@@ -20,7 +20,7 @@ export function useSessionBrowser() {
     setError(null);
 
     try {
-      const result = await get("/api/sessions/list");
+      const result = await KubicKode.listAllSessions();
 
       if (result.success) {
         setAvailableSessions(result.data.sessions || []);
@@ -39,7 +39,7 @@ export function useSessionBrowser() {
     } finally {
       setIsLoading(false);
     }
-  }, [get]);
+  }, [KubicKode]);
 
   // Fetch sessions by game type
   const fetchSessionsByGame = useCallback(
@@ -48,9 +48,9 @@ export function useSessionBrowser() {
       setError(null);
 
       try {
-        const queryParams = onlyJoinable ? "?onlyJoinable=true" : "";
-        const result = await get(
-          `/api/sessions/game/${gameVariantId}${queryParams}`
+        const result = await KubicKode.listSessionsByGame(
+          gameVariantId,
+          onlyJoinable
         );
 
         if (result.success) {
@@ -84,7 +84,7 @@ export function useSessionBrowser() {
         setIsLoading(false);
       }
     },
-    [get]
+    [KubicKode]
   );
 
   const sessionsAreEqual = (prevSessions, newSessions) => {
@@ -113,31 +113,6 @@ export function useSessionBrowser() {
     return true;
   };
 
-  // Game token management helpers
-  const storeGameToken = useCallback((sessionId, participantId, gameToken) => {
-    try {
-      const tokens = getAllGameTokens();
-      tokens[sessionId] = tokens[sessionId] || {};
-      tokens[sessionId][participantId] = gameToken;
-      localStorage.setItem("kubic_game_tokens", JSON.stringify(tokens));
-    } catch (error) {
-      console.error("[useSessionBrowser] Error storing game token:", error);
-    }
-  }, []);
-
-  const getAllGameTokens = useCallback(() => {
-    try {
-      const stored = localStorage.getItem("kubic_game_tokens");
-      return stored ? JSON.parse(stored) : {};
-    } catch (error) {
-      console.error(
-        "[useSessionBrowser] Error getting all game tokens:",
-        error
-      );
-      return {};
-    }
-  }, []);
-
   // Join a specific session by session ID
   const joinSpecificSession = useCallback(
     async (sessionId, participantName, participantType = "user") => {
@@ -151,28 +126,24 @@ export function useSessionBrowser() {
       setError(null);
 
       try {
-        const endpoint =
-          participantType === "spectator"
-            ? `/api/session/${sessionId}/spectate`
-            : `/api/session/${sessionId}/join`;
+        // Set the sessionId in KubicKode before joining
+        KubicKode.sessionId = sessionId;
 
-        const result = await post(endpoint, {
-          participantName: participantName.trim(),
-          ...(participantType !== "spectator" && { participantType }),
-        });
+        let result;
+        if (participantType === "spectator") {
+          result = await KubicKode.spectateSession(participantName.trim());
+        } else {
+          result = await KubicKode.joinSession(
+            participantName.trim(),
+            participantType
+          );
+        }
 
         if (result.success) {
-          const participantId = result.data.participant_id;
-
-          // Store the game token if it's provided
-          if (result.data.game_token) {
-            storeGameToken(sessionId, participantId, result.data.game_token);
-          }
-
           return {
             success: true,
             sessionId,
-            participantId,
+            participantId: result.data.participant_id,
             participantType,
           };
         } else {
@@ -189,7 +160,7 @@ export function useSessionBrowser() {
         setIsLoading(false);
       }
     },
-    [post, storeGameToken]
+    [KubicKode]
   );
 
   // Auto-join the best available session for a game type
@@ -210,25 +181,18 @@ export function useSessionBrowser() {
       setError(null);
 
       try {
-        const result = await post(`/api/sessions/auto-join/${gameVariantId}`, {
-          participantName: participantName.trim(),
+        const result = await KubicKode.autoJoinSession(
+          gameVariantId,
+          participantName.trim(),
           participantType,
-          createIfNone,
-        });
+          createIfNone
+        );
 
         if (result.success) {
-          const sessionId = result.data.session_id;
-          const participantId = result.data.participant_id;
-
-          // Store the game token if it's provided
-          if (result.data.game_token) {
-            storeGameToken(sessionId, participantId, result.data.game_token);
-          }
-
           return {
             success: true,
-            sessionId,
-            participantId,
+            sessionId: result.data.session_id,
+            participantId: result.data.participant_id,
             sessionCreated: result.data.session_created,
             lobbyStatus: result.data.lobby_status,
           };
@@ -246,7 +210,7 @@ export function useSessionBrowser() {
         setIsLoading(false);
       }
     },
-    [post, storeGameToken]
+    [KubicKode]
   );
 
   // Get detailed lobby status for a specific session
@@ -259,7 +223,7 @@ export function useSessionBrowser() {
       }
 
       try {
-        const result = await get(`/api/session/lobby/${sessionId}`);
+        const result = await KubicKode.getSessionLobbyStatus(sessionId);
 
         if (result.success) {
           return {
@@ -278,7 +242,7 @@ export function useSessionBrowser() {
         return { success: false, error: err.message };
       }
     },
-    [get]
+    [KubicKode]
   );
 
   // Clear current error

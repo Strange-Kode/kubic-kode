@@ -416,5 +416,99 @@ export function createHighLevelAPI(helper) {
         voteYes: voteYes,
       });
     },
+
+    /**
+     * List all available sessions across all games
+     * @returns {Promise<Object>} The API response with sessions list
+     */
+    async listAllSessions() {
+      return await helper.route.session("list-all");
+    },
+
+    /**
+     * List sessions for a specific game type
+     * @param {string} gameId - Game identifier to filter by
+     * @param {boolean} onlyJoinable - Only return joinable sessions (default: true)
+     * @returns {Promise<Object>} The API response with filtered sessions
+     */
+    async listSessionsByGame(gameId, onlyJoinable = true) {
+      if (!gameId) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Game ID is required to list sessions by game",
+          "GAME_ID_REQUIRED"
+        );
+      }
+
+      return await helper.route.session("list-by-game", {
+        gameId,
+        onlyJoinable,
+      });
+    },
+
+    /**
+     * Auto-join the best available session for a game type
+     * Automatically finds and joins the most suitable session, or creates one if none exist
+     * @param {string} gameId - Game identifier
+     * @param {string} participantName - Participant name
+     * @param {string} participantType - Type: "user" or "computer" (default: "user")
+     * @param {boolean} createIfNone - Create new session if none available (default: true)
+     * @returns {Promise<Object>} The API response with session info
+     */
+    async autoJoinSession(
+      gameId,
+      participantName,
+      participantType = "user",
+      createIfNone = true
+    ) {
+      if (!gameId || !participantName) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Game ID and participant name are required for auto-join",
+          "AUTO_JOIN_PARAMS_REQUIRED",
+          { gameId, participantName }
+        );
+      }
+
+      const result = await helper.route.session("auto-join", {
+        gameId,
+        participantName,
+        participantType,
+        createIfNone,
+      });
+
+      // Update helper state if successful
+      if (result.success) {
+        helper.sessionId = result.data.session_id;
+        helper.participantId = result.data.participant_id;
+
+        // Connect WebSocket now that we have both sessionId and participantId
+        helper.connectWebSocket();
+      }
+
+      return result;
+    },
+
+    /**
+     * Get detailed lobby status for a specific session
+     * @param {string} sessionId - Session ID (uses current session if not provided)
+     * @returns {Promise<Object>} The API response with lobby details
+     */
+    async getSessionLobbyStatus(sessionId = null) {
+      const targetSessionId = sessionId || helper.sessionId;
+
+      if (!targetSessionId) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Session ID is required to get lobby status",
+          "SESSION_ID_REQUIRED",
+          { suggestion: "Provide sessionId or initialize a session first" }
+        );
+      }
+
+      return await helper.route.session("lobby-status", {
+        sessionId: targetSessionId,
+      });
+    },
   };
 }
