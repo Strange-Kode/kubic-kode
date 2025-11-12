@@ -530,7 +530,7 @@ export function createHighLevelAPI(helper) {
 
       // Update local config state if successful
       if (result.success && result.data.full_config) {
-        helper.config.setConfig(result.data.full_config);
+        helper.sessionConfig.setConfig(result.data.full_config);
       }
 
       return result;
@@ -545,7 +545,7 @@ export function createHighLevelAPI(helper) {
 
       // Update local config state if successful
       if (result.success && result.data.config) {
-        helper.config.setConfig(result.data.config);
+        helper.sessionConfig.setConfig(result.data.config);
       }
 
       return result;
@@ -570,7 +570,7 @@ export function createHighLevelAPI(helper) {
 
       // Update local config state if successful
       if (result.success && result.data.remaining_config) {
-        helper.config.setConfig(result.data.remaining_config);
+        helper.sessionConfig.setConfig(result.data.remaining_config);
       }
 
       return result;

@@ -74,7 +74,7 @@ export class KubicKodeHelper {
     this.voting = createVotingState(this);
     this.inactivity = createInactivityState(this);
     this.flow = createFlowState(this);
-    this.config = createConfigState(this);
+    this.sessionConfig = createConfigState(this);
 
     // Initialize API routes
     this.route = {
@@ -171,6 +171,7 @@ export class KubicKodeHelper {
       voting: this.voting.getState(),
       flow: this.flow.getState(),
       inactivity: this.inactivity.getState(),
+      sessionConfig: this.sessionConfig.getState(),
     };
   }
 }
