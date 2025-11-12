@@ -23,6 +23,7 @@ import { createWinsState } from "../state/wins-state.js";
 import { createVotingState } from "../state/voting-state.js";
 import { createInactivityState } from "../state/inactivity-state.js";
 import { createFlowState } from "../state/flow-state.js";
+import { createConfigState } from "../state/config-state.js";
 import { createSessionRoutes } from "../api/session-routes.js";
 import { createGameRoutes } from "../api/game-routes.js";
 import { createGameRegistry } from "../api/game-registry.js";
@@ -73,6 +74,7 @@ export class KubicKodeHelper {
     this.voting = createVotingState(this);
     this.inactivity = createInactivityState(this);
     this.flow = createFlowState(this);
+    this.config = createConfigState(this);
 
     // Initialize API routes
     this.route = {
@@ -108,6 +110,9 @@ export class KubicKodeHelper {
     this.listSessionsByGame = highLevelAPI.listSessionsByGame;
     this.autoJoinSession = highLevelAPI.autoJoinSession;
     this.getSessionLobbyStatus = highLevelAPI.getSessionLobbyStatus;
+    this.setGameConfig = highLevelAPI.setGameConfig;
+    this.getGameConfig = highLevelAPI.getGameConfig;
+    this.deleteGameConfigKey = highLevelAPI.deleteGameConfigKey;
 
     // Attach WebSocket methods for backward compatibility
     this.connectWebSocket = this.ws.connect.bind(this.ws);

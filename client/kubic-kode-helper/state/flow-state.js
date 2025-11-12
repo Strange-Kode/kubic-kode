@@ -20,6 +20,7 @@ import { createSessionEventHandlers } from './handlers/session-event-handlers.js
 import { createConnectionEventHandlers } from './handlers/connection-event-handlers.js';
 import { createInactivityEventHandlers } from './handlers/inactivity-event-handlers.js';
 import { createVotingEventHandlers } from './handlers/voting-event-handlers.js';
+import { createConfigEventHandlers } from './handlers/config-event-handlers.js';
 
 export function createFlowState(helper) {
   // Create all handler modules
@@ -28,6 +29,7 @@ export function createFlowState(helper) {
   const connectionHandlers = createConnectionEventHandlers(helper);
   const inactivityHandlers = createInactivityEventHandlers(helper);
   const votingHandlers = createVotingEventHandlers(helper);
+  const configHandlers = createConfigEventHandlers(helper);
 
   return {
     // Flow state
@@ -224,6 +226,10 @@ export function createFlowState(helper) {
       helper.events.on("kubic::restartVoteUpdate", votingHandlers.handleRestartVoteUpdate);
       helper.events.on("kubic::restartVoteResult", votingHandlers.handleRestartVoteResult);
 
+      // Config events (2 handlers)
+      helper.events.on("kubic::lobbyConfigUpdated", configHandlers.handleLobbyConfigUpdated);
+      helper.events.on("kubic::lobbyConfigDeleted", configHandlers.handleLobbyConfigDeleted);
+
       return helper;
     },
 
@@ -259,6 +265,10 @@ export function createFlowState(helper) {
       helper.events.off("kubic::restartVoteStarted", votingHandlers.handleRestartVoteStarted);
       helper.events.off("kubic::restartVoteUpdate", votingHandlers.handleRestartVoteUpdate);
       helper.events.off("kubic::restartVoteResult", votingHandlers.handleRestartVoteResult);
+
+      // Config events
+      helper.events.off("kubic::lobbyConfigUpdated", configHandlers.handleLobbyConfigUpdated);
+      helper.events.off("kubic::lobbyConfigDeleted", configHandlers.handleLobbyConfigDeleted);
 
       return helper;
     },
