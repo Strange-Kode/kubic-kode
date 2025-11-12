@@ -510,5 +510,70 @@ export function createHighLevelAPI(helper) {
         sessionId: targetSessionId,
       });
     },
+
+    /**
+     * Set lobby configuration (host only)
+     * @param {Object} config - Configuration object with keys like { gridSize: 3, difficulty: 'medium', etc }
+     * @returns {Promise<Object>} The API response with applied config
+     */
+    async setGameConfig(config) {
+      if (!config || typeof config !== "object") {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Config object is required",
+          "CONFIG_REQUIRED",
+          { suggestion: "Provide a config object with settings to apply" }
+        );
+      }
+
+      const result = await helper.route.session("set-config", { config });
+
+      // Update local config state if successful
+      if (result.success && result.data.full_config) {
+        helper.config.setConfig(result.data.full_config);
+      }
+
+      return result;
+    },
+
+    /**
+     * Get current lobby configuration
+     * @returns {Promise<Object>} The API response with current config
+     */
+    async getGameConfig() {
+      const result = await helper.route.session("get-config");
+
+      // Update local config state if successful
+      if (result.success && result.data.config) {
+        helper.config.setConfig(result.data.config);
+      }
+
+      return result;
+    },
+
+    /**
+     * Delete a specific config key (host only)
+     * @param {string} configKey - The config key to delete
+     * @returns {Promise<Object>} The API response
+     */
+    async deleteGameConfigKey(configKey) {
+      if (!configKey) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Config key is required",
+          "CONFIG_KEY_REQUIRED",
+          { suggestion: "Provide the config key to delete" }
+        );
+      }
+
+      const result = await helper.route.session("delete-config", { configKey });
+
+      // Update local config state if successful
+      if (result.success && result.data.remaining_config) {
+        helper.config.setConfig(result.data.remaining_config);
+      }
+
+      return result;
+    },
   };
 }

@@ -165,6 +165,87 @@ export function createSessionRoutes(helper) {
           `/session/lobby/${sessionIdForLobby}`
         );
 
+      case "set-config":
+        // POST /session/:sessionId/config
+        // Requires: { config } (participantId automatically added)
+        // Returns: { success, applied_config, changes, full_config }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize and join a session first" }
+          );
+        }
+        if (!helper.participantId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No participant ID",
+            "NO_PARTICIPANT_ID",
+            { suggestion: "Join a session first" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/config`,
+          {
+            participantId: helper.participantId,
+            config: data.config,
+          }
+        );
+
+      case "get-config":
+        // GET /session/:sessionId/config
+        // Returns: { success, session_id, config, host }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        return await helper._makeRequest(
+          "GET",
+          `/session/${helper.sessionId}/config`
+        );
+
+      case "delete-config":
+        // DELETE /session/:sessionId/config/:configKey
+        // Requires: { configKey }
+        // Returns: { success, deleted_key, old_value, remaining_config }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!helper.participantId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No participant ID",
+            "NO_PARTICIPANT_ID",
+            { suggestion: "Join a session first" }
+          );
+        }
+        if (!data.configKey) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "configKey is required",
+            "CONFIG_KEY_REQUIRED",
+            { suggestion: "Provide a config key to delete" }
+          );
+        }
+        return await helper._makeRequest(
+          "DELETE",
+          `/session/${helper.sessionId}/config/${data.configKey}`,
+          {
+            participantId: helper.participantId,
+          }
+        );
+
       default:
         const KubicClientError = helper.KubicClientError || Error;
         throw new KubicClientError(
@@ -186,6 +267,9 @@ export function createSessionRoutes(helper) {
               "list-by-game",
               "auto-join",
               "lobby-status",
+              "set-config",
+              "get-config",
+              "delete-config",
             ],
           }
         );
