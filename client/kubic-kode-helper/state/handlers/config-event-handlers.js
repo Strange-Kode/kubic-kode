@@ -11,7 +11,7 @@ export function createConfigEventHandlers(helper) {
     handleLobbyConfigUpdated: (payload) => {
       // Update config state with the full config from backend
       if (payload.fullConfig) {
-        helper.config.setConfig(payload.fullConfig);
+        helper.sessionConfig.setConfig(payload.fullConfig);
       }
 
       // Emit high-level event for UI
@@ -30,12 +30,12 @@ export function createConfigEventHandlers(helper) {
     handleLobbyConfigDeleted: (payload) => {
       // Delete the key from local state
       if (payload.deletedKey) {
-        helper.config.deleteConfigKey(payload.deletedKey);
+        helper.sessionConfig.deleteConfigKey(payload.deletedKey);
       }
 
       // Update with remaining config to ensure sync
       if (payload.remainingConfig) {
-        helper.config.setConfig(payload.remainingConfig);
+        helper.sessionConfig.setConfig(payload.remainingConfig);
       }
 
       // Emit high-level event for UI
