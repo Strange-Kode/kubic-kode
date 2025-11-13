@@ -14,4 +14,6 @@ declare module 'module-system' {
     export const modules: Record<string, any>;
     export const hooks: Hooks;
     export function initModuleSystem(basePath: string): Promise<void>;
+    export function registerModule(moduleName: string, moduleInstance: Module, options?: { skipValidation?: boolean; skipInit?: boolean }): Promise<Module>;
+    export function unregisterModule(moduleName: string): boolean;
   }

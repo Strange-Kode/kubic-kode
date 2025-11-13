@@ -7,3 +7,6 @@ export async function initModuleSystem(basePath) {
 }
 
 export { hooks, registry, modules };
+
+// Re-export registerModule and unregisterModule for convenience
+export { registerModule, unregisterModule } from './registry.js';

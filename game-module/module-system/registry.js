@@ -67,4 +67,53 @@ export function getModule(modName) {
   return modules[modName];
 }
 
-export default { initRegistry, loadModule, reloadModule, getModule };
+/**
+ * Register a module programmatically (useful for client extensions)
+ * @param {string} moduleName - The name of the module (e.g., 'myCustom')
+ * @param {Object} moduleInstance - The module instance object
+ * @param {Object} options - Options for registration
+ * @param {boolean} options.skipValidation - Skip validation step (default: false)
+ * @param {boolean} options.skipInit - Skip init step (default: false)
+ * @returns {Promise<Object>} The registered module instance
+ */
+export async function registerModule(moduleName, moduleInstance, options = {}) {
+  const { skipValidation = false, skipInit = false } = options;
+  
+  // Check if module already exists
+  if (modules[moduleName]) {
+    throw new Error(`Module '${moduleName}' is already registered. Use reloadModule or unregisterModule first.`);
+  }
+  
+  await runHooks('before:load', moduleName);
+  
+  // Validate if not skipped
+  if (!skipValidation && typeof moduleInstance.validate === 'function') {
+    await moduleInstance.validate();
+  }
+  
+  // Initialize if not skipped
+  if (!skipInit && typeof moduleInstance.init === 'function') {
+    await moduleInstance.init();
+  }
+  
+  modules[moduleName] = moduleInstance;
+  
+  await runHooks('after:load', moduleName);
+  return moduleInstance;
+}
+
+/**
+ * Unregister a module programmatically
+ * @param {string} moduleName - The name of the module to unregister
+ * @returns {boolean} True if module was unregistered, false if it didn't exist
+ */
+export function unregisterModule(moduleName) {
+  if (!modules[moduleName]) {
+    return false;
+  }
+  
+  delete modules[moduleName];
+  return true;
+}
+
+export default { initRegistry, loadModule, reloadModule, getModule, registerModule, unregisterModule };
