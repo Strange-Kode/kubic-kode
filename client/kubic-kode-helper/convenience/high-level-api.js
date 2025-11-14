@@ -426,6 +426,15 @@ export function createHighLevelAPI(helper) {
     },
 
     /**
+     * List only joinable sessions across all games
+     * Filters out AI games, started games, and full games
+     * @returns {Promise<Object>} The API response with joinable sessions list
+     */
+    async listJoinableSessions() {
+      return await helper.route.session("list-joinable");
+    },
+
+    /**
      * List sessions for a specific game type
      * @param {string} gameId - Game identifier to filter by
      * @param {boolean} onlyJoinable - Only return joinable sessions (default: true)

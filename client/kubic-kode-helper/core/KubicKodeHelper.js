@@ -107,6 +107,7 @@ export class KubicKodeHelper {
     this.requestRestartVote = highLevelAPI.requestRestartVote;
     this.submitRestartVote = highLevelAPI.submitRestartVote;
     this.listAllSessions = highLevelAPI.listAllSessions;
+    this.listJoinableSessions = highLevelAPI.listJoinableSessions;
     this.listSessionsByGame = highLevelAPI.listSessionsByGame;
     this.autoJoinSession = highLevelAPI.autoJoinSession;
     this.getSessionLobbyStatus = highLevelAPI.getSessionLobbyStatus;

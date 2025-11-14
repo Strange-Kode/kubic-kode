@@ -134,6 +134,38 @@ function AppContent() {
           }
         }}
         onSessionJoined={handleSessionBrowserJoin}
+        onPlayAI={async (playerName, difficulty) => {
+          try {
+            // Initialize session
+            const initResult = await initializeSession("tic-tac-toe-classic", true);
+            if (!initResult.success) {
+              alert(`Failed to create session: ${initResult.error}`);
+              return;
+            }
+
+            // Join session
+            const joinResult = await joinSession(playerName, "user");
+            if (!joinResult.success) {
+              alert(`Failed to join session: ${joinResult.error}`);
+              return;
+            }
+
+            // Set config with private flag and difficulty
+            await KubicKode.setGameConfig({
+              isPrivate: true,
+              difficulty: difficulty,
+            });
+
+            // Add AI opponent
+            const aiResult = await addAIParticipant();
+            if (!aiResult.success) {
+              alert(`Failed to add AI opponent: ${aiResult.error}`);
+            }
+          } catch (error) {
+            console.error("[App] Failed to create AI game:", error);
+            alert(`Failed to create AI game: ${error.message}`);
+          }
+        }}
       />
     );
   }
@@ -667,8 +699,14 @@ function AppContent() {
                 const playableCount = participants.filter(
                   (p) => p.type === "user" || p.type === "computer"
                 ).length;
+                const sessionConfig = KubicKode.sessionConfig?.getState?.()?.config || {};
+                const isPrivate = sessionConfig.isPrivate === true;
+                // Only show Add AI button for private game sessions
                 return (
-                  participantId && playableCount < maxPlayers && !gameStarted
+                  participantId &&
+                  playableCount < maxPlayers &&
+                  !gameStarted &&
+                  isPrivate
                 );
               })() && (
                 <Container bg="orange.50" w="100%">

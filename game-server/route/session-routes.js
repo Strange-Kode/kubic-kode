@@ -427,12 +427,25 @@ sessionRouter.get("/session/:sessionId/subscriptions", validateSessionMiddleware
 
 // List all sessions with comprehensive lobby information
 sessionRouter.get("/sessions/list", (req, res) => {
+  const { onlyJoinable } = req.query;
+
   try {
-    const allSessions = sessionManager.getSessions();
-    const sessionList = allSessions.map(session => session.getLobbyStatus());
-    
+    let sessions = sessionManager.getSessions();
+
+    // If onlyJoinable flag is set, filter to only sessions that need players
+    if (onlyJoinable === "true") {
+      sessions = sessions.filter(session => {
+        const status = session.getLobbyStatus();
+        const isPrivate = status.lobbyConfig?.isPrivate === true;
+        return !status.started && status.needsMorePlayers && !isPrivate;
+      });
+    }
+
+    const sessionList = sessions.map(session => session.getLobbyStatus());
+
     res.json({
       success: true,
+      only_joinable: onlyJoinable === "true",
       total_sessions: sessionList.length,
       sessions: sessionList
     });
@@ -473,7 +486,8 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
     if (onlyJoinable === "true") {
       filteredSessions = filteredSessions.filter(session => {
         const status = session.getLobbyStatus();
-        return !status.started && status.needsMorePlayers;
+        const isPrivate = status.lobbyConfig?.isPrivate === true;
+        return !status.started && status.needsMorePlayers && !isPrivate;
       });
     }
     
@@ -654,7 +668,11 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", async (req, res) => {
       
       const status = session.getLobbyStatus();
       if (!status.needsMorePlayers) return false;
-      
+
+      // Don't auto-join into private games
+      const isPrivate = status.lobbyConfig?.isPrivate === true;
+      if (isPrivate) return false;
+
       // Check if participant name is already in use in this session
       const nameInUse = session.getParticipants().some(p => p.name === participantName.trim());
       if (nameInUse) return false;

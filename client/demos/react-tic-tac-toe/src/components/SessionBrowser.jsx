@@ -35,15 +35,15 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
     clearError,
   } = useSessionBrowser();
 
-  // Load tic-tac-toe sessions on mount - show ALL sessions including in-progress ones
+  // Load tic-tac-toe sessions on mount - only show joinable sessions (filters private/AI games)
   useEffect(() => {
-    fetchSessionsByGame("tic-tac-toe-classic", false);
+    fetchSessionsByGame("tic-tac-toe-classic", true);
   }, [fetchSessionsByGame]);
 
   // Auto-refresh session list periodically to catch new sessions
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchSessionsByGame("tic-tac-toe-classic", false);
+      fetchSessionsByGame("tic-tac-toe-classic", true);
     }, 2000);
 
     return () => clearInterval(interval);
@@ -57,7 +57,7 @@ export function SessionBrowser({ onSessionJoined, onClose, currentSessionId = nu
   }, [error]);
 
   const handleRefresh = () => {
-    fetchSessionsByGame("tic-tac-toe-classic", false);
+    fetchSessionsByGame("tic-tac-toe-classic", true);
   };
 
   const handleJoinSession = (session, asSpectator = false) => {
