@@ -584,5 +584,45 @@ export function createHighLevelAPI(helper) {
 
       return result;
     },
+
+    /**
+     * Get shareable session link data
+     * Generates a shareable link that can be used to join the current session
+     * @param {Object} options - Link generation options
+     * @param {string} options.baseUrl - Base URL for the frontend (optional, uses configured frontendUrl if not provided)
+     * @returns {Object} Object containing sessionId and shareable link
+     */
+    getShareableSessionLink(options = {}) {
+      if (!helper.sessionId) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "No active session. Cannot generate shareable link.",
+          "NO_ACTIVE_SESSION"
+        );
+      }
+
+      // Determine base URL with priority: explicit option > configured frontendUrl
+      const baseUrl = options.baseUrl || helper.config.frontendUrl;
+
+      if (!baseUrl) {
+        const KubicClientError = helper.KubicClientError || Error;
+        throw new KubicClientError(
+          "Frontend URL is required to generate shareable link.",
+          "FRONTEND_URL_REQUIRED",
+          {
+            suggestion:
+              "Provide baseUrl parameter or configure frontendUrl: KubicKode.configure({ frontendUrl: 'https://yourapp.com' })",
+          }
+        );
+      }
+
+      return {
+        success: true,
+        data: {
+          sessionId: helper.sessionId,
+          link: `${baseUrl}?session=${helper.sessionId}`,
+        },
+      };
+    },
   };
 }

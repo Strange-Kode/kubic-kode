@@ -19,7 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { SessionBrowserModal } from "./SessionBrowserModal";
 
-export function WelcomeScreen({ onCreateGame, onSessionJoined, onPlayAI }) {
+export function WelcomeScreen({ onCreateGame, onSessionJoined, onPlayAI, children }) {
   const [createGameName, setCreateGameName] = useState("");
   const [aiGameName, setAIGameName] = useState("");
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
@@ -186,6 +186,9 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined, onPlayAI }) {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Render any children passed to WelcomeScreen (e.g., modals) */}
+      {children}
     </Box>
   );
 }

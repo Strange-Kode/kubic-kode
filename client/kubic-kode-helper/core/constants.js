@@ -4,6 +4,7 @@
 export const DEFAULT_CONFIG = {
   apiPrefix: "/api",
   websocketPort: "3000", // Backend WebSocket server port (should match KUBIC_PORT in backend .env)
+  frontendUrl: null, // Frontend base URL for shareable links
   defaultGame: null,
   autoReconnect: true,
   retryAttempts: 3,
