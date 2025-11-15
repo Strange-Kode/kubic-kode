@@ -261,7 +261,7 @@ const myModule = {
 // Register the module
 await registerModule('myModule', myModule);
 
-// Now accessible as modules.myModule
+// Accessible as modules.myModule
 ```
 
 ### Unregistering Modules
@@ -269,8 +269,8 @@ await registerModule('myModule', myModule);
 ```javascript
 import { unregisterModule } from "./game-module/module-system/index.js";
 
-// Remove a module
-const removed = unregisterModule('myModule');
+// Remove a module (async - calls teardown() if available)
+const removed = await unregisterModule('myModule');
 if (removed) {
   console.log('Module unregistered');
 }
@@ -425,7 +425,7 @@ registry.loadModule(fileName: string, options?: object): Promise<Module>;
 registry.reloadModule(fileName: string): Promise<void>;
 registry.getModule(modName: string): Module | undefined;
 registry.registerModule(name: string, instance: Module, options?: object): Promise<Module>;
-registry.unregisterModule(name: string): boolean;
+registry.unregisterModule(name: string): Promise<boolean>;
 ```
 
 ## Examples
