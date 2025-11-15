@@ -1,5 +1,5 @@
-import registry from './registry.js';
-import { ModuleState } from './registry.js';
+import registry from "./registry.js";
+import { ModuleState } from "./registry.js";
 
 /**
  * The proxy allows you to access modules directly:
@@ -14,8 +14,8 @@ export const modules = new Proxy({}, {
     if (state === ModuleState.ERROR) {
       const errorInfo = registry.getModuleError(prop);
       const errorMessage = errorInfo 
-        ? `Module '${prop}' is in error state: ${errorInfo.message}`
-        : `Module '${prop}' is in error state`;
+        ? `Module "${prop}" is in error state: ${errorInfo.message}`
+        : `Module "${prop}" is in error state`;
       const error = new Error(errorMessage);
       if (errorInfo) {
         error.stack = errorInfo.stack;
@@ -28,9 +28,9 @@ export const modules = new Proxy({}, {
     if (!mod) {
       // Check if it's loading
       if (state === ModuleState.LOADING) {
-        throw new Error(`Module '${prop}' is currently loading. Please wait.`);
+        throw new Error(`Module "${prop}" is currently loading. Please wait.`);
       }
-      throw new Error(`Module '${prop}' not found.`);
+      throw new Error(`Module "${prop}" not found.`);
     }
     return mod;
   }

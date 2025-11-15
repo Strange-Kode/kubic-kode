@@ -4,7 +4,7 @@ const hooks = new Map();
  * Registers a hook callback under a specific name.
  * 
  * Example:
- * hooks.register('before:auth.login', fn);
+ * hooks.register("before:auth.login", fn);
  */
 export function register(name, callback) {
   if (!hooks.has(name)) {

@@ -1,4 +1,4 @@
-declare module 'module-system' {
+declare module "module-system" {
     export interface Module {
       init?(): Promise<void> | void;
       validate?(): Promise<void> | void;
@@ -19,9 +19,9 @@ declare module 'module-system' {
     }
 
     export enum ModuleState {
-      LOADING = 'loading',
-      LOADED = 'loaded',
-      ERROR = 'error'
+      LOADING = "loading",
+      LOADED = "loaded",
+      ERROR = "error"
     }
   
     export const modules: Record<string, any>;

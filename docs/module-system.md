@@ -254,12 +254,12 @@ const myModule = {
   },
   
   doSomething() {
-    return 'Hello!';
+    return "Hello!";
   }
 };
 
 // Register the module
-await registerModule('myModule', myModule);
+await registerModule("myModule", myModule);
 
 // Accessible as modules.myModule
 ```
@@ -270,16 +270,16 @@ await registerModule('myModule', myModule);
 import { unregisterModule } from "./game-module/module-system/index.js";
 
 // Remove a module (async - calls teardown() if available)
-const removed = await unregisterModule('myModule');
+const removed = await unregisterModule("myModule");
 if (removed) {
-  console.log('Module unregistered');
+  console.log("Module unregistered");
 }
 ```
 
 ### Registration Options
 
 ```javascript
-await registerModule('myModule', moduleInstance, {
+await registerModule("myModule", moduleInstance, {
   skipValidation: false,  // Skip validate() call (default: false)
   skipInit: false         // Skip init() call (default: false)
 });

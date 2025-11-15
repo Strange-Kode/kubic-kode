@@ -1,6 +1,6 @@
-import * as hooks from './hooks.js';
-import * as registry from './registry.js';
-import { modules } from './proxy.js';
+import * as hooks from "./hooks.js";
+import * as registry from "./registry.js";
+import { modules } from "./proxy.js";
 
 export async function initModuleSystem(basePath) {
   await registry.initRegistry(basePath, { watch: true });
@@ -16,4 +16,4 @@ export {
   getModuleError,
   isModuleInError,
   ModuleState
-} from './registry.js';
+} from "./registry.js";
