@@ -5,6 +5,7 @@ import path from "path";
 import { sessionRoutes, gameRoutes } from "kubic-kode";
 import { gameEventService } from "kubic-kode";
 import { gameRegistry } from "kubic-kode";
+import { initModuleSystem } from "kubic-kode";
 {{NEWLINE}}
 // Extract specific classes for cleaner usage
 const { GameEventService } = gameEventService;
@@ -54,6 +55,11 @@ gameRouters.forEach(({ path, router }) => {
 {{NEWLINE}}
 // List of known games
 gameRegistry.register("{{GAME_SHORT_NAME}}", {{GAME_CLASS_NAME}}Factory);
+{{NEWLINE}}
+// Initialize module system
+const modulesPath = path.resolve(process.cwd(), 'game-module/modules');
+await initModuleSystem(modulesPath);
+console.log("Module system initialized");
 {{NEWLINE}}
 const server = app.listen(PORT, () => {
 {{INDENT}}console.log(`{{GAME_NAME}} game server running at http://localhost:${PORT}`);
