@@ -51,12 +51,23 @@ export default {
    * @param {Object} sessionManager - The session manager
    * @returns {Object} List of all sessions
    */
-  listSessions(sessionManager) {
-    const allSessions = sessionManager.getSessions();
-    const sessionList = allSessions.map(session => session.getLobbyStatus());
+  listSessions(sessionManager, onlyJoinable = false) {
+    let sessions = sessionManager.getSessions();
+
+    // If onlyJoinable flag is set, filter to only sessions that need players
+    if (onlyJoinable) {
+      sessions = sessions.filter(session => {
+        const status = session.getLobbyStatus();
+        const isPrivate = status.lobbyConfig?.isPrivate === true;
+        return !status.started && status.needsMorePlayers && !isPrivate;
+      });
+    }
+
+    const sessionList = sessions.map(session => session.getLobbyStatus());
     
     return {
       success: true,
+      only_joinable: onlyJoinable,
       total_sessions: sessionList.length,
       sessions: sessionList
     };
@@ -79,7 +90,8 @@ export default {
     if (onlyJoinable) {
       filteredSessions = filteredSessions.filter(session => {
         const status = session.getLobbyStatus();
-        return !status.started && status.needsMorePlayers;
+        const isPrivate = status.lobbyConfig?.isPrivate === true;
+        return !status.started && status.needsMorePlayers && !isPrivate;
       });
     }
     

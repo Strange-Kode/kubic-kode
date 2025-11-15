@@ -205,12 +205,20 @@ export default {
     const allSessions = sessionManager.getSessions();
     
     // Find sessions that match criteria
+    // 1. Same game variant
+    // 2. Not started
+    // 3. Need more players
+    // 4. Participant name not already in use
     const availableSessions = allSessions.filter(session => {
       if (session.getGameVariantId() !== gameVariantId) return false;
       if (session.isStarted()) return false;
       
       const status = session.getLobbyStatus();
       if (!status.needsMorePlayers) return false;
+
+      // Don't auto-join into private games
+      const isPrivate = status.lobbyConfig?.isPrivate === true;
+      if (isPrivate) return false;
       
       // Check if participant name is already in use in this session
       const nameInUse = session.getParticipants().some(p => p.name === participantName.trim());

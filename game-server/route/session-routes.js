@@ -173,7 +173,8 @@ sessionRouter.get("/session/:sessionId/subscriptions", validateSessionMiddleware
 // List all sessions with comprehensive lobby information
 sessionRouter.get("/sessions/list", (req, res) => {
   try {
-    const result = kubicModules.session.listSessions(sessionManager);
+    const { onlyJoinable } = req.query;
+    const result = kubicModules.session.listSessions(sessionManager, onlyJoinable === "true");
     res.json(result);
   } catch (err) {
     kubicLog.error("session-routes.js::List sessions error:", err);
