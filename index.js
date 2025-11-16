@@ -32,3 +32,7 @@ export * as gameHistory from "./game-server/game-history.js";
 export * as gameHistoryManager from "./game-server/game-history-manager.js";
 export { default as gameRoutes } from "./game-server/route/game-routes.js";
 export { default as sessionRoutes } from "./game-server/route/session-routes.js";
+
+// Game Module
+export { initModuleSystem, registerModule, unregisterModule } from "./game-module/module-system/index.js";
+export { hooks as moduleHooks, registry as moduleRegistry, modules as gameModules } from "./game-module/module-system/index.js";
