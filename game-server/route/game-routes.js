@@ -125,10 +125,6 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
   const gameInstance = gameSession.getGameInstance();
   const sessionParticipants = gameSession.getParticipants();
 
-  // Merge lobby config into options (lobby config values are used as defaults if not explicitly provided)
-  const lobbyConfig = gameSession.getLobbyManager().getAllLobbyConfig();
-  const mergedOptions = { ...lobbyConfig, ...options };
-
   const result = {};
 
   // Check if game is already started
@@ -181,13 +177,19 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
     gameInstance.setPlayerMappings(playerMappings);
   }
 
-  // Step 2: Apply game options BEFORE starting the game (for pre-start options like difficulty)
-  if (Object.keys(mergedOptions).length > 0) {
+  // Step 2: Start the game session (if not already started)
+  gameSession.markStarted();
+
+  // Step 3: Start the game instance
+  gameInstance.startGame();
+
+  // Step 4: Apply game options AFTER the game has started
+  if (Object.keys(options).length > 0) {
     const gameOptions = gameInstance.getGameOptions();
     if (gameOptions) {
       result.applied_game_options = [];
-      const validation = gameOptions.validateAndApply(mergedOptions);
-
+      const validation = gameOptions.validateAndApply(options);
+      
       if (!validation.valid) {
         return {
           error: true,
@@ -220,12 +222,6 @@ const handleGameStart = (gameSession, options = {}, requestingParticipantId = nu
       }
     }
   }
-
-  // Step 3: Start the game session (if not already started)
-  gameSession.markStarted();
-
-  // Step 4: Start the game instance
-  gameInstance.startGame();
 
   // Step 5: Establish first player(s) and return as current player(s)
   const sessionContext = {
