@@ -20,11 +20,14 @@ export default {
     const gameInstance = gameSession.getGameInstance();
     const sessionParticipants = gameSession.getParticipants();
 
-    // Merge lobby config into options (lobby config values are used as defaults if not explicitly provided)
-    const lobbyConfig = gameSession.getLobbyManager().getAllLobbyConfig();
-    const mergedOptions = { ...lobbyConfig, ...options };
-
     const result = {};
+
+    // Only merge lobby config on FIRST start (restartCounter === 0)
+    // Lobby config contains pre-start options like difficulty that can't be applied after first start
+    // On restart, only use explicitly passed options
+    const isFirstStart = gameSession.getRestartCounter() === 0;
+    const lobbyConfig = isFirstStart ? gameSession.getLobbyManager().getAllLobbyConfig() : {};
+    const mergedOptions = { ...lobbyConfig, ...options };
 
     // Check if game is already started
     if (gameInstance.getGameEngine().isGameStarted()) {

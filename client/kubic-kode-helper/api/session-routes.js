@@ -120,7 +120,7 @@ export function createSessionRoutes(helper) {
 
       case "list-joinable":
         // GET /sessions/list?onlyJoinable=true
-        // Returns only joinable sessions (filters AI games, started, full)
+        // Returns only joinable sessions (filters private games, spectators can join full games)
         // Returns: { success, sessions, total_sessions, only_joinable }
         return await helper._makeRequest("GET", "/sessions/list?onlyJoinable=true");
 

@@ -54,12 +54,13 @@ export default {
   listSessions(sessionManager, onlyJoinable = false) {
     let sessions = sessionManager.getSessions();
 
-    // If onlyJoinable flag is set, filter to only sessions that need players
+    // If onlyJoinable flag is set, filter to only non-private sessions
+    // (spectators can join full games, so we don't filter by needsMorePlayers)
     if (onlyJoinable) {
       sessions = sessions.filter(session => {
         const status = session.getLobbyStatus();
         const isPrivate = status.lobbyConfig?.isPrivate === true;
-        return !status.started && status.needsMorePlayers && !isPrivate;
+        return !isPrivate;
       });
     }
 
@@ -82,16 +83,17 @@ export default {
    */
   getSessionsByVariant(sessionManager, gameVariantId, onlyJoinable = false) {
     const allSessions = sessionManager.getSessions();
-    let filteredSessions = allSessions.filter(session => 
+    let filteredSessions = allSessions.filter(session =>
       session.getGameVariantId() === gameVariantId
     );
-    
-    // If onlyJoinable flag is set, filter to only sessions that need players
+
+    // If onlyJoinable flag is set, filter to only non-private sessions
+    // (spectators can join full games, so we don't filter by needsMorePlayers)
     if (onlyJoinable) {
       filteredSessions = filteredSessions.filter(session => {
         const status = session.getLobbyStatus();
         const isPrivate = status.lobbyConfig?.isPrivate === true;
-        return !status.started && status.needsMorePlayers && !isPrivate;
+        return !isPrivate;
       });
     }
     

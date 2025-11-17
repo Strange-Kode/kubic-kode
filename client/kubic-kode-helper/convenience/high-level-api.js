@@ -427,7 +427,7 @@ export function createHighLevelAPI(helper) {
 
     /**
      * List only joinable sessions across all games
-     * Filters out AI games, started games, and full games
+     * Filters out private games (full games are included as spectators can join)
      * @returns {Promise<Object>} The API response with joinable sessions list
      */
     async listJoinableSessions() {
