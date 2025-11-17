@@ -107,12 +107,14 @@ export class KubicKodeHelper {
     this.requestRestartVote = highLevelAPI.requestRestartVote;
     this.submitRestartVote = highLevelAPI.submitRestartVote;
     this.listAllSessions = highLevelAPI.listAllSessions;
+    this.listJoinableSessions = highLevelAPI.listJoinableSessions;
     this.listSessionsByGame = highLevelAPI.listSessionsByGame;
     this.autoJoinSession = highLevelAPI.autoJoinSession;
     this.getSessionLobbyStatus = highLevelAPI.getSessionLobbyStatus;
     this.setGameConfig = highLevelAPI.setGameConfig;
     this.getGameConfig = highLevelAPI.getGameConfig;
     this.deleteGameConfigKey = highLevelAPI.deleteGameConfigKey;
+    this.getShareableSessionLink = highLevelAPI.getShareableSessionLink;
 
     // Attach WebSocket methods for backward compatibility
     this.connectWebSocket = this.ws.connect.bind(this.ws);

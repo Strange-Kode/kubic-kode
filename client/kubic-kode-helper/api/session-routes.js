@@ -118,6 +118,12 @@ export function createSessionRoutes(helper) {
         // Returns: { success, sessions, total_sessions }
         return await helper._makeRequest("GET", "/sessions/list");
 
+      case "list-joinable":
+        // GET /sessions/list?onlyJoinable=true
+        // Returns only joinable sessions (filters private games, spectators can join full games)
+        // Returns: { success, sessions, total_sessions, only_joinable }
+        return await helper._makeRequest("GET", "/sessions/list?onlyJoinable=true");
+
       case "list-by-game":
         // GET /sessions/game/:gameId?onlyJoinable=true
         // Requires: data.gameId
@@ -264,6 +270,7 @@ export function createSessionRoutes(helper) {
               "submit-vote",
               "history",
               "list-all",
+              "list-joinable",
               "list-by-game",
               "auto-join",
               "lobby-status",

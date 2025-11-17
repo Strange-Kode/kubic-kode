@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Container as ChakraContainer,
@@ -26,6 +26,7 @@ import GameModal from "./components/GameModal";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { SessionBrowserModal } from "./components/SessionBrowserModal";
 import { LiveTimer } from "./components/LiveTimer";
+import ShareableSessionLink from "./components/ShareableSessionLink";
 import { useTicTacToe } from "./hooks/useTicTacToe";
 
 function AppContent() {
@@ -89,6 +90,31 @@ function AppContent() {
   const [testName, setTestName] = useState("");
   const [spectatorName, setSpectatorName] = useState("");
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
+  const [showJoinFromLinkModal, setShowJoinFromLinkModal] = useState(false);
+  const [linkSessionId, setLinkSessionId] = useState(null);
+  const [linkPlayerName, setLinkPlayerName] = useState("");
+  const [linkSessionIsFull, setLinkSessionIsFull] = useState(false);
+
+  // Check for session parameter in URL on mount (only once)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionParam = urlParams.get("session");
+
+    if (sessionParam) {
+      // Found a session ID in the URL, check availability and prompt user to join
+      setLinkSessionId(sessionParam);
+
+      // Check if session is full
+      window.KubicKode.sessionId = sessionParam;
+      checkSessionAvailability(sessionParam).then((result) => {
+        if (result.success) {
+          setLinkSessionIsFull(!result.data.isAvailable);
+        }
+        setShowJoinFromLinkModal(true);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
 
   // Define handlers before using them
   const handleJoinWithName = async (name) => {
@@ -102,6 +128,47 @@ function AppContent() {
       await syncSessionState(joinResult.sessionId, joinResult.participantId);
     } else {
       await refreshData();
+    }
+  };
+
+  const handleJoinFromLink = async () => {
+    if (!linkPlayerName.trim()) {
+      alert("Please enter your name");
+      return;
+    }
+
+    try {
+      // Set the sessionId in KubicKode (same as SessionBrowser does)
+      window.KubicKode.sessionId = linkSessionId;
+
+      // Check if session is available first
+      const availabilityResult = await checkSessionAvailability(linkSessionId);
+
+      let result;
+      if (availabilityResult.success && availabilityResult.data.isAvailable) {
+        // Session has space - join as player
+        result = await window.KubicKode.joinSession(linkPlayerName.trim(), "user");
+      } else {
+        // Session is full - join as spectator
+        result = await window.KubicKode.spectateSession(linkPlayerName.trim());
+      }
+
+      if (result.success) {
+        // Sync the main app state (same as SessionBrowser does)
+        await syncSessionState(linkSessionId, result.data.participant_id);
+
+        setShowJoinFromLinkModal(false);
+        setLinkSessionId(null);
+        setLinkPlayerName("");
+
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        alert(`Failed to join session: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error joining from link:", error);
+      alert(`Error joining session: ${error.message}`);
     }
   };
 
@@ -134,7 +201,70 @@ function AppContent() {
           }
         }}
         onSessionJoined={handleSessionBrowserJoin}
-      />
+        onPlayAI={async (playerName, difficulty) => {
+          try {
+            // Initialize session
+            const initResult = await initializeSession("tic-tac-toe-classic", true);
+            if (!initResult.success) {
+              alert(`Failed to create session: ${initResult.error}`);
+              return;
+            }
+
+            // Join session
+            const joinResult = await joinSession(playerName, "user");
+            if (!joinResult.success) {
+              alert(`Failed to join session: ${joinResult.error}`);
+              return;
+            }
+
+            // Set config with private flag and difficulty
+            await KubicKode.setGameConfig({
+              isPrivate: true,
+              difficulty: difficulty,
+            });
+
+            // Add AI opponent
+            const aiResult = await addAIParticipant();
+            if (!aiResult.success) {
+              alert(`Failed to add AI opponent: ${aiResult.error}`);
+            }
+          } catch (error) {
+            console.error("[App] Failed to create AI game:", error);
+            alert(`Failed to create AI game: ${error.message}`);
+          }
+        }}
+      >
+        {/* Join from Link Modal - render on WelcomeScreen too */}
+        <GameModal
+          isOpen={showJoinFromLinkModal}
+          onClose={() => {}} // Can't close - must choose
+          title="Join Game Session"
+          message={
+            linkSessionIsFull
+              ? `You've been invited to join a game session! The game is full, so you'll join as a spectator to watch.`
+              : `You've been invited to join a game session! Enter your name to join.`
+          }
+          type="info"
+          showInput={true}
+          inputPlaceholder="Enter your name"
+          inputValue={linkPlayerName}
+          onInputChange={setLinkPlayerName}
+          primaryButton={{
+            text: linkSessionIsFull ? "Join as Spectator" : "Join Game",
+            onClick: handleJoinFromLink,
+          }}
+          secondaryButton={{
+            text: "Cancel",
+            onClick: () => {
+              setShowJoinFromLinkModal(false);
+              setLinkSessionId(null);
+              setLinkPlayerName("");
+              setLinkSessionIsFull(false);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            },
+          }}
+        />
+      </WelcomeScreen>
     );
   }
 
@@ -593,6 +723,11 @@ function AppContent() {
                 </VStack>
               </Container>
 
+              {/* Shareable Session Link */}
+              {sessionId && participantId && (
+                <ShareableSessionLink sessionId={sessionId} />
+              )}
+
               {/* Participants & Win Counter Table */}
               <Container w="100%">
                 <Heading size="md" mb={3}>
@@ -667,8 +802,14 @@ function AppContent() {
                 const playableCount = participants.filter(
                   (p) => p.type === "user" || p.type === "computer"
                 ).length;
+                const sessionConfig = KubicKode.sessionConfig?.getState?.()?.config || {};
+                const isPrivate = sessionConfig.isPrivate === true;
+                // Only show Add AI button for private game sessions
                 return (
-                  participantId && playableCount < maxPlayers && !gameStarted
+                  participantId &&
+                  playableCount < maxPlayers &&
+                  !gameStarted &&
+                  isPrivate
                 );
               })() && (
                 <Container bg="orange.50" w="100%">
@@ -928,7 +1069,6 @@ function AppContent() {
         onClose={() => setShowSessionBrowser(false)}
         onSessionJoined={handleSessionBrowserJoin}
         currentSessionId={sessionId}
-        wI
       />
     </Box>
   );

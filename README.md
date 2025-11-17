@@ -71,6 +71,7 @@ The frontend will be available at [http://localhost:3001](http://localhost:3001)
 - **Session Management**: Handles multiplayer sessions and participant management
 - **Game Token Service**: Manages authentication tokens for secure game operations
 - **WebSocket Communication**: Real-time game state updates
+- **Module System**: Dynamic, extensible module loading system with hot-reloading and lifecycle hooks ([Documentation](./docs/module-system.md))
 
 ## Game Development
 

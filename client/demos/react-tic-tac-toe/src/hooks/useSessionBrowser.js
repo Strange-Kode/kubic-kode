@@ -14,13 +14,13 @@ export function useSessionBrowser() {
   // Get KubicKode helper singleton
   const KubicKode = window.KubicKode;
 
-  // Fetch all available sessions
-  const fetchAllSessions = useCallback(async () => {
+  // Fetch all joinable sessions (filters AI games, started, full)
+  const fetchJoinableSessions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await KubicKode.listAllSessions();
+      const result = await KubicKode.listJoinableSessions();
 
       if (result.success) {
         setAvailableSessions(result.data.sessions || []);
@@ -262,7 +262,7 @@ export function useSessionBrowser() {
     error,
 
     // Actions
-    fetchAllSessions,
+    fetchJoinableSessions,
     fetchSessionsByGame,
     joinSpecificSession,
     autoJoinSession,

@@ -8,13 +8,22 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useState } from "react";
+import { getShareableLink } from "../utils/shareableLink";
 
 const ShareableSessionLink = ({ sessionId }) => {
   const [copied, setCopied] = useState(false);
   const toast = useToast();
 
-  // Generate the shareable link
-  const shareableLink = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
+  // Generate the shareable link using KubicKode SDK
+  let shareableLink = "";
+  try {
+    const result = getShareableLink();
+    shareableLink = result.data.link;
+  } catch (error) {
+    console.error("Failed to generate shareable link:", error);
+    // Fallback to manual construction if SDK fails
+    shareableLink = `${window.location.origin}?session=${sessionId}`;
+  }
 
   const copyToClipboard = async () => {
     try {

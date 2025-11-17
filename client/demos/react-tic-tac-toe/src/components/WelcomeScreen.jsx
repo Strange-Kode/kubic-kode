@@ -8,23 +8,34 @@ import {
   Text,
   Button,
   Input,
+  Select,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
 } from "@chakra-ui/react";
 import { SessionBrowserModal } from "./SessionBrowserModal";
 
-export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
-  const [playerName, setPlayerName] = useState("");
+export function WelcomeScreen({ onCreateGame, onSessionJoined, onPlayAI, children }) {
+  const [createGameName, setCreateGameName] = useState("");
+  const [aiGameName, setAIGameName] = useState("");
   const [showSessionBrowser, setShowSessionBrowser] = useState(false);
+  const [showAIDifficultyModal, setShowAIDifficultyModal] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState("medium");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreateGame = async () => {
-    if (!playerName.trim()) {
+    if (!createGameName.trim()) {
       alert("Please enter your name");
       return;
     }
 
     setIsLoading(true);
     try {
-      await onCreateGame(playerName.trim());
+      await onCreateGame(createGameName.trim());
     } finally {
       setIsLoading(false);
     }
@@ -33,6 +44,24 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
   const handleSessionBrowserJoin = async (joinResult) => {
     setShowSessionBrowser(false);
     await onSessionJoined(joinResult);
+  };
+
+  const handleOpenAIModal = () => {
+    if (!aiGameName.trim()) {
+      alert("Please enter your name");
+      return;
+    }
+    setShowAIDifficultyModal(true);
+  };
+
+  const handlePlayAI = async () => {
+    setIsLoading(true);
+    setShowAIDifficultyModal(false);
+    try {
+      await onPlayAI(aiGameName.trim(), selectedDifficulty);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,7 +75,7 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
             </Text>
           </Box>
 
-          <HStack spacing={8} align="stretch">
+          <HStack spacing={6} align="stretch">
             <VStack spacing={4} p={8} bg="white" borderRadius="lg" shadow="md" flex="1">
               <Heading size="md" color="blue.600">Create New Game</Heading>
               <Text textAlign="center" color="gray.600">
@@ -54,13 +83,13 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
               </Text>
               <Input
                 placeholder="Enter your name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
+                value={createGameName}
+                onChange={(e) => setCreateGameName(e.target.value)}
                 maxW="250px"
                 onKeyPress={(e) => e.key === "Enter" && handleCreateGame()}
               />
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 size="lg"
                 onClick={handleCreateGame}
                 isLoading={isLoading}
@@ -71,13 +100,36 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
             </VStack>
 
             <VStack spacing={4} p={8} bg="white" borderRadius="lg" shadow="md" flex="1">
+              <Heading size="md" color="orange.600">Play Against AI</Heading>
+              <Text textAlign="center" color="gray.600">
+                Challenge an AI opponent at your chosen difficulty
+              </Text>
+              <Input
+                placeholder="Enter your name"
+                value={aiGameName}
+                onChange={(e) => setAIGameName(e.target.value)}
+                maxW="250px"
+                onKeyPress={(e) => e.key === "Enter" && handleOpenAIModal()}
+              />
+              <Button
+                colorScheme="orange"
+                size="lg"
+                onClick={handleOpenAIModal}
+                isLoading={isLoading}
+                minW="200px"
+              >
+                Play Against AI
+              </Button>
+            </VStack>
+
+            <VStack spacing={4} p={8} bg="white" borderRadius="lg" shadow="md" flex="1">
               <Heading size="md" color="green.600">Join Existing Game</Heading>
               <Text textAlign="center" color="gray.600">
                 Browse and join games created by other players
               </Text>
               <Box h="40px" /> {/* Spacer to align with the input field */}
-              <Button 
-                colorScheme="green" 
+              <Button
+                colorScheme="green"
                 size="lg"
                 onClick={() => setShowSessionBrowser(true)}
                 minW="200px"
@@ -102,6 +154,41 @@ export function WelcomeScreen({ onCreateGame, onSessionJoined }) {
         onSessionJoined={handleSessionBrowserJoin}
         currentSessionId={null} // Welcome screen has no current session
       />
+
+      {/* AI Difficulty Selection Modal */}
+      <Modal isOpen={showAIDifficultyModal} onClose={() => setShowAIDifficultyModal(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Choose AI Difficulty</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <Text>Select the difficulty level for your AI opponent:</Text>
+              <Select
+                value={selectedDifficulty}
+                onChange={(e) => setSelectedDifficulty(e.target.value)}
+                size="lg"
+              >
+                <option value="very_easy">Very Easy</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </Select>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setShowAIDifficultyModal(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="orange" onClick={handlePlayAI} isLoading={isLoading}>
+              Start Game
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Render any children passed to WelcomeScreen (e.g., modals) */}
+      {children}
     </Box>
   );
 }

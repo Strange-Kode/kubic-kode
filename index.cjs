@@ -32,6 +32,12 @@ const gameHistoryManager = require("./game-server/game-history-manager");
 const gameRoutes = require("./game-server/route/game-routes");
 const sessionRoutes = require("./game-server/route/session-routes");
 
+// Game Module
+const { initModuleSystem, hooks, registry, modules, registerModule, unregisterModule } = require("./game-module/module-system/index");
+const moduleHooks = hooks;
+const moduleRegistry = registry;
+const gameModules = modules;
+
 module.exports = {
   gameUtility,
   inactivityManager,
@@ -58,5 +64,11 @@ module.exports = {
   gameHistory,
   gameHistoryManager,
   gameRoutes,
-  sessionRoutes
+  sessionRoutes,
+  initModuleSystem,
+  moduleHooks,
+  moduleRegistry,
+  gameModules,
+  registerModule,
+  unregisterModule
 };
