@@ -1,8 +1,8 @@
-import { 
-  KubicSystemError, 
-  KubicValidationError, 
+import {
+  KubicSystemError,
+  KubicValidationError,
   ErrorFactory,
-  ErrorCodes 
+  ErrorCodes,
 } from "../../game-engine/kubic-kode-error.js";
 
 import { kubicLog } from "../../kubic-log.js";
@@ -29,27 +29,24 @@ export class SessionVoteManager {
       totalParticipants: playableParticipants.length,
     };
 
-    // Auto-vote for AI participants if enabled
-    const aiAutoVoteEnabled = process.env.KUBIC_AI_AUTO_VOTE_ENABLED === 'true';
+    const aiParticipants = playableParticipants.filter(
+      (p) => p.type === "computer"
+    );
+    const delay = parseInt(process.env.KUBIC_AI_AUTO_VOTE_DELAY) || 1500;
 
-    if (aiAutoVoteEnabled) {
-      const aiParticipants = playableParticipants.filter(p => p.type === 'computer');
-      const delay = parseInt(process.env.KUBIC_AI_AUTO_VOTE_DELAY) || 1500;
+    aiParticipants.forEach((aiParticipant) => {
+      const timer = setTimeout(() => {
+        // AI always votes yes
+        this.registerRestartVote(aiParticipant.id, true);
 
-      aiParticipants.forEach(aiParticipant => {
-        const timer = setTimeout(() => {
-          // AI always votes yes
-          this.registerRestartVote(aiParticipant.id, true);
+        // Notify via callback if provided
+        if (onAiVoteCallback) {
+          onAiVoteCallback(aiParticipant.id, aiParticipant.name);
+        }
+      }, delay);
 
-          // Notify via callback if provided
-          if (onAiVoteCallback) {
-            onAiVoteCallback(aiParticipant.id, aiParticipant.name);
-          }
-        }, delay);
-
-        this._aiVoteTimers.push(timer);
-      });
-    }
+      this._aiVoteTimers.push(timer);
+    });
   }
 
   /**
@@ -64,7 +61,13 @@ export class SessionVoteManager {
         "No active restart vote",
         "restartVote",
         this._restartVote,
-        { context: { method: "SessionVoteManager.registerRestartVote", participantId, suggestion: "Start a restart vote before registering votes" } }
+        {
+          context: {
+            method: "SessionVoteManager.registerRestartVote",
+            participantId,
+            suggestion: "Start a restart vote before registering votes",
+          },
+        }
       );
     }
 
@@ -104,7 +107,13 @@ export class SessionVoteManager {
         "Vote not complete",
         "restartVote",
         this._restartVote,
-        { context: { method: "SessionVoteManager.getRestartVoteResult", suggestion: "Wait for all participants to vote before getting the result" } }
+        {
+          context: {
+            method: "SessionVoteManager.getRestartVoteResult",
+            suggestion:
+              "Wait for all participants to vote before getting the result",
+          },
+        }
       );
     }
     return Object.values(this._restartVote.votes).every((v) => v === true);
@@ -119,7 +128,7 @@ export class SessionVoteManager {
     this._restartVote = null;
 
     // Clear any pending AI vote timers
-    this._aiVoteTimers.forEach(timer => clearTimeout(timer));
+    this._aiVoteTimers.forEach((timer) => clearTimeout(timer));
     this._aiVoteTimers = [];
 
     return voteResult;
@@ -144,13 +153,13 @@ export class SessionVoteManager {
         totalParticipants: 0,
         votesCast: 0,
         yesVotes: 0,
-        noVotes: 0
+        noVotes: 0,
       };
     }
 
     const votes = Object.values(this._restartVote.votes);
-    const yesVotes = votes.filter(v => v === true).length;
-    const noVotes = votes.filter(v => v === false).length;
+    const yesVotes = votes.filter((v) => v === true).length;
+    const noVotes = votes.filter((v) => v === false).length;
 
     return {
       active: true,
@@ -158,7 +167,7 @@ export class SessionVoteManager {
       votesCast: votes.length,
       yesVotes: yesVotes,
       noVotes: noVotes,
-      complete: this.isRestartVoteComplete()
+      complete: this.isRestartVoteComplete(),
     };
   }
 
@@ -172,7 +181,9 @@ export class SessionVoteManager {
       return playableParticipants;
     }
 
-    return playableParticipants.filter(p => !(p.id in this._restartVote.votes));
+    return playableParticipants.filter(
+      (p) => !(p.id in this._restartVote.votes)
+    );
   }
 
   /**
