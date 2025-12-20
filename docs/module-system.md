@@ -11,6 +11,8 @@ The KubicKode Module System is a dynamic, extensible module loading and manageme
 - **Lifecycle Hooks**: Built-in hooks for module loading, reloading, and custom events
 - **Validation System**: Optional `validate()` method for dependency checking
 - **Dynamic Registration**: Programmatic module registration for client extensions
+- **User-Defined Modules**: Load custom modules from external projects using `loadModulesFromDirectory`
+- **Automatic Naming**: Kebab-case file names are automatically converted to camelCase module names
 - **Inter-Module Communication**: Modules can use other modules via the `modules` object
 - **TypeScript Support**: Full TypeScript definitions for IDE autocomplete
 
@@ -89,6 +91,10 @@ export default {
 
 The module will be automatically loaded and accessible as `modules.myModule`.
 
+**Note**: File names are automatically converted from kebab-case to camelCase:
+- `tilemap-noise-module.js` → `modules.tilemapNoise`
+- `my-custom-module.js` → `modules.myCustom`
+
 ### Module with Validation
 
 ```javascript
@@ -160,15 +166,38 @@ router.post("/my-endpoint", (req, res) => {
 });
 ```
 
+### In External Projects
+
+When using kubic-kode as a package in external projects:
+
+```javascript
+// my-project/routes/my-routes.js
+import express from 'express';
+import { modules } from 'kubic-kode';
+
+const router = express.Router();
+
+router.get('/my-endpoint', (req, res) => {
+  // Access your custom module (file: tilemap-noise-module.js)
+  const result = modules.tilemapNoise.generateTilemap(10, 10);
+  res.json({ result });
+});
+
+export default router;
+```
+
 ### Direct Module Access
 
 ```javascript
 import { modules } from "./game-module/module-system/index.js";
+// Or from external projects:
+// import { modules } from 'kubic-kode';
 
 // Access modules directly
 modules.game.handleGameStart(gameSession, options);
 modules.player.formatPlayerIds(gameInstance, playerIds);
 modules.turn.executeTurn(gameInstance, playerId, moveData);
+modules.tilemapNoise.generateTilemap(width, height); // Custom module
 ```
 
 ### Destructuring Modules
@@ -178,10 +207,11 @@ You can destructure modules for cleaner code:
 ```javascript
 import { modules } from "./game-module/module-system/index.js";
 
-const { game, player, turn } = modules;
+const { game, player, turn, tilemapNoise } = modules;
 
 game.handleGameStart(gameSession, options);
 player.formatPlayerIds(gameInstance, playerIds);
+tilemapNoise.generateTilemap(10, 10);
 ```
 
 ## Module Hooks
@@ -235,6 +265,67 @@ import { hooks } from "./game-module/module-system/index.js";
 await hooks.run('game:beforeStart', gameSession);
 ```
 
+## User-Defined Modules (External Projects)
+
+### Loading Modules from a Directory
+
+For external projects using kubic-kode, you can load custom modules from a directory:
+
+```javascript
+// my-project/server.js
+import { initModuleSystem, getKubicKodeModulesPath, loadModulesFromDirectory, kubicLog } from 'kubic-kode';
+import path from 'path';
+
+// Initialize module system with native kubic modules
+const modulesPath = getKubicKodeModulesPath();
+await initModuleSystem(modulesPath);
+kubicLog.info("Native module system initialized");
+
+// Load user-defined modules from 'module' folder
+const userModulesPath = path.resolve(process.cwd(), 'module');
+await loadModulesFromDirectory(userModulesPath);
+```
+
+**With file watching (hot reload):**
+
+```javascript
+await loadModulesFromDirectory(userModulesPath, { watch: true });
+```
+
+### Creating User-Defined Modules
+
+Create a file in your `module/` directory:
+
+```javascript
+// my-project/module/tilemap-noise-module.js
+import { modules, hooks } from 'kubic-kode';
+import { kubicLog } from 'kubic-kode';
+import { createNoise2D } from 'simplex-noise';
+
+export default {
+  async validate() {
+    kubicLog.debug('[tilemap-noise-module] Validation passed');
+  },
+
+  async init() {
+    kubicLog.info('[tilemap-noise-module] Module initialized');
+  },
+
+  generateTilemap(width, height, noiseScale = 0.03, seed = undefined) {
+    // Your implementation
+    const noise = createNoise2D();
+    const grid = [];
+    // ... generate tilemap
+    return grid;
+  }
+};
+```
+
+The module will be automatically:
+- Loaded from the directory
+- Converted from kebab-case to camelCase (`tilemap-noise-module.js` → `modules.tilemapNoise`)
+- Accessible via `modules.tilemapNoise.generateTilemap()`
+
 ## Programmatic Module Registration
 
 ### Registering Modules
@@ -243,6 +334,8 @@ For client extensions or dynamic module loading:
 
 ```javascript
 import { registerModule } from "./game-module/module-system/index.js";
+// Or from external projects:
+// import { registerModule } from 'kubic-kode';
 
 const myModule = {
   async validate() {
@@ -289,9 +382,11 @@ await registerModule("myModule", moduleInstance, {
 
 ### File Naming Convention
 
-- Module files should be named with kebab-case: `my-module.js`
-- The module name will be converted to camelCase: `myModule`
-- Files ending with `-module.js` will have the suffix stripped: `auth-module.js` → `auth`
+Module file names are automatically converted to camelCase module names:
+
+- **Kebab-case files** are converted to camelCase: `tilemap-noise-module.js` → `modules.tilemapNoise`
+- **Files ending with `-module.js`** have the suffix stripped first: `auth-module.js` → `auth` → `modules.auth`
+- **Simple names** remain unchanged: `test.js` → `modules.test`
 
 ### Examples
 
@@ -299,8 +394,20 @@ await registerModule("myModule", moduleInstance, {
 |-----------|-------------|--------|
 | `game-module.js` | `game` | `modules.game` |
 | `player-module.js` | `player` | `modules.player` |
+| `tilemap-noise-module.js` | `tilemapNoise` | `modules.tilemapNoise` |
 | `my-custom-module.js` | `myCustom` | `modules.myCustom` |
 | `test.js` | `test` | `modules.test` |
+
+### Helpful Error Messages
+
+If you try to access a module using kebab-case (e.g., `modules['tilemap-noise']`), you'll get a helpful error:
+
+```
+Module "tilemap-noise" not found. Did you mean to use modules.tilemapNoise? 
+(Module names are automatically converted from kebab-case to camelCase)
+```
+
+Always use camelCase when accessing modules: `modules.tilemapNoise` ✅
 
 ## Best Practices
 
@@ -391,12 +498,18 @@ hooks.register('custom:event', async (data) => {});
 
 ```javascript
 import { 
-  modules,        // Proxy object for accessing modules
-  hooks,          // Hook system for events
-  registry,       // Module registry (loadModule, getModule, etc.)
-  registerModule, // Register modules programmatically
-  unregisterModule // Unregister modules
+  modules,                // Proxy object for accessing modules
+  hooks,                  // Hook system for events
+  registry,               // Module registry (loadModule, getModule, etc.)
+  registerModule,         // Register modules programmatically
+  unregisterModule,       // Unregister modules
+  loadModulesFromDirectory, // Load modules from a directory (external projects)
+  initModuleSystem,       // Initialize module system with a base path
+  getKubicKodeModulesPath // Get path to kubic-kode's native modules
 } from './game-module/module-system/index.js';
+
+// Or from external projects:
+// import { modules, hooks, loadModulesFromDirectory } from 'kubic-kode';
 ```
 
 ### Module Interface
@@ -426,6 +539,20 @@ registry.reloadModule(fileName: string): Promise<void>;
 registry.getModule(modName: string): Module | undefined;
 registry.registerModule(name: string, instance: Module, options?: object): Promise<Module>;
 registry.unregisterModule(name: string): Promise<boolean>;
+registry.loadModulesFromDirectory(directoryPath: string, options?: { watch?: boolean }): Promise<void>;
+```
+
+### External Project Helpers
+
+```typescript
+// Initialize module system with native kubic modules
+initModuleSystem(basePath: string): Promise<void>;
+
+// Get path to kubic-kode's native modules directory
+getKubicKodeModulesPath(): string;
+
+// Load user-defined modules from a directory
+loadModulesFromDirectory(directoryPath: string, options?: { watch?: boolean }): Promise<void>;
 ```
 
 ## Examples
@@ -470,11 +597,47 @@ export default {
 };
 ```
 
-### Client Extension Example
+### External Project Example
+
+```javascript
+// my-project/server.js
+import express from 'express';
+import { 
+  initModuleSystem, 
+  getKubicKodeModulesPath, 
+  loadModulesFromDirectory,
+  modules,
+  kubicLog 
+} from 'kubic-kode';
+import path from 'path';
+
+const app = express();
+
+// Initialize native kubic modules
+const modulesPath = getKubicKodeModulesPath();
+await initModuleSystem(modulesPath);
+kubicLog.info("Native module system initialized");
+
+// Load user-defined modules
+const userModulesPath = path.resolve(process.cwd(), 'module');
+await loadModulesFromDirectory(userModulesPath);
+
+// Use your custom module in routes
+app.get('/api/tilemap', (req, res) => {
+  const tilemap = modules.tilemapNoise.generateTilemap(10, 10);
+  res.json({ tilemap });
+});
+
+app.listen(3000);
+```
+
+### Manual Registration Example
 
 ```javascript
 // client-extension.js
 import { registerModule, modules } from './game-module/module-system/index.js';
+// Or from external projects:
+// import { registerModule, modules } from 'kubic-kode';
 
 const clientModule = {
   async init() {
@@ -500,10 +663,23 @@ await registerModule('client', clientModule);
 
 If you get `Module 'X' not found`:
 
-1. Check the file exists in `game-module/modules/`
-2. Verify the file exports a default object
+1. Check the file exists in the modules directory
+2. Verify the file exports a default object (`export default { ... }`)
 3. Check module name matches (kebab-case file → camelCase module)
-4. Ensure module system has been initialized
+   - File: `tilemap-noise-module.js` → Access: `modules.tilemapNoise`
+   - If you see a helpful error suggesting camelCase, use that name
+4. Ensure module system has been initialized (`initModuleSystem()`)
+5. For external projects, ensure `loadModulesFromDirectory()` was called
+6. Restart your server to clear module cache
+
+### Module Method Not Found
+
+If you get `modules.X.methodName is not a function`:
+
+1. Verify the method is defined on the exported default object
+2. Check for typos in the method name
+3. Ensure the method is not defined inside `init()` - it should be on the module object
+4. Check that the module was loaded successfully (check logs)
 
 ### Circular Dependencies
 

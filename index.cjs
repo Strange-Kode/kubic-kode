@@ -33,7 +33,7 @@ const gameRoutes = require("./game-server/route/game-routes");
 const sessionRoutes = require("./game-server/route/session-routes");
 
 // Game Module
-const { initModuleSystem, hooks, registry, modules, registerModule, unregisterModule } = require("./game-module/module-system/index");
+const { initModuleSystem, hooks, registry, modules, registerModule, unregisterModule, loadModulesFromDirectory } = require("./game-module/module-system/index");
 const moduleHooks = hooks;
 const moduleRegistry = registry;
 const gameModules = modules;
@@ -69,9 +69,13 @@ module.exports = {
   gameRoutes,
   sessionRoutes,
   initModuleSystem,
+  hooks,
+  registry,
+  modules,
   moduleHooks,
   moduleRegistry,
   gameModules,
   registerModule,
-  unregisterModule
+  unregisterModule,
+  loadModulesFromDirectory
 };

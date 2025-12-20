@@ -17,6 +17,28 @@ export const ModuleState = {
   ERROR: "error"
 };
 
+/**
+ * Convert kebab-case to camelCase
+ * @param {string} str - String in kebab-case
+ * @returns {string} String in camelCase
+ */
+function kebabToCamel(str) {
+  return str.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+}
+
+/**
+ * Convert a module file name to its camelCase module name
+ * Strips "-module" suffix and converts kebab-case to camelCase
+ * @param {string} fileName - File name (without .js extension)
+ * @returns {string} Module name in camelCase
+ */
+function fileNameToModuleName(fileName) {
+  // Strip "-module" suffix if present
+  let modName = fileName.endsWith("-module") ? fileName.slice(0, -7) : fileName;
+  // Convert kebab-case to camelCase
+  return kebabToCamel(modName);
+}
+
 export async function initRegistry(basePath, { watch = true } = {}) {
   moduleBasePath = basePath;
   const files = fs.readdirSync(basePath);
@@ -49,9 +71,9 @@ export async function initRegistry(basePath, { watch = true } = {}) {
 export async function loadModule(fileName, { lockOnReload = false } = {}) {
   const filePath = path.join(moduleBasePath, `${fileName}.js`);
   
-  // Strip "-module" suffix from fileName to get the module name
-  // e.g., "auth-module" => "auth", "game-module" => "game"
-  const modName = fileName.endsWith("-module") ? fileName.slice(0, -7) : fileName;
+  // Convert file name to camelCase module name
+  // e.g., "auth-module" => "auth", "tilemap-noise-module" => "tilemapNoise"
+  const modName = fileNameToModuleName(fileName);
 
   // Set state to loading
   moduleStates[modName] = ModuleState.LOADING;
@@ -101,8 +123,8 @@ export async function loadModule(fileName, { lockOnReload = false } = {}) {
 }
 
 export async function reloadModule(fileName) {
-  // Strip "-module" suffix to get the actual module name for lookup
-  const modName = fileName.endsWith("-module") ? fileName.slice(0, -7) : fileName;
+  // Convert file name to camelCase module name for lookup
+  const modName = fileNameToModuleName(fileName);
   
   if (!modules[modName]) {
     kubicLog.warn(`[module-system] Cannot reload module "${modName}": module not found`);
@@ -256,6 +278,114 @@ export async function unregisterModule(moduleName) {
   return true;
 }
 
+/**
+ * Load modules from an additional directory (useful for user-defined modules)
+ * This can be called after initModuleSystem to load modules from a different directory
+ * @param {string} directoryPath - Path to directory containing module files
+ * @param {Object} options - Options for loading
+ * @param {boolean} options.watch - Enable file watching for hot reload (default: false)
+ * @returns {Promise<void>}
+ */
+export async function loadModulesFromDirectory(directoryPath, { watch = false } = {}) {
+  if (!fs.existsSync(directoryPath)) {
+    kubicLog.info(`[module-system] Directory "${directoryPath}" does not exist, skipping`);
+    return;
+  }
+
+  const files = fs.readdirSync(directoryPath);
+  
+  for (const file of files) {
+    if (file.endsWith('.js')) {
+      const fileName = path.basename(file, '.js');
+      const filePath = path.join(directoryPath, file);
+      
+      try {
+        await runHooks('before:load', fileName);
+        
+        // Import the module
+        const mod = await import(filePath + `?t=${Date.now()}`);
+        const instance = mod.default || mod;
+        
+        // Convert file name to camelCase module name
+        const modName = fileNameToModuleName(fileName);
+        
+        // Check if module already exists
+        if (modules[modName]) {
+          kubicLog.warn(`[module-system] Module "${modName}" already exists, skipping "${fileName}"`);
+          continue;
+        }
+        
+        // Validate if present
+        if (typeof instance.validate === 'function') {
+          await instance.validate();
+        }
+        
+        // Initialize if present
+        if (typeof instance.init === 'function') {
+          await instance.init();
+        }
+        
+        // Register the module
+        modules[modName] = instance;
+        moduleStates[modName] = ModuleState.LOADED;
+        
+        await runHooks('after:load', modName);
+        kubicLog.info(`[module-system] Module "${modName}" loaded from "${directoryPath}"`);
+      } catch (error) {
+        const modName = fileNameToModuleName(fileName);
+        
+        moduleStates[modName] = ModuleState.ERROR;
+        moduleErrors[modName] = {
+          message: error.message,
+          stack: error.stack,
+          timestamp: new Date().toISOString()
+        };
+        
+        kubicLog.error(`[module-system] Failed to load module "${fileName}" from "${directoryPath}":`, error.message);
+        // Continue loading other modules even if one fails
+      }
+    }
+  }
+  
+  // Set up file watching if requested
+  if (watch) {
+    if (watchers[directoryPath]) {
+      await watchers[directoryPath].close();
+    }
+    
+    watchers[directoryPath] = chokidar.watch(directoryPath).on('change', async filePath => {
+      const fileName = path.basename(filePath, '.js');
+      try {
+        // Reload the module
+        const mod = await import(filePath + `?t=${Date.now()}`);
+        const instance = mod.default || mod;
+        const modName = fileNameToModuleName(fileName);
+        
+        // Unregister old module if it exists
+        if (modules[modName]) {
+          delete modules[modName];
+          delete moduleStates[modName];
+          delete moduleErrors[modName];
+        }
+        
+        // Re-register
+        if (typeof instance.validate === 'function') {
+          await instance.validate();
+        }
+        if (typeof instance.init === 'function') {
+          await instance.init();
+        }
+        
+        modules[modName] = instance;
+        moduleStates[modName] = ModuleState.LOADED;
+        kubicLog.info(`[module-system] Module "${modName}" reloaded from "${directoryPath}"`);
+      } catch (error) {
+        kubicLog.error(`[module-system] Failed to reload module "${fileName}":`, error.message);
+      }
+    });
+  }
+}
+
 export default { 
   initRegistry, 
   loadModule, 
@@ -263,6 +393,7 @@ export default {
   getModule, 
   registerModule, 
   unregisterModule,
+  loadModulesFromDirectory,
   getModuleState,
   getModuleError,
   isModuleInError,

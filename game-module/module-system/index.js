@@ -41,6 +41,7 @@ export { hooks, registry, modules };
 export { 
   registerModule, 
   unregisterModule,
+  loadModulesFromDirectory,
   getModuleState,
   getModuleError,
   isModuleInError,
