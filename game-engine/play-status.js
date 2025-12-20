@@ -30,6 +30,7 @@ export class PlayStatus {
     this._properties.set("winCondition", options.winCondition || null); // description of how player won
     this._properties.set("gameEnded", options.gameEnded !== undefined ? options.gameEnded : null);
     this._properties.set("timeLeft", options.timeLeft || null); // remaining time for turn/game
+    this._properties.set("customData", options.customData || null); // arbitrary custom data object for game-specific metadata
   }
 
   // Validate that playerId is a valid positive integer
@@ -50,17 +51,6 @@ export class PlayStatus {
         playerId,
         { context: { method: "PlayStatus._validatePlayerId", expectedType: "positive integer", actualType: typeof playerId } }
       );
-    }
-  }
-
-  // Validate that playerId is a valid positive integer
-  static _validatePlayerId(playerId) {
-    if (playerId === null || playerId === undefined) {
-      throw new Error('PlayStatus factory methods require a valid positive integer playerId (null/undefined not allowed)');
-    }
-    
-    if (!Number.isInteger(playerId) || playerId <= 0) {
-      throw new Error(`PlayStatus factory methods require a valid positive integer playerId, got: ${playerId} (type: ${typeof playerId})`);
     }
   }
 
