@@ -38,6 +38,9 @@ const moduleHooks = hooks;
 const moduleRegistry = registry;
 const gameModules = modules;
 
+// Note: kubicLog and debugConfig are ES modules and cannot be exported via CommonJS require.
+// CommonJS users should use dynamic import: const { kubicLog } = await import("kubic-kode");
+
 module.exports = {
   gameUtility,
   inactivityManager,

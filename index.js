@@ -34,5 +34,8 @@ export { default as gameRoutes } from "./game-server/route/game-routes.js";
 export { default as sessionRoutes } from "./game-server/route/session-routes.js";
 
 // Game Module
-export { initModuleSystem, registerModule, unregisterModule } from "./game-module/module-system/index.js";
+export { initModuleSystem, registerModule, unregisterModule, getKubicKodeModulesPath } from "./game-module/module-system/index.js";
 export { hooks as moduleHooks, registry as moduleRegistry, modules as gameModules } from "./game-module/module-system/index.js";
+
+// Logging
+export { kubicLog, debugConfig } from "./kubic-log.js";
