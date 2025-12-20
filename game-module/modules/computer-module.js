@@ -30,7 +30,19 @@ export default {
       const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
       
       // Extract computer players from current players
-      const computerPlayers = playersArray.filter(player => player?.getPlayerType() === "computer");
+      const computerPlayers = playersArray.filter(player => {
+        if (!player) return false;
+        // Try getPlayerType() first if it exists
+        if (typeof player.getPlayerType === "function") {
+          return player.getPlayerType() === "computer";
+        }
+        // Fall back to isComputer() if it exists
+        if (typeof player.isComputer === "function") {
+          return player.isComputer() === true;
+        }
+        // If neither method exists, assume not a computer
+        return false;
+      });
       
       // If no computer players, break the loop
       if (computerPlayers.length === 0) {
@@ -38,7 +50,12 @@ export default {
       }
       
       kubicLog.debug(`[computer] Processing ${computerPlayers.length} computer player(s):`, 
-        computerPlayers.map(p => `${p.getPlayerId()} (${p.getPlayerType()})`));
+        computerPlayers.map(p => {
+          const playerType = typeof p.getPlayerType === "function" 
+            ? p.getPlayerType() 
+            : (typeof p.isComputer === "function" && p.isComputer() ? "computer" : "unknown");
+          return `${p.getPlayerId()} (${playerType})`;
+        }));
       
       // Process each computer player in the current turn
       for (const computerPlayer of computerPlayers) {
@@ -104,7 +121,19 @@ export default {
   hasComputerPlayers(gameInstance) {
     const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
     const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
-    const computerPlayers = playersArray.filter(player => player?.getPlayerType() === "computer");
+    const computerPlayers = playersArray.filter(player => {
+      if (!player) return false;
+      // Try getPlayerType() first if it exists
+      if (typeof player.getPlayerType === "function") {
+        return player.getPlayerType() === "computer";
+      }
+      // Fall back to isComputer() if it exists
+      if (typeof player.isComputer === "function") {
+        return player.isComputer() === true;
+      }
+      // If neither method exists, assume not a computer
+      return false;
+    });
     return computerPlayers.length > 0;
   },
 

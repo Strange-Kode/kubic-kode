@@ -43,6 +43,7 @@ export default {
       }
               
       const result = {
+        success: true,
         game_started: true,
         status: "Game already previously started",
       };
@@ -143,6 +144,7 @@ export default {
       result.current_player_ids = formatResult.playerIds;
       result.first_player_ids = firstPlayerIds ? [firstPlayerIds] : [];
     }
+    result.success = true;
     result.game_started = true;
     result.status = "New game created";
 
@@ -164,7 +166,19 @@ export default {
 
     // After game start, check if any current players are computers and handle computer turns
     const playersArray = Array.isArray(currentPlayers) ? currentPlayers : [currentPlayers];
-    const computerPlayers = playersArray.filter(player => player?.getPlayerType() === "computer");
+    const computerPlayers = playersArray.filter(player => {
+      if (!player) return false;
+      // Try getPlayerType() first if it exists
+      if (typeof player.getPlayerType === "function") {
+        return player.getPlayerType() === "computer";
+      }
+      // Fall back to isComputer() if it exists
+      if (typeof player.isComputer === "function") {
+        return player.isComputer() === true;
+      }
+      // If neither method exists, assume not a computer
+      return false;
+    });
     
     if (computerPlayers.length > 0) {
       // Process computer turns asynchronously to avoid blocking the game start response

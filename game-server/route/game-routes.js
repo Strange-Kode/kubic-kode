@@ -31,20 +31,34 @@ gameRouter.post("/game/:sessionId/start", validateGameTokenWithParticipant(sessi
   const { participantId, ...options } = req.body || {};
   const gameSession = req.gameSession;
   
-  // Game options will be validated and applied according to the game's configuration
-  const result = kubicModules.game.handleGameStart(
-    gameSession, 
-    options, 
-    participantId,
-    kubicModules.player.formatPlayerIds,
-    (session, status) => kubicModules.computer.processComputerTurns(
-      session, 
-      status, 
-      kubicModules.tilemap.processTileMapData
-    )
-  );
-  
-  res.json(result);
+  try {
+    // Game options will be validated and applied according to the game's configuration
+    const result = kubicModules.game.handleGameStart(
+      gameSession, 
+      options, 
+      participantId,
+      kubicModules.player.formatPlayerIds,
+      (session, status) => kubicModules.computer.processComputerTurns(
+        session, 
+        status, 
+        kubicModules.tilemap.processTileMapData
+      )
+    );
+    
+    // Check if the result indicates an error
+    if (result && result.error) {
+      return res.status(400).json(result);
+    }
+    
+    res.json(result);
+  } catch (err) {
+    kubicLog.error("game-routes.js::Start game error:", err);
+    res.status(500).json({ 
+      error: "Failed to start game",
+      message: err.message,
+      details: err.stack 
+    });
+  }
 });
 
 gameRouter.post("/game/:sessionId/stop", validateGameTokenWithParticipant(sessionManager), validatePlayableParticipant(sessionManager), (req, res) => {
