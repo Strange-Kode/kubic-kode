@@ -82,10 +82,8 @@ class TicTacToeGame {
   }
 
   removePlayer(playerId) {
-    // Remove the player from the game engine
-    this._engine.deregisterPlayerEntity(playerId);
-    
     // Return the mark type to the pool so it can be reused
+    // Note: deregisterPlayerEntity() is called automatically by KubicKodeGame wrapper
     const player = this._engine.getPlayerById(playerId);
     if (player) {
       this._consumeMarkTypes.unshift(player.getMarkType());

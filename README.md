@@ -121,6 +121,7 @@ The **Game Contract** defines what methods your game implementation must provide
 
 #### Optional Methods (CAN implement)
 
+- `removePlayer(playerId)` - Remove a player from game
 - `getTileMap()` - Return the tile map (default: engine's tile map)
 - `getCurrentTurnPlayers()` - Return current turn players (default: engine's players)
 - `getWinner()` - Return the winner (default: null)

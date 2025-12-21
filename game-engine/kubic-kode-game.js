@@ -244,6 +244,19 @@ class KubicKodeGame extends GameInterface {
     return player;
   }
 
+  removePlayer(playerId) {
+    // If the game instance has its own removePlayer implementation, call it first
+    // This allows games to perform game-specific cleanup (e.g., returning resources to pools)
+    // Note: Games should NOT call deregisterPlayerEntity() themselves - the wrapper handles that
+    if (typeof this.__gameInstance.removePlayer === "function") {
+      this.__gameInstance.removePlayer(playerId);
+    }
+
+    // Always deregister the player entity from the game engine (default behavior)
+    const gameEngine = this.__gameInstance.getGameEngine();
+    gameEngine.deregisterPlayerEntity(playerId);
+  }
+
   startGame() {
     let requiredPlayers = this.requiredPlayers();
     if (this.__gameInstance.getGameEngine().getPlayerEntities().length < requiredPlayers) {
