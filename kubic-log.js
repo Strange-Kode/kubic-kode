@@ -1,8 +1,11 @@
 // Debug configuration for the server-side application
 class KubicLogConfig {
   constructor() {
-    this._debugMode = process.env.DEBUG_MODE === "true" || process.env.DEBUG_MODE === "1";
-    this._debugLevel = process.env.DEBUG_LEVEL || "info"; // "error", "warn", "info", "debug", "trace"
+    // Check KUBIC_DEBUG_MODE first (preferred), fallback to DEBUG_MODE for backwards compatibility
+    const debugModeValue = process.env.KUBIC_DEBUG_MODE || process.env.DEBUG_MODE;
+    this._debugMode = debugModeValue === "true" || debugModeValue === "1";
+    // Check KUBIC_LOG_LEVEL or KUBIC_DEBUG_LEVEL first, fallback to DEBUG_LEVEL for backwards compatibility
+    this._debugLevel = process.env.KUBIC_LOG_LEVEL || process.env.KUBIC_DEBUG_LEVEL || process.env.DEBUG_LEVEL || "info"; // "error", "warn", "info", "debug", "trace"
   }
 
   isDebugEnabled() {
