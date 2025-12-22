@@ -4,17 +4,78 @@ import { gameRegistry } from "kubic-kode";
 {{NEWLINE}}
 import { GameEventService } from "kubic-kode";
 import { checkPlayableAccess } from "kubic-kode";
+import { 
+{{INDENT}}validateGameTokenWithParticipant, 
+{{INDENT}}validateGameTokenWithParticipantReadOnly 
+} from "kubic-kode";
 {{NEWLINE}}
 const {{ GAME_CAMEL_NAME }}Router = express.Router();
 {{NEWLINE}}
-// Create middleware instance with session manager
+// Create middleware instances with session manager
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+const validateGameTokenMiddleware = validateGameTokenWithParticipant(sessionManager);
+const validateGameTokenReadOnlyMiddleware = validateGameTokenWithParticipantReadOnly(sessionManager);
 {{NEWLINE}}
 // NOTE: The play-turn logic has been moved to the generic /game/play-turn/:sessionId endpoint
 // in game-routes.js to make it reusable across all games. This file can be used for 
 // your game specific routes in the future if needed.
 {{NEWLINE}}
-// Test route to verify the router is working
+// IMPORTANT: All routes that interact with game sessions MUST use the validation middleware
+// to ensure game tokens are valid and participants are authorized.
+//
+// Requirements for protected routes:
+// 1. Routes MUST use POST method (middleware enforces this)
+// 2. Request body MUST include: { gameToken: "...", participantId: 1, ... }
+// 3. After validation, req.gameSession is available in your route handler
+// 4. After validation, req.gameTokenData contains the decoded token information
+//
+// Middleware types:
+// - validateGameTokenWithParticipant: For routes that modify game state (requires playable participant)
+// - validateGameTokenWithParticipantReadOnly: For read-only routes (allows spectators)
+{{NEWLINE}}
+// Example: Protected route requiring valid game token and participant
+// Use validateGameTokenWithParticipant for routes that modify game state
+// Client must send: POST /api/{{GAME_SHORT_NAME}}/:sessionId/custom-action
+// Body: { gameToken: "...", participantId: 1, ...otherData }
+{{ GAME_CAMEL_NAME }}Router.post('/:sessionId/custom-action', validateGameTokenMiddleware, (req, res) => {
+{{INDENT}}// Extract data from request body (gameToken already validated by middleware)
+{{INDENT}}const { participantId, gameToken, ...otherData } = req.body;
+{{INDENT}}{{INDENT}}
+{{INDENT}}// Access validated game session (available after middleware validation)
+{{INDENT}}const gameSession = req.gameSession;
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}{{INDENT}}
+{{INDENT}}// Your game-specific logic here
+{{INDENT}}// The middleware has already verified:
+{{INDENT}}// - The gameToken is valid and matches the sessionId
+{{INDENT}}// - The participantId matches the token (if provided)
+{{INDENT}}// - The participant exists and is playable (for validateGameTokenWithParticipant)
+{{INDENT}}{{INDENT}}
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}message: '{{ GAME_NAME }} custom action executed!',
+{{INDENT}}{{INDENT}}sessionId: req.params.sessionId,
+{{INDENT}}{{INDENT}}participantId: participantId
+{{INDENT}}});
+});
+{{NEWLINE}}
+// Example: Read-only route (allows spectators)
+// Use validateGameTokenWithParticipantReadOnly for routes that only read game state
+// Client must send: POST /api/{{GAME_SHORT_NAME}}/:sessionId/get-custom-data
+// Body: { gameToken: "...", participantId: 1 } (participantId optional for spectators)
+{{ GAME_CAMEL_NAME }}Router.post('/:sessionId/get-custom-data', validateGameTokenReadOnlyMiddleware, (req, res) => {
+{{INDENT}}// Access validated game session (available after middleware validation)
+{{INDENT}}const gameSession = req.gameSession;
+{{INDENT}}const gameInstance = gameSession.getGameInstance();
+{{INDENT}}{{INDENT}}
+{{INDENT}}// Your read-only logic here
+{{INDENT}}// Spectators can access this route (they have tokens but aren't playable)
+{{INDENT}}res.json({
+{{INDENT}}{{INDENT}}message: '{{ GAME_NAME }} custom data',
+{{INDENT}}{{INDENT}}sessionId: req.params.sessionId
+{{INDENT}}});
+});
+{{NEWLINE}}
+// Test route to verify the router is working (no protection needed for simple test routes)
 {{ GAME_CAMEL_NAME }}Router.get('/test', (req, res) => {
 {{INDENT}}res.json({
 {{INDENT}}{{INDENT}}message: '{{ GAME_NAME }} router is working!',

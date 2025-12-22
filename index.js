@@ -3,6 +3,13 @@
 // Game Utility
 export * as gameUtility from "./game-utility/game-utility.js";
 export * as inactivityManager from "./game-utility/inactivity-manager.js";
+// Export commonly used validation functions directly for convenience
+export { 
+  checkPlayableAccess, 
+  validateSession, 
+  validateParticipant, 
+  validatePlayableParticipant 
+} from "./game-utility/game-utility.js";
 
 // Game Engine
 export * as gameEngine from "./game-engine/game-engine.js";
@@ -33,6 +40,12 @@ export * as gameHistoryManager from "./game-server/game-history-manager.js";
 export { default as gameRoutes } from "./game-server/route/game-routes.js";
 export { default as sessionRoutes } from "./game-server/route/session-routes.js";
 export { createGameServer } from "./game-server/create-game-server.js";
+export { 
+  validateGameToken, 
+  validateGameTokenWithParticipant, 
+  validateGameTokenWithParticipantReadOnly,
+  requirePostForGameToken 
+} from "./game-server/game-token-middleware.js";
 
 // Game Module
 export { initModuleSystem, registerModule, unregisterModule, loadModulesFromDirectory, getKubicKodeModulesPath } from "./game-module/module-system/index.js";
