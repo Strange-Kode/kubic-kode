@@ -37,7 +37,10 @@ export function createHighLevelAPI(helper) {
       try {
         const endpoint = `/session/init/${gameToInit}`;
         const result = options.forceNew
-          ? await helper._makeRequest("POST", endpoint, { forceNew: true })
+          ? await helper._makeRequest("POST", endpoint, {
+              forceNew: true,
+              maxPlayers: options.maxPlayers,
+            })
           : await helper._makeRequest("GET", endpoint);
 
         if (result.success) {

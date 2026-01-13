@@ -66,7 +66,14 @@ export default {
           
           // Calculate computer move
           const computerMove = gameInstance.calculateComputerMove(computerPlayer.getPlayerId(), computerPlayer);
-          
+
+          // Handle trapped player (no valid moves available)
+          if (computerMove === null) {
+            kubicLog.info(`[computer] Player ${computerPlayer.getPlayerId()} is trapped - no valid moves, skipping turn`);
+            // Skip this player's turn and continue with next player
+            continue;
+          }
+
           // Play computer turn
           let compPlayStatus = gameInstance.playTurn(computerPlayer.getPlayerId(), computerMove);
 
@@ -156,7 +163,7 @@ export default {
       }
       
       kubicLog.debug(`[computer] Recording computer win for player ${compPlayStatus.access("playerId")} -> participant ${participantId}`);
-      
+
       gameSession.getGameHistory().addPlayerWonEvent(
         compPlayStatus.access("playerId"),
         participantId,

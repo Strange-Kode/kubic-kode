@@ -101,7 +101,7 @@ export default {
       }
       
       kubicLog.debug(`[turn] Recording win for player ${playStatus.access("playerId")} -> participant ${participantId}`);
-      
+
       gameSession.getGameHistory().addPlayerWonEvent(
         playStatus.access("playerId"),
         participantId,
