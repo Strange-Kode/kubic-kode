@@ -8,6 +8,7 @@ export default {
 
   /**
    * Set lobby configuration (host only)
+   * Also applies config to game options immediately so preview can use them
    * @param {Object} gameSession - The game session
    * @param {string} participantId - ID of the participant (must be host)
    * @param {Object} config - Configuration object
@@ -19,7 +20,7 @@ export default {
       throw new Error("Only the host can configure lobby settings.");
     }
 
-    // Apply configuration changes
+    // Apply configuration changes to lobby config
     const configChanges = [];
     for (const [key, value] of Object.entries(config)) {
       const oldValue = gameSession.getLobbyManager().getLobbyConfig(key);
@@ -27,11 +28,40 @@ export default {
       configChanges.push({ key, oldValue, newValue: value });
     }
 
+    // Update session maxPlayers if playerCount is being set
+    if (config.playerCount !== undefined && typeof gameSession.setMaxPlayers === "function") {
+      try {
+        gameSession.setMaxPlayers(config.playerCount);
+      } catch (err) {
+        kubicLog.warn("[lobby] Failed to update maxPlayers:", err.message);
+      }
+    }
+
+    // Also apply config to game options immediately (for preview to use)
+    // This ensures game options are in sync with lobby config before game starts
+    const gameInstance = gameSession.getGameInstance();
+    const gameOptions = gameInstance?.getGameOptions?.();
+    const appliedToGameOptions = [];
+
+    if (gameOptions) {
+      const validation = gameOptions.validateAndApply(config);
+      if (validation.valid) {
+        // Call applyGameOptions on the game instance if it exists
+        if (typeof gameInstance.applyGameOptions === "function") {
+          gameInstance.applyGameOptions(validation.applied);
+        }
+        for (const [key, value] of Object.entries(validation.applied)) {
+          appliedToGameOptions.push({ key, value });
+        }
+      }
+    }
+
     const result = {
       success: true,
       applied_config: config,
       changes: configChanges,
-      full_config: gameSession.getLobbyManager().getAllLobbyConfig()
+      full_config: gameSession.getLobbyManager().getAllLobbyConfig(),
+      applied_to_game_options: appliedToGameOptions
     };
 
     // Broadcast configuration changes
