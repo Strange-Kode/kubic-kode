@@ -343,6 +343,44 @@ export class GameSession {
     return this._maxPlayers;
   }
 
+  /**
+   * Set the maximum number of players for this session
+   * Can only be changed before the game starts
+   * @param {number} maxPlayers - New maximum player count (must be >= 2 and >= current player count)
+   */
+  setMaxPlayers(maxPlayers) {
+    if (this._started) {
+      throw ErrorFactory.validation(
+        "Cannot change maxPlayers after game has started",
+        "maxPlayers",
+        maxPlayers,
+        { context: { method: "GameSession.setMaxPlayers", suggestion: "maxPlayers can only be changed before the game starts" } }
+      );
+    }
+
+    if (typeof maxPlayers !== "number" || maxPlayers < 2 || !Number.isInteger(maxPlayers)) {
+      throw ErrorFactory.validation(
+        "maxPlayers must be an integer >= 2",
+        "maxPlayers",
+        maxPlayers,
+        { context: { method: "GameSession.setMaxPlayers" } }
+      );
+    }
+
+    const currentPlayerCount = this._participantManager.getPlayableParticipants().length;
+    if (maxPlayers < currentPlayerCount) {
+      throw ErrorFactory.validation(
+        `Cannot reduce maxPlayers below current player count (${currentPlayerCount})`,
+        "maxPlayers",
+        maxPlayers,
+        { context: { method: "GameSession.setMaxPlayers", currentPlayerCount } }
+      );
+    }
+
+    this._maxPlayers = maxPlayers;
+    kubicLog.info(`[GameSession] maxPlayers updated to ${maxPlayers} for session ${this._sessionId}`);
+  }
+
   isStarted() {
     return this._started;
   }

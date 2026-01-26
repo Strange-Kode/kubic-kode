@@ -39,6 +39,9 @@ class KubicKodeGame extends GameInterface {
     gameInstance.getOptionValue = this.getOptionValue.bind(this);
     gameInstance.getGameOptions = this.getGameOptions.bind(this);
 
+    // Cache for bound methods to avoid creating new functions on every access
+    const boundMethodCache = new Map();
+
     // Create a proxy that forwards unknown methods
     const proxy = new Proxy(this, {
       get(target, prop) {
@@ -46,7 +49,7 @@ class KubicKodeGame extends GameInterface {
         if (prop === "getOptionValue") {
           return target.getOptionValue.bind(target);
         }
-        
+
         // If method exists on wrapper, use it
         if (prop in target) {
           return target[prop];
@@ -54,7 +57,15 @@ class KubicKodeGame extends GameInterface {
 
         // If method exists on game instance, forward it
         if (prop in target.__gameInstance) {
-          return target.__gameInstance[prop];
+          const value = target.__gameInstance[prop];
+          // Bind methods to the game instance so 'this' refers to the actual instance
+          if (typeof value === 'function') {
+            if (!boundMethodCache.has(prop)) {
+              boundMethodCache.set(prop, value.bind(target.__gameInstance));
+            }
+            return boundMethodCache.get(prop);
+          }
+          return value;
         }
 
         // Otherwise, throw error

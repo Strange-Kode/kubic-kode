@@ -24,7 +24,11 @@ export function createSessionRoutes(helper) {
         );
         // Store game token in localStorage when joining
         if (joinResult.success && joinResult.data.game_token) {
-          helper.gameToken = joinResult.data.game_token;
+          // Only update helper.gameToken for human participants, not AI/computer
+          // AI tokens should be stored in localStorage but not overwrite the current user's token
+          if (data.participantType !== "computer") {
+            helper.gameToken = joinResult.data.game_token;
+          }
           helper._storeGameToken(
             helper.sessionId,
             joinResult.data.participant_id,
