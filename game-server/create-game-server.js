@@ -175,7 +175,7 @@ export async function createGameServer(options = {}) {
   app.use(setupCORS(corsOrigins));
 
   // Middleware to parse JSON bodies
-  app.use(express.json());
+  app.use(express.json({ limit: process.env.KUBIC_JSON_LIMIT || "10mb" }));
 
   // Serve static files
   const staticPathArray = Array.isArray(staticPaths) ? staticPaths : [staticPaths];
