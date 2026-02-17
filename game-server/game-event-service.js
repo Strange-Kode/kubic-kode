@@ -66,10 +66,10 @@ const KUBIC_BUILT_IN_EVENTS = new Set([
 // Initialize built-in events as registered
 KUBIC_BUILT_IN_EVENTS.forEach(event => registeredBroadcasts.add(event));
 
-// Heartbeat configuration
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-const HEARTBEAT_TIMEOUT = 60000; // 60 seconds - if no heartbeat for 60s, consider disconnected
-const RECONNECTION_WINDOW = 120000; // 2 minutes - time to allow reconnection
+// Heartbeat configuration (configurable via env vars)
+const HEARTBEAT_INTERVAL = parseInt(process.env.KUBIC_HEARTBEAT_INTERVAL) || 30000;
+const HEARTBEAT_TIMEOUT = parseInt(process.env.KUBIC_HEARTBEAT_TIMEOUT) || 60000;
+const RECONNECTION_WINDOW = parseInt(process.env.KUBIC_RECONNECTION_WINDOW) || 120000;
 
 /**
  * Register a new broadcast event type
@@ -336,11 +336,11 @@ function checkSessionViability(session) {
   const conns = connectionsBySession.get(sessionId) || [];
   const playableParticipants = session.getPlayableParticipants();
   const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
-  
+
   // Get required players from the game instance
   const gameInstance = session.getGameInstance();
   const requiredPlayers = gameInstance ? gameInstance.requiredPlayers() : 2;
-  
+
   // Check if there are no active connections (orphaned session)
   if (conns.length === 0) {
     kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
@@ -538,6 +538,7 @@ export const GameEventService = {
   isParticipantConnected,
   getConnectedParticipants,
   cleanupSession,
+  checkSessionViability,
   registerBroadcast,
   deregisterBroadcast,
   isBroadcastRegistered,

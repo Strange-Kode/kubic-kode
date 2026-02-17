@@ -54,13 +54,22 @@ export default {
   listSessions(sessionManager, onlyJoinable = false) {
     let sessions = sessionManager.getSessions();
 
-    // If onlyJoinable flag is set, filter to only non-private sessions
-    // (spectators can join full games, so we don't filter by needsMorePlayers)
+    // If onlyJoinable flag is set, filter out non-joinable sessions
     if (onlyJoinable) {
+      const allowAIHost = process.env.KUBIC_ALLOW_AI_HOST === "true";
+
       sessions = sessions.filter(session => {
         const status = session.getLobbyStatus();
         const isPrivate = status.lobbyConfig?.isPrivate === true;
-        return !isPrivate;
+        if (isPrivate) return false;
+
+        // Filter out sessions with no human participants (AI-only sessions)
+        if (!allowAIHost) {
+          const hasHumanPlayer = status.participants.some(p => p.type === "user");
+          if (!hasHumanPlayer) return false;
+        }
+
+        return true;
       });
     }
 
@@ -87,16 +96,25 @@ export default {
       session.getGameVariantId() === gameVariantId
     );
 
-    // If onlyJoinable flag is set, filter to only non-private sessions
-    // (spectators can join full games, so we don't filter by needsMorePlayers)
+    // If onlyJoinable flag is set, filter out non-joinable sessions
     if (onlyJoinable) {
+      const allowAIHost = process.env.KUBIC_ALLOW_AI_HOST === "true";
+
       filteredSessions = filteredSessions.filter(session => {
         const status = session.getLobbyStatus();
         const isPrivate = status.lobbyConfig?.isPrivate === true;
-        return !isPrivate;
+        if (isPrivate) return false;
+
+        // Filter out sessions with no human participants (AI-only sessions)
+        if (!allowAIHost) {
+          const hasHumanPlayer = status.participants.some(p => p.type === "user");
+          if (!hasHumanPlayer) return false;
+        }
+
+        return true;
       });
     }
-    
+
     const sessionList = filteredSessions.map(session => session.getLobbyStatus());
     
     return {
