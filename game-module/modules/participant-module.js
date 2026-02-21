@@ -1,4 +1,5 @@
 import { GameEventService } from "../../game-server/game-event-service.js";
+import { sessionManager } from "../../game-server/session-manager.js";
 import { kubicLog } from "../../kubic-log.js";
 import { serializeRecursively } from "../../game-utility/game-utility.js";
 
@@ -95,11 +96,7 @@ export default {
       // For non-started sessions, clean up if no human participants remain
       const hasHuman = remainingPlayable.some(p => p.type === "user");
       if (!hasHuman && remainingPlayable.length > 0) {
-        import("../../game-server/session-manager.js").then(({ sessionManager }) => {
-          sessionManager.removeSession(gameSession.getSessionId());
-        }).catch(error => {
-          kubicLog.error("[participant] Error removing orphaned unstarted session:", error);
-        });
+        sessionManager.removeSession(gameSession.getSessionId());
       }
     }
 

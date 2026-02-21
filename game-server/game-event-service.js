@@ -8,6 +8,17 @@ const heartbeatIntervals = new Map(); // sessionId -> interval
 const connectionTimeouts = new Map(); // sessionId -> Map(participantId -> timeout)
 let wss = null;
 
+/** Set by SessionManager via setSessionManager() to avoid circular import. */
+let _sessionManager = null;
+
+/**
+ * Set the session manager reference. Called by SessionManager after creation to break circular dependency.
+ * @param {{ getSession: (id: string) => *, removeSession: (id: string) => boolean }} sm
+ */
+function setSessionManager(sm) {
+  _sessionManager = sm;
+}
+
 // Broadcast event management
 const registeredBroadcasts = new Set();
 const KUBIC_NAMESPACE = "kubic::";
@@ -266,69 +277,41 @@ function clearParticipantTimeout(sessionId, participantId) {
 
 function handleParticipantDisconnection(sessionId, participantId) {
   kubicLog.warn(`[GameEventService]::handleParticipantDisconnection: Participant ${participantId} in session ${sessionId} is considered disconnected`);
-  
-  // Import session manager here to avoid circular dependency
-  import("./session-manager.js").then(({ sessionManager }) => {
-    const session = sessionManager.getSession(sessionId);
-    
-    if (session) {
-      // Check if participant is still in the session
-      const participant = session.getParticipantById(participantId);
-      if (participant) {
-        // Mark participant as disconnected but don't remove yet
-        participant.disconnected = true;
-        participant.disconnectedAt = new Date().toISOString();
-        
-        // Broadcast disconnection event
-        broadcastToSession(session, {
-          type: "kubic::participantDisconnected",
-          payload: { 
-            participantId: participantId,
-            participantName: participant.name,
-            disconnectedAt: participant.disconnectedAt
-          }
-        });
-        
-        // Check if we should end the session
-        checkSessionViability(session);
-      }
+  if (!_sessionManager) return;
+  const session = _sessionManager.getSession(sessionId);
+  if (!session) return;
+  const participant = session.getParticipantById(participantId);
+  if (!participant) return;
+  participant.disconnected = true;
+  participant.disconnectedAt = new Date().toISOString();
+  broadcastToSession(session, {
+    type: "kubic::participantDisconnected",
+    payload: {
+      participantId,
+      participantName: participant.name,
+      disconnectedAt: participant.disconnectedAt
     }
-  }).catch(error => {
-    kubicLog.error(`[GameEventService]::handleParticipantDisconnection: Error handling disconnection:`, error);
   });
+  checkSessionViability(session);
 }
 
 function handleSessionTermination(sessionId, participantId) {
   kubicLog.warn(`[GameEventService]::handleSessionTermination: Participant ${participantId} in session ${sessionId} failed to reconnect within reconnection window`);
-  
-  // Import session manager here to avoid circular dependency
-  import("./session-manager.js").then(({ sessionManager }) => {
-    const session = sessionManager.getSession(sessionId);
-    
-    if (session) {
-      // Check if participant is still in the session
-      const participant = session.getParticipantById(participantId);
-      if (participant) {
-        // Remove participant from session
-        session.removeParticipant(participantId);
-        
-        // Broadcast participant removal
-        broadcastToSession(session, {
-          type: "kubic::participantRemoved",
-          payload: { 
-            participantId: participantId,
-            participantName: participant.name,
-            reason: "reconnection_timeout"
-          }
-        });
-        
-        // Check if we should end the session
-        checkSessionViability(session);
-      }
+  if (!_sessionManager) return;
+  const session = _sessionManager.getSession(sessionId);
+  if (!session) return;
+  const participant = session.getParticipantById(participantId);
+  if (!participant) return;
+  session.removeParticipant(participantId);
+  broadcastToSession(session, {
+    type: "kubic::participantRemoved",
+    payload: {
+      participantId,
+      participantName: participant.name,
+      reason: "reconnection_timeout"
     }
-  }).catch(error => {
-    kubicLog.error(`[GameEventService]::handleSessionTermination: Error handling session termination:`, error);
   });
+  checkSessionViability(session);
 }
 
 function checkSessionViability(session) {
@@ -344,46 +327,28 @@ function checkSessionViability(session) {
   // Check if there are no active connections (orphaned session)
   if (conns.length === 0) {
     kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
-    
-    // End the session
     session.markEnded();
-    
-    // Clean up session immediately since no one can receive the broadcast
     setTimeout(() => {
-      import("./session-manager.js").then(({ sessionManager }) => {
-        sessionManager.removeSession(sessionId);
-      }).catch(error => {
-        kubicLog.error(`[GameEventService]::checkSessionViability: Error removing orphaned session ${sessionId}:`, error);
-      });
+      if (_sessionManager) _sessionManager.removeSession(sessionId);
     }, 1000);
     return;
   }
-  
+
   // Check if there are insufficient connected players
   if (connectedParticipants.length < requiredPlayers) {
     kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has insufficient connected players (${connectedParticipants.length}/${requiredPlayers}), ending session`);
-    
-    // End the session
     session.markEnded();
-    
-    // Broadcast session ended due to disconnection
     broadcastToSession(session, {
       type: "kubic::sessionEnded",
-      payload: { 
+      payload: {
         reason: "insufficient_players",
         message: "Session ended due to insufficient connected players",
         connectedParticipants: connectedParticipants.length,
         requiredParticipants: requiredPlayers
       }
     });
-    
-    // Clean up session after a delay
     setTimeout(() => {
-      import("./session-manager.js").then(({ sessionManager }) => {
-        sessionManager.removeSession(sessionId);
-      }).catch(error => {
-        kubicLog.error(`[GameEventService]::checkSessionViability: Error removing session:`, error);
-      });
+      if (_sessionManager) _sessionManager.removeSession(sessionId);
     }, 5000);
   }
 }
@@ -475,26 +440,19 @@ function broadcastToSession(gameSession, messageObj) {
     kubicLog.debug(`[GameEventService]::broadcastToSession: No active connections for session ${sessionId}, skipping broadcast of ${messageObj.type} (unsent message: ${JSON.stringify(messageObj)})`);
     
     // Trigger session cleanup only if no participants are connected and no game is active
-    // This prevents orphaned sessions from consuming resources while allowing HTTP-only usage
     setTimeout(() => {
-      import("./session-manager.js").then(({ sessionManager }) => {
-        const session = sessionManager.getSession(sessionId);
-        if (session) {
-          const participants = session.getParticipants();
-          const gameInstance = session.getGameInstance();
-          const isGameActive = gameInstance && gameInstance.isGameActive();
-          
-          // Only cleanup if no participants and no active game
-          if (participants.length === 0 && !isGameActive) {
-            kubicLog.info(`[GameEventService]::broadcastToSession - Cleaning up orphaned session ${sessionId} with no participants and no active game`);
-            sessionManager.removeSession(sessionId);
-          } else {
-            kubicLog.debug(`[GameEventService]::broadcastToSession - Keeping session ${sessionId} (participants: ${participants.length}, game active: ${isGameActive})`);
-          }
-        }
-      }).catch(error => {
-        kubicLog.error(`[GameEventService]::broadcastToSession - Error checking session ${sessionId}:`, error);
-      });
+      if (!_sessionManager) return;
+      const session = _sessionManager.getSession(sessionId);
+      if (!session) return;
+      const participants = session.getParticipants();
+      const gameInstance = session.getGameInstance();
+      const isGameActive = gameInstance && gameInstance.isGameActive();
+      if (participants.length === 0 && !isGameActive) {
+        kubicLog.info(`[GameEventService]::broadcastToSession - Cleaning up orphaned session ${sessionId} with no participants and no active game`);
+        _sessionManager.removeSession(sessionId);
+      } else {
+        kubicLog.debug(`[GameEventService]::broadcastToSession - Keeping session ${sessionId} (participants: ${participants.length}, game active: ${isGameActive})`);
+      }
     }, 30000); // 30 second delay to allow for HTTP-only usage and temporary disconnections
     
     return;
@@ -531,6 +489,7 @@ function cleanupSession(sessionId) {
 }
 
 export const GameEventService = {
+  setSessionManager,
   initWebSocketServer,
   broadcastToSession,
   startHeartbeatForSession,
