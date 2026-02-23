@@ -8,6 +8,7 @@ import { initModuleSystem } from "../game-module/module-system/index.js";
 import sessionRouter from "./route/session-routes.js";
 import gameRouter from "./route/game-routes.js";
 import { GameEventService } from "./game-event-service.js";
+import { sessionManager } from "./session-manager.js";
 
 /**
  * Validates and loads environment variables
@@ -32,7 +33,7 @@ function validateEnvironment() {
     process.exit(1);
   }
 
-  // Load environment variables from .env file FIRST, before any other imports
+  // Load environment variables from project .env file
   dotenv.config();
 
   // Check critical environment variables
@@ -214,6 +215,23 @@ export async function createGameServer(options = {}) {
       console.log(`Debug mode: ${kubicLog.isEnabled() ? "enabled" : "disabled"}`);
       if (kubicLog.isEnabled()) {
         console.log(`Debug level: ${process.env.KUBIC_LOG_LEVEL || process.env.DEBUG_LEVEL || "info"}`);
+      }
+
+      // Periodic session monitor (opt-in via KUBIC_SESSION_MONITOR=true)
+      if (process.env.KUBIC_SESSION_MONITOR === "true") {
+        const monitorInterval = parseInt(process.env.KUBIC_SESSION_MONITOR_INTERVAL) || 60000;
+        console.log(`Session monitor: enabled (every ${monitorInterval / 1000}s)`);
+        setInterval(() => {
+          const sessions = sessionManager.getSessions();
+          const count = sessions.length;
+          if (count > 0) {
+            const summary = sessions.map(s => {
+              const status = s.getLobbyStatus();
+              return `${s.getSessionId().slice(0, 8)}(${status.participantCount.players}p, ${s.isStarted() ? "playing" : "waiting"})`;
+            }).join(", ");
+            kubicLog.info(`[SessionMonitor] ${count} open session(s): ${summary}`);
+          }
+        }, monitorInterval);
       }
     });
   }

@@ -1,4 +1,5 @@
 import { GameEventService } from "../../game-server/game-event-service.js";
+import { sessionManager } from "../../game-server/session-manager.js";
 import { kubicLog } from "../../kubic-log.js";
 import { serializeRecursively } from "../../game-utility/game-utility.js";
 
@@ -49,9 +50,14 @@ export default {
    */
   leaveSession(gameSession, participantId) {
     const participant = gameSession.getParticipantById(participantId);
+    const wasStarted = gameSession.isStarted();
+    const previousHost = gameSession.getParticipantManager().getHost();
+
     gameSession.removeParticipant(participantId);
 
-    // Broadcast the event after removing
+    const remainingPlayable = gameSession.getPlayableParticipants();
+
+    // Broadcast the leave event
     try {
       GameEventService.broadcastToSession(gameSession, {
         type: "kubic::sessionParticipantLeft",
@@ -59,6 +65,39 @@ export default {
       });
     } catch (broadcastError) {
       kubicLog.error("[participant] Broadcast error (non-blocking):", broadcastError);
+    }
+
+    // Detect and broadcast auto host transfer
+    const currentHost = gameSession.getParticipantManager().getHost();
+    if (previousHost && currentHost && previousHost.id !== currentHost.id) {
+      try {
+        GameEventService.broadcastToSession(gameSession, {
+          type: "kubic::hostTransferred",
+          payload: {
+            oldHost: previousHost,
+            newHost: currentHost
+          }
+        });
+
+        const systemMessage = gameSession.getChatManager().addSystemMessage(`${currentHost.name} is now the host`);
+        GameEventService.broadcastToSession(gameSession, {
+          type: "kubic::lobbyChatMessage",
+          payload: { message: systemMessage }
+        });
+      } catch (broadcastError) {
+        kubicLog.error("[participant] Auto host transfer broadcast error (non-blocking):", broadcastError);
+      }
+    }
+
+    // If the game was in progress, check if the session is still viable
+    if (wasStarted) {
+      GameEventService.checkSessionViability(gameSession);
+    } else {
+      // For non-started sessions, clean up if no human participants remain
+      const hasHuman = remainingPlayable.some(p => p.type === "user");
+      if (!hasHuman && remainingPlayable.length > 0) {
+        sessionManager.removeSession(gameSession.getSessionId());
+      }
     }
 
     return { success: true };

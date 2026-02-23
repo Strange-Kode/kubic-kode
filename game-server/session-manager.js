@@ -93,23 +93,25 @@ class SessionManager {
       return false;
     }
 
+    // Clean up WebSocket connections and heartbeat
     try {
-      // Stop heartbeat and clean up WebSocket connections
-      session.stopHeartbeat();
       GameEventService.cleanupSession(sessionId);
-      
-      // Clear game history manager resources for this session
-      gameHistoryManager.removeSessionHistory(sessionId);
-      
-      // Remove from sessions map
-      this._sessions.delete(sessionId);
-      
-      kubicLog.info(`[SessionManager]::removeSession - Successfully removed session ${sessionId}`);
-      return true;
     } catch (error) {
-      kubicLog.error(`[SessionManager]::removeSession - Error removing session ${sessionId}:`, error);
-      return false;
+      kubicLog.error(`[SessionManager]::removeSession - Error cleaning up session ${sessionId}:`, error);
     }
+
+    // Clear game history manager resources
+    try {
+      gameHistoryManager.removeSessionHistory(sessionId);
+    } catch (error) {
+      kubicLog.error(`[SessionManager]::removeSession - Error removing history for session ${sessionId}:`, error);
+    }
+
+    // Remove from sessions map (always execute)
+    this._sessions.delete(sessionId);
+
+    kubicLog.info(`[SessionManager]::removeSession - Successfully removed session ${sessionId}`);
+    return true;
   }
 
   /**
@@ -211,3 +213,4 @@ class SessionManager {
 }
 
 export const sessionManager = new SessionManager();
+GameEventService.setSessionManager(sessionManager);
