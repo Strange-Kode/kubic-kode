@@ -26,9 +26,11 @@ export function createWebSocketClient(helper) {
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 
       const hostIP = window.location.hostname;
-      const hostPort = helper.config.websocketPort || "3000";
+      const hostPort = helper.config.websocketPort ?? "3000";
+      const portSegment = hostPort ? `:${hostPort}` : "";
+      const wsPath = helper.config.websocketPath || "/";
 
-      let wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${helper.sessionId}`;
+      let wsUrl = `${protocol}://${hostIP}${portSegment}${wsPath}?sessionId=${helper.sessionId}`;
       if (helper.participantId) {
         wsUrl += `&participantId=${helper.participantId}`;
       }
