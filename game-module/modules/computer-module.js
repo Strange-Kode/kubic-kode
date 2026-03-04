@@ -60,9 +60,14 @@ export default {
       // Process each computer player in the current turn
       for (const computerPlayer of computerPlayers) {
         try {
-          // Random delay for computer moves (1-2 seconds)
-          const delay = 1000 + Math.floor(Math.random() * 1001);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          // Artificial delay for computer moves so they don't feel instant.
+          // KUBIC_AI_MOVE_DELAY: base ms (default 1000), random jitter adds 0-1000ms on top.
+          // Set to 0 for instant AI moves.
+          const baseDelay = parseInt(process.env.KUBIC_AI_MOVE_DELAY ?? "0");
+          if (baseDelay > 0) {
+            const delay = baseDelay + Math.floor(Math.random() * 1001);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
           
           // Calculate computer move
           const computerMove = gameInstance.calculateComputerMove(computerPlayer.getPlayerId(), computerPlayer);
