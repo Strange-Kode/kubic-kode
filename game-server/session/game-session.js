@@ -13,6 +13,7 @@ import {
 } from "../../game-engine/kubic-kode-error.js";
 
 import { kubicLog } from "../../kubic-log.js";
+import { run as runHooks } from "../../game-module/module-system/hooks.js";
 
 export class GameSession {
   /**
@@ -333,6 +334,9 @@ export class GameSession {
 
     // Add to game history
     this._historyManager.addSessionEndedEvent(this._participantManager.getParticipantCount());
+
+    // Fire server-side hook so game implementations can react
+    runHooks("session:ended", this);
   }
 
   getSessionId() {
