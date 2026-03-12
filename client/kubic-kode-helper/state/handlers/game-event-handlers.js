@@ -1,6 +1,6 @@
 /**
  * Game lifecycle WebSocket event handlers
- * Handles: playerWon, gameTied, turnPlayed, gameStarted, winCount
+ * Handles: playerWon, gameTied, gameStopped, turnPlayed, gameStarted, winCount
  */
 export function createGameEventHandlers(helper) {
   return {
@@ -63,6 +63,19 @@ export function createGameEventHandlers(helper) {
         winner: helper.flow.winner,
         isTie: true,
       });
+    },
+
+    /**
+     * Handle gameStopped WebSocket event
+     * @param {Object} payload - Event payload
+     */
+    handleGameStopped: (payload) => {
+      helper.flow.gamePhase = "ended";
+      helper.game.updateGame({ started: false, active: false });
+      helper.inactivity.clearTimer();
+
+      // Emit high-level event for UI
+      helper.events.emit("gameStopped", payload);
     },
 
     /**
