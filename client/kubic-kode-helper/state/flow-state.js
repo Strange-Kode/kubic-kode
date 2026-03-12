@@ -199,9 +199,10 @@ export function createFlowState(helper) {
      * @returns {KubicKodeHelper} This instance for chaining
      */
     setupEventHandlers: () => {
-      // Game lifecycle events (5 handlers)
+      // Game lifecycle events (6 handlers)
       helper.events.on("kubic::playerWon", gameHandlers.handlePlayerWon);
       helper.events.on("kubic::gameTied", gameHandlers.handleGameTied);
+      helper.events.on("kubic::gameStopped", gameHandlers.handleGameStopped);
       helper.events.on("kubic::turnPlayed", gameHandlers.handleTurnPlayed);
       helper.events.on("kubic::gameStarted", gameHandlers.handleGameStarted);
       helper.events.on("kubic::winCount", gameHandlers.handleWinCount);
@@ -212,10 +213,11 @@ export function createFlowState(helper) {
       helper.events.on("kubic::sessionSpectatorJoined", sessionHandlers.handleSessionSpectatorJoined);
       helper.events.on("kubic::sessionParticipantLeft", sessionHandlers.handleSessionParticipantLeft);
 
-      // Connection lifecycle events (3 handlers)
+      // Connection lifecycle events (4 handlers)
       helper.events.on("kubic::participantDisconnected", connectionHandlers.handleParticipantDisconnected);
       helper.events.on("kubic::participantRemoved", connectionHandlers.handleParticipantRemoved);
       helper.events.on("kubic::participantReconnected", connectionHandlers.handleParticipantReconnected);
+      helper.events.on("kubic::connectionConfirmed", connectionHandlers.handleConnectionConfirmed);
 
       // Inactivity events (2 handlers)
       helper.events.on("kubic::timeLeft", inactivityHandlers.handleTimeLeft);
@@ -242,6 +244,7 @@ export function createFlowState(helper) {
       // Game lifecycle events
       helper.events.off("kubic::playerWon", gameHandlers.handlePlayerWon);
       helper.events.off("kubic::gameTied", gameHandlers.handleGameTied);
+      helper.events.off("kubic::gameStopped", gameHandlers.handleGameStopped);
       helper.events.off("kubic::turnPlayed", gameHandlers.handleTurnPlayed);
       helper.events.off("kubic::gameStarted", gameHandlers.handleGameStarted);
       helper.events.off("kubic::winCount", gameHandlers.handleWinCount);
@@ -256,6 +259,7 @@ export function createFlowState(helper) {
       helper.events.off("kubic::participantDisconnected", connectionHandlers.handleParticipantDisconnected);
       helper.events.off("kubic::participantRemoved", connectionHandlers.handleParticipantRemoved);
       helper.events.off("kubic::participantReconnected", connectionHandlers.handleParticipantReconnected);
+      helper.events.off("kubic::connectionConfirmed", connectionHandlers.handleConnectionConfirmed);
 
       // Inactivity events
       helper.events.off("kubic::timeLeft", inactivityHandlers.handleTimeLeft);

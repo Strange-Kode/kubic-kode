@@ -39,7 +39,10 @@ export function createWebSocketClient(helper) {
 
       // Send participant name when WebSocket opens
       helper.websocket.onopen = () => {
-        helper.events.emit("websocketConnected");
+        const isReconnect = helper._hasConnectedBefore === true;
+        helper._hasConnectedBefore = true;
+
+        helper.events.emit("websocketConnected", { isReconnect });
 
         // Start heartbeat if we have participant ID
         if (helper.participantId) {
