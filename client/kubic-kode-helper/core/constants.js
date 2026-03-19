@@ -10,6 +10,10 @@ export const DEFAULT_CONFIG = {
   autoReconnect: true,
   retryAttempts: 3,
   retryDelay: 1000,
+  /** When false, event handlers skip auto-fetching game state (tilemap, currentPlayer, etc.).
+   *  Non-fetch side effects (state flags, inactivity timers, events) still run.
+   *  Set to false when the host app manages its own state sync. */
+  autoFetchOnEvents: true,
 };
 
 /**

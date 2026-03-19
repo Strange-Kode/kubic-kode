@@ -83,31 +83,33 @@ export function createGameEventHandlers(helper) {
      * @param {Object} payload - Event payload with optional updatedTileMap
      */
     handleTurnPlayed: async (payload) => {
-      // Always fetch fresh tilemap and current player from server
-      try {
-        const [tilemapResult, currentPlayerResult] = await Promise.all([
-          helper.route.game("get-tilemap"),
-          helper.route.game("get-current-player"),
-        ]);
+      // Fetch fresh tilemap and current player from server (skipped when host app manages its own state)
+      if (helper.config.autoFetchOnEvents) {
+        try {
+          const [tilemapResult, currentPlayerResult] = await Promise.all([
+            helper.route.game("get-tilemap"),
+            helper.route.game("get-current-player"),
+          ]);
 
-        if (tilemapResult.success) {
-          helper.game.updateTilemap(tilemapResult.data.tiles);
-        }
+          if (tilemapResult.success) {
+            helper.game.updateTilemap(tilemapResult.data.tiles);
+          }
 
-        if (currentPlayerResult.success) {
-          const currentPlayerId =
-            currentPlayerResult.data.current_player_id ||
-            (currentPlayerResult.data.current_player_ids &&
-            currentPlayerResult.data.current_player_ids.length > 0
-              ? currentPlayerResult.data.current_player_ids[0]
-              : null);
-          helper.game.updateGame({ currentPlayerId });
+          if (currentPlayerResult.success) {
+            const currentPlayerId =
+              currentPlayerResult.data.current_player_id ||
+              (currentPlayerResult.data.current_player_ids &&
+              currentPlayerResult.data.current_player_ids.length > 0
+                ? currentPlayerResult.data.current_player_ids[0]
+                : null);
+            helper.game.updateGame({ currentPlayerId });
+          }
+        } catch (error) {
+          console.error(
+            "[KubicKode.flow] Error fetching game state after turn:",
+            error
+          );
         }
-      } catch (error) {
-        console.error(
-          "[KubicKode.flow] Error fetching game state after turn:",
-          error
-        );
       }
 
       // Reset inactivity timer optimistically (use stored initial value)
@@ -147,39 +149,41 @@ export function createGameEventHandlers(helper) {
       }
 
       // Fetch complete game state (tilemap, player mappings, current player)
-      // This ensures all clients get the initial game state when the game starts
-      try {
-        const [tilemapResult, playerMappingsResult, currentPlayerResult] =
-          await Promise.all([
-            helper.route.game("get-tilemap"),
-            helper.route.game("get-player-mappings"),
-            helper.route.game("get-current-player"),
-          ]);
+      // Skipped when host app manages its own state sync (autoFetchOnEvents: false)
+      if (helper.config.autoFetchOnEvents) {
+        try {
+          const [tilemapResult, playerMappingsResult, currentPlayerResult] =
+            await Promise.all([
+              helper.route.game("get-tilemap"),
+              helper.route.game("get-player-mappings"),
+              helper.route.game("get-current-player"),
+            ]);
 
-        if (tilemapResult.success) {
-          helper.game.updateGame({ tilemap: tilemapResult.data.tiles });
-        }
+          if (tilemapResult.success) {
+            helper.game.updateGame({ tilemap: tilemapResult.data.tiles });
+          }
 
-        if (playerMappingsResult.success) {
-          helper.game.updateGame({
-            playerMappings: playerMappingsResult.data.player_mappings,
-          });
-        }
+          if (playerMappingsResult.success) {
+            helper.game.updateGame({
+              playerMappings: playerMappingsResult.data.player_mappings,
+            });
+          }
 
-        if (currentPlayerResult.success) {
-          const currentPlayerId =
-            currentPlayerResult.data.current_player_id ||
-            (currentPlayerResult.data.current_player_ids &&
-            currentPlayerResult.data.current_player_ids.length > 0
-              ? currentPlayerResult.data.current_player_ids[0]
-              : null);
-          helper.game.updateGame({ currentPlayerId });
+          if (currentPlayerResult.success) {
+            const currentPlayerId =
+              currentPlayerResult.data.current_player_id ||
+              (currentPlayerResult.data.current_player_ids &&
+              currentPlayerResult.data.current_player_ids.length > 0
+                ? currentPlayerResult.data.current_player_ids[0]
+                : null);
+            helper.game.updateGame({ currentPlayerId });
+          }
+        } catch (error) {
+          console.error(
+            "[KubicKode.flow] Error fetching game state after gameStarted:",
+            error
+          );
         }
-      } catch (error) {
-        console.error(
-          "[KubicKode.flow] Error fetching game state after gameStarted:",
-          error
-        );
       }
 
       // Initialize inactivity timer from backend
