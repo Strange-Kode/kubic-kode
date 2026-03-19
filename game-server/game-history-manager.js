@@ -187,9 +187,7 @@ class GameHistoryManager {
    */
   _broadcast(sessionId, historyEvent) {
     // Always broadcast critical game events regardless of subscription
-    // Most game events are already broadcast by their respective modules
-    // (turn-module, game-module, computer-module). Only gameEnded is exclusive
-    // to the history manager. Including the others here causes duplicate WS messages.
+    // Only gameEnded is exclusive to history — all others are broadcast by game modules
     const criticalEvents = ["gameEnded"];
     const shouldAlwaysBroadcast = criticalEvents.includes(historyEvent.type);
 
