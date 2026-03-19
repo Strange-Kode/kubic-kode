@@ -187,7 +187,10 @@ class GameHistoryManager {
    */
   _broadcast(sessionId, historyEvent) {
     // Always broadcast critical game events regardless of subscription
-    const criticalEvents = ["playerWon", "gameStarted", "gameEnded", "gameTied", "winCount", "turnPlayed"];
+    // Most game events are already broadcast by their respective modules
+    // (turn-module, game-module, computer-module). Only gameEnded is exclusive
+    // to the history manager. Including the others here causes duplicate WS messages.
+    const criticalEvents = ["gameEnded"];
     const shouldAlwaysBroadcast = criticalEvents.includes(historyEvent.type);
 
     // Map event type to kubic:: namespace for broadcasting
