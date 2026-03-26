@@ -35,14 +35,15 @@ class KubicLogConfig {
 
   log(level, message, ...args) {
     if (this.shouldLog(level)) {
-      const timestamp = new Date().toISOString();
-      const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-      
+      const entry = {
+        timestamp: new Date().toISOString(),
+        level,
+        message: typeof message === "string" ? message : String(message),
+      };
       if (args.length > 0) {
-        console.log(prefix, message, ...args);
-      } else {
-        console.log(prefix, message);
+        entry.data = args.length === 1 ? args[0] : args;
       }
+      console.log(JSON.stringify(entry));
     }
   }
 
