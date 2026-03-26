@@ -116,20 +116,20 @@ kubicLog.trace("Trace-level details");
 
 ## Output Format
 
-When debug mode is enabled, all log messages include:
+When debug mode is enabled, all log messages are output as structured JSON (one line per entry). This makes logs machine-parseable for log aggregation and querying.
 
-- Timestamp in ISO format
-- Log level in uppercase
-- Original message and arguments
+Each entry contains:
+- `timestamp` - ISO 8601 format
+- `level` - error, warn, info, debug, or trace
+- `message` - the log message string
+- `data` - (optional) additional arguments passed to the log call
 
 Example output:
 
-```text
-
-[2024-01-15T10:30:45.123Z] [INFO] Kubic Kode Server running at http://localhost:3000
-[2024-01-15T10:30:45.124Z] [INFO] Debug mode: enabled
-[2024-01-15T10:30:45.125Z] [INFO] Debug level: info
-[2024-01-15T10:30:45.126Z] [DEBUG] [GameEventService] New WebSocket connection for session: abc123
+```json
+{"timestamp":"2026-03-26T10:30:45.123Z","level":"info","message":"Kubic Kode Server running at http://localhost:3000"}
+{"timestamp":"2026-03-26T10:30:45.126Z","level":"debug","message":"[GameEventService] New WebSocket connection for session: abc123"}
+{"timestamp":"2026-03-26T10:30:45.130Z","level":"warn","message":"Session not found","data":"abc123"}
 ```
 
 ## Performance Impact
