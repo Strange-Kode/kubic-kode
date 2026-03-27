@@ -147,18 +147,20 @@ export default {
    * Broadcasts turn events to all clients
    * @param {Object} gameSession - The game session
    * @param {Object} playStatus - The play status
-   * @param {Object} serializedTileMap - The serialized tilemap
+   * @param {Object} serializedTileMap - The serialized tilemap (null to omit for delta-only updates)
    */
   broadcastTurnEvents(gameSession, playStatus, serializedTileMap) {
     try {
       const responseData = playStatus instanceof PlayStatus ? playStatus.toSnakeCase() : playStatus;
-      
+
+      const payload = { roundStatus: responseData };
+      if (serializedTileMap) {
+        payload.updatedTileMap = serializedTileMap;
+      }
+
       GameEventService.broadcastToSession(gameSession, {
         type: "kubic::turnPlayed",
-        payload: {
-          roundStatus: responseData,
-          updatedTileMap: serializedTileMap
-        }
+        payload
       });
       
       // If the player won, also broadcast a win event
