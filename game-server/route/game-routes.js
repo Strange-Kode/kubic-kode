@@ -161,8 +161,11 @@ gameRouter.post("/game/:sessionId/play-turn", validateGameTokenWithParticipant(s
   );
   
   // Broadcast the turn event to all connected clients
-  const currentTileMap = gameInstance.getGameEngine().getTileMap();
-  const serializedTileMap = kubicModules.tilemap.processTileMapData(currentTileMap);
+  // Game implementations can set includeFullTilemap: false in customData to send delta-only updates
+  const includeFullTilemap = playStatus.access("customData")?.includeFullTilemap !== false;
+  const serializedTileMap = includeFullTilemap
+    ? kubicModules.tilemap.processTileMapData(gameInstance.getGameEngine().getTileMap())
+    : null;
   kubicModules.turn.broadcastTurnEvents(gameSession, playStatus, serializedTileMap);
 });
 

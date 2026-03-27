@@ -156,7 +156,7 @@ function getRegisteredBroadcasts() {
 }
 
 function initWebSocketServer(server) {
-  wss = new WebSocketServer({ server });
+  wss = new WebSocketServer({ server, perMessageDeflate: true });
   
   wss.on("connection", (ws, req) => {
     const params = new URLSearchParams(req.url.split("?")[1]);
@@ -461,6 +461,13 @@ function broadcastToSession(gameSession, messageObj) {
   kubicLog.debug(`[GameEventService]::broadcastToSession: Broadcasting ${messageObj.type} to session ${sessionId} with ${conns.length} connections`);
   kubicLog.trace(`[GameEventService]::broadcastToSession: Message:`, finalMessageObj);
   
+  // Log size for turnPlayed events to measure compression effectiveness
+  if (messageObj.type === "kubic::turnPlayed") {
+    const uncompressedBytes = Buffer.byteLength(message, "utf8");
+    const uncompressedKB = (uncompressedBytes / 1024).toFixed(1);
+    kubicLog.info(`[ws-size] turn=${finalMessageObj.sessionData.turnNumber} uncompressed=${uncompressedKB}KB (${uncompressedBytes} bytes)`);
+  }
+
   conns.forEach(ws => {
     if (ws.readyState === ws.OPEN) {
       ws.send(message);

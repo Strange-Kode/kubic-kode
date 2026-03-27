@@ -207,21 +207,25 @@ export default {
    */
   _broadcastComputerTurn(gameSession, compPlayStatus, processTileMapCallback) {
     const gameInstance = gameSession.getGameInstance();
-    
+
     // Convert PlayStatus to snake_case for broadcast
     const compResponseData = compPlayStatus instanceof PlayStatus ? compPlayStatus.toSnakeCase() : compPlayStatus;
 
     // Get current tilemap for computer turn broadcast
-    const compCurrentTileMap = gameInstance.getGameEngine().getTileMap();
-    const compSerializedTileMap = processTileMapCallback ? processTileMapCallback(compCurrentTileMap) : null;
-    
+    // Game implementations can set includeFullTilemap: false in customData to send delta-only updates
+    const includeFullTilemap = compPlayStatus.access("customData")?.includeFullTilemap !== false;
+    const compCurrentTileMap = includeFullTilemap ? gameInstance.getGameEngine().getTileMap() : null;
+    const compSerializedTileMap = compCurrentTileMap && processTileMapCallback ? processTileMapCallback(compCurrentTileMap) : null;
+
+    const payload = { roundStatus: compResponseData };
+    if (compSerializedTileMap) {
+      payload.updatedTileMap = compSerializedTileMap;
+    }
+
     // Broadcast computer turn
     GameEventService.broadcastToSession(gameSession, {
       type: "kubic::turnPlayed",
-      payload: {
-        roundStatus: compResponseData,
-        updatedTileMap: compSerializedTileMap
-      },
+      payload,
     });
     
     // If the computer won, also broadcast a win event
