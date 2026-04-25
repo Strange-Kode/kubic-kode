@@ -120,6 +120,8 @@ export class KubicKodeHelper {
     this.getSubscriptions = highLevelAPI.getSubscriptions;
     this.kickParticipant = highLevelAPI.kickParticipant;
     this.transferHost = highLevelAPI.transferHost;
+    this.sendChatMessage = highLevelAPI.sendChatMessage;
+    this.getChatHistory = highLevelAPI.getChatHistory;
 
     // Attach WebSocket methods for backward compatibility
     this.connectWebSocket = this.ws.connect.bind(this.ws);

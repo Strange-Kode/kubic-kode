@@ -21,6 +21,7 @@ import { createConnectionEventHandlers } from './handlers/connection-event-handl
 import { createInactivityEventHandlers } from './handlers/inactivity-event-handlers.js';
 import { createVotingEventHandlers } from './handlers/voting-event-handlers.js';
 import { createConfigEventHandlers } from './handlers/config-event-handlers.js';
+import { createChatEventHandlers } from './handlers/chat-event-handlers.js';
 
 export function createFlowState(helper) {
   // Create all handler modules
@@ -30,6 +31,7 @@ export function createFlowState(helper) {
   const inactivityHandlers = createInactivityEventHandlers(helper);
   const votingHandlers = createVotingEventHandlers(helper);
   const configHandlers = createConfigEventHandlers(helper);
+  const chatHandlers = createChatEventHandlers(helper);
 
   return {
     // Flow state
@@ -234,6 +236,9 @@ export function createFlowState(helper) {
       helper.events.on("kubic::lobbyConfigUpdated", configHandlers.handleLobbyConfigUpdated);
       helper.events.on("kubic::lobbyConfigDeleted", configHandlers.handleLobbyConfigDeleted);
 
+      // Chat events (1 handler)
+      helper.events.on("kubic::lobbyChatMessage", chatHandlers.handleLobbyChatMessage);
+
       return helper;
     },
 
@@ -277,6 +282,9 @@ export function createFlowState(helper) {
       // Config events
       helper.events.off("kubic::lobbyConfigUpdated", configHandlers.handleLobbyConfigUpdated);
       helper.events.off("kubic::lobbyConfigDeleted", configHandlers.handleLobbyConfigDeleted);
+
+      // Chat events
+      helper.events.off("kubic::lobbyChatMessage", chatHandlers.handleLobbyChatMessage);
 
       return helper;
     },
