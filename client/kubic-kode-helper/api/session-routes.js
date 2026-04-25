@@ -379,6 +379,71 @@ export function createSessionRoutes(helper) {
           }
         );
 
+      case "send-chat":
+        // POST /session/:sessionId/chat
+        // Requires: { message } (participantId is taken from helper.participantId)
+        // Returns: { success, message: <chatMessage> }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!helper.participantId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No participant ID",
+            "NO_PARTICIPANT_ID",
+            { suggestion: "Join a session first" }
+          );
+        }
+        if (typeof data.message !== "string" || data.message.trim().length === 0) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "message is required and must be a non-empty string",
+            "MESSAGE_REQUIRED",
+            { suggestion: "Provide a non-empty message string to send" }
+          );
+        }
+        if (data.message.trim().length > 500) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "message cannot exceed 500 characters",
+            "MESSAGE_TOO_LONG",
+            { suggestion: "Keep the message under 500 characters" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/chat`,
+          {
+            participantId: helper.participantId,
+            message: data.message,
+          }
+        );
+
+      case "get-chat": {
+        // GET /session/:sessionId/chat?limit=N
+        // Optional: data.limit (default: 50, BE caps at 100 message history)
+        // Returns: { success, session_id, total_messages, messages }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        const chatLimit =
+          Number.isInteger(data.limit) && data.limit > 0 ? data.limit : 50;
+        return await helper._makeRequest(
+          "GET",
+          `/session/${helper.sessionId}/chat?limit=${chatLimit}`
+        );
+      }
+
       case "transfer-host":
         // POST /session/:sessionId/transfer-host
         // Requires: { newHostId } (currentHostId is taken from helper.participantId)
@@ -446,6 +511,8 @@ export function createSessionRoutes(helper) {
               "subscriptions",
               "kick",
               "transfer-host",
+              "send-chat",
+              "get-chat",
             ],
           }
         );

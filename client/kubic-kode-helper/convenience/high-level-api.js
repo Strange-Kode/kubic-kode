@@ -679,5 +679,28 @@ export function createHighLevelAPI(helper) {
     async transferHost(newHostId) {
       return await helper.route.session("transfer-host", { newHostId });
     },
+
+    /**
+     * Send a chat message to the session lobby.
+     * BE caps messages at 500 chars and tags the type ("user" or "host" based
+     * on whether the sender is the current host). Triggers a
+     * `kubic::lobbyChatMessage` broadcast that all session participants receive.
+     * @param {string} message - The message text (1-500 chars after trim)
+     * @returns {Promise<Object>} The API response with the created chatMessage
+     */
+    async sendChatMessage(message) {
+      return await helper.route.session("send-chat", { message });
+    },
+
+    /**
+     * Get recent chat history for the session.
+     * Includes user, host, and system messages in chronological order. The BE
+     * keeps the last 100 messages in memory.
+     * @param {number} limit - Max messages to return (default 50)
+     * @returns {Promise<Object>} The API response with messages array
+     */
+    async getChatHistory(limit = 50) {
+      return await helper.route.session("get-chat", { limit });
+    },
   };
 }
