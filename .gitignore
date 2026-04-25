@@ -150,6 +150,11 @@ ai
 CLAUDE.md
 
 # keep graph outputs, skip heavy/local-only files
-graphify-out/cache/            # optional: commit for shared extraction speed, skip to keep repo small
-graphify-out/manifest.json     # mtime-based, invalid after git clone — always gitignore this
-graphify-out/cost.json         # local token tracking, not useful to share
+# optional: commit for shared extraction speed, skip to keep repo small
+graphify-out/cache/
+# mtime-based, invalid after git clone; always gitignore this
+graphify-out/manifest.json
+# local token tracking, not useful to share
+graphify-out/cost.json
+# machine-local python path written by graphify
+graphify-out/.graphify_python
