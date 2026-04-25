@@ -627,5 +627,37 @@ export function createHighLevelAPI(helper) {
         },
       };
     },
+
+    /**
+     * Subscribe to specific game history event types for the current session
+     * Filters which event types are broadcast over WebSocket. Useful for
+     * spectator-only or analytics clients that only care about a subset.
+     *
+     * Subscription state is not cached on the helper; call `getSubscriptions()`
+     * to read the server's current view (mirrors the choice that there is no
+     * `helper.subscriptions` state object today).
+     * @param {string[]} eventTypes - Array of event type strings to subscribe to
+     * @returns {Promise<Object>} The API response
+     */
+    async subscribeToEvents(eventTypes) {
+      return await helper.route.session("subscribe", { eventTypes });
+    },
+
+    /**
+     * Unsubscribe from specific game history event types for the current session
+     * @param {string[]} eventTypes - Array of event type strings to unsubscribe from
+     * @returns {Promise<Object>} The API response
+     */
+    async unsubscribeFromEvents(eventTypes) {
+      return await helper.route.session("unsubscribe", { eventTypes });
+    },
+
+    /**
+     * Get the current event subscriptions for the session
+     * @returns {Promise<Object>} The API response with current subscriptions
+     */
+    async getSubscriptions() {
+      return await helper.route.session("subscriptions");
+    },
   };
 }

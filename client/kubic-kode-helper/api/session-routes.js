@@ -256,6 +256,92 @@ export function createSessionRoutes(helper) {
           }
         );
 
+      case "subscribe":
+        // POST /session/:sessionId/subscribe
+        // Requires: { eventTypes: string[] } - game history event types to subscribe to
+        // Returns: { success, subscribed, current_subscriptions }
+        // Note: server silently drops unrecognised event-type strings (only logs a warning),
+        // so we validate entries are strings here to surface caller mistakes early.
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!Array.isArray(data.eventTypes) || data.eventTypes.length === 0) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "eventTypes must be a non-empty array",
+            "EVENT_TYPES_REQUIRED",
+            { suggestion: "Provide an array of event type strings to subscribe to" }
+          );
+        }
+        if (!data.eventTypes.every((t) => typeof t === "string" && t.length > 0)) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "eventTypes entries must be non-empty strings",
+            "EVENT_TYPES_INVALID",
+            { suggestion: "Each entry in eventTypes must be a non-empty string" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/subscribe`,
+          { eventTypes: data.eventTypes }
+        );
+
+      case "unsubscribe":
+        // POST /session/:sessionId/unsubscribe
+        // Requires: { eventTypes: string[] } - game history event types to unsubscribe from
+        // Returns: { success, unsubscribed, current_subscriptions }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!Array.isArray(data.eventTypes) || data.eventTypes.length === 0) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "eventTypes must be a non-empty array",
+            "EVENT_TYPES_REQUIRED",
+            { suggestion: "Provide an array of event type strings to unsubscribe from" }
+          );
+        }
+        if (!data.eventTypes.every((t) => typeof t === "string" && t.length > 0)) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "eventTypes entries must be non-empty strings",
+            "EVENT_TYPES_INVALID",
+            { suggestion: "Each entry in eventTypes must be a non-empty string" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/unsubscribe`,
+          { eventTypes: data.eventTypes }
+        );
+
+      case "subscriptions":
+        // GET /session/:sessionId/subscriptions
+        // Returns: { success, subscriptions }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        return await helper._makeRequest(
+          "GET",
+          `/session/${helper.sessionId}/subscriptions`
+        );
+
       default:
         const KubicClientError = helper.KubicClientError || Error;
         throw new KubicClientError(
@@ -281,6 +367,9 @@ export function createSessionRoutes(helper) {
               "set-config",
               "get-config",
               "delete-config",
+              "subscribe",
+              "unsubscribe",
+              "subscriptions",
             ],
           }
         );
