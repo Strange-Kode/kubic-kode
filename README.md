@@ -4,6 +4,8 @@
 
 The project features a Node.js/Express backend for multiplayer session handling and real-time communication via WebSockets, alongside a React-based frontend demo (e.g., tic-tac-toe) to illustrate integration and usage. kubic-kode is designed for extensibility, enabling developers to prototype and deploy custom turn-based games with minimal setup.
 
+> **Codebase exploration (AI assistants & humans):** [`graphify-out/GRAPH_REPORT.md`](./graphify-out/GRAPH_REPORT.md) contains a generated knowledge graph (god nodes, communities, surprising edges) and per-symbol summaries under [`graphify-out/wiki/`](./graphify-out/wiki/). Read that first before grep-walking the SDK.
+
 ## Key Features
 
 - **Modular Game Engine**: Core abstractions for tilemaps, turn sequencing, and game state management
@@ -203,7 +205,7 @@ class MyGame {
     // Optional: Define game-specific first player logic
     // For example, in tic-tac-toe, X always goes first
     const players = this.engine.getPlayerEntities();
-    const xPlayer = players.find(player => player.getMarkType() === "X");
+    const xPlayer = players.find((player) => player.getMarkType() === "X");
     return xPlayer ? xPlayer.getPlayerId() : null;
   }
 }
@@ -213,10 +215,10 @@ Example game options definition:
 
 ```javascript
 // Lifecycle-based options (recommended)
-this.getGameOptions().addOption("gridSize", 3, "frozen");                    // Never changeable
-this.getGameOptions().addOption("difficulty", "medium", "pre-start");        // Options: very_easy, easy, medium, hard
-this.getGameOptions().addOption("soundEnabled", true, "runtime");            // Changeable anytime
-this.getGameOptions().addOption("timeLimit", 30, "between-rounds");          // Only between rounds
+this.getGameOptions().addOption("gridSize", 3, "frozen"); // Never changeable
+this.getGameOptions().addOption("difficulty", "medium", "pre-start"); // Options: very_easy, easy, medium, hard
+this.getGameOptions().addOption("soundEnabled", true, "runtime"); // Changeable anytime
+this.getGameOptions().addOption("timeLimit", 30, "between-rounds"); // Only between rounds
 
 // With validation
 this.getGameOptions().addOption("maxRounds", 10, "pre-start", (value) => {
@@ -376,7 +378,7 @@ Returns detailed information about a specific session:
       "joinedAt": "2024-01-15T10:30:00Z"
     },
     {
-      "id": "p2", 
+      "id": "p2",
       "name": "Bob",
       "type": "spectator",
       "joinedAt": "2024-01-15T10:32:00Z"
@@ -413,6 +415,7 @@ kubic-kode uses WebSocket broadcasts to provide real-time updates to connected c
 These events are automatically broadcasted to all connected clients in a session, regardless of subscription status:
 
 #### Game Events
+
 - `kubic::gameStarted` - Game has started
 - `kubic::gameStopped` - Game has stopped
 - `kubic::playerWon` - A player has won the game
@@ -420,6 +423,7 @@ These events are automatically broadcasted to all connected clients in a session
 - `kubic::winCount` - Win counter updated
 
 #### Session Events
+
 - `kubic::sessionParticipantJoined` - New participant joined
 - `kubic::sessionSpectatorJoined` - New spectator joined
 - `kubic::sessionParticipantLeft` - Participant left
@@ -428,6 +432,7 @@ These events are automatically broadcasted to all connected clients in a session
 - `kubic::participantReconnected` - Participant reconnected
 
 #### Lobby Events
+
 - `kubic::lobbyConfigUpdated` - Lobby settings changed
 - `kubic::lobbyConfigDeleted` - Lobby setting removed
 - `kubic::syncPhaseStarted` - Synchronization phase started
@@ -437,6 +442,7 @@ These events are automatically broadcasted to all connected clients in a session
 - `kubic::lobbyChatMessage` - Chat message sent
 
 #### Restart Events
+
 - `kubic::restartVoteStarted` - Restart vote initiated
 - `kubic::restartVoteUpdate` - Restart vote updated
 - `kubic::restartVoteResult` - Restart vote completed
@@ -446,6 +452,7 @@ These events are automatically broadcasted to all connected clients in a session
 These events are only broadcasted to sessions that have explicitly subscribed to them:
 
 #### Game History Events
+
 - `kubic::turnPlayed` - A turn was played
 - `kubic::gameStarted` - Game started (also critical)
 - `kubic::gameEnded` - Game ended
@@ -484,12 +491,12 @@ Content-Type: application/json
 ```javascript
 // Subscribe to specific event types
 await KubicKode.route.session("subscribe", {
-  eventTypes: ["kubic::turnPlayed", "kubic::participantJoined"]
+  eventTypes: ["kubic::turnPlayed", "kubic::participantJoined"],
 });
 
 // Unsubscribe from event types
 await KubicKode.route.session("unsubscribe", {
-  eventTypes: ["kubic::invalidTurnAttempted"]
+  eventTypes: ["kubic::invalidTurnAttempted"],
 });
 
 // Get current subscriptions
@@ -654,14 +661,17 @@ POST /api/game/:sessionId/start
 4. **Access different namespaces in code**:
 
 ```javascript
-  // Userspace (default)
-  const gameSize = this.getGameOptions().getCurrentValue("gridSize");
-   
-  // Systemspace (explicit)
-  const debugEnabled = this.getGameOptions().getCurrentSystemValue("debugMode");
-   
-  // Alternative systemspace access
-  const debugEnabled2 = this.getGameOptions().getCurrentValue("debugMode", "systemspace");
+// Userspace (default)
+const gameSize = this.getGameOptions().getCurrentValue("gridSize");
+
+// Systemspace (explicit)
+const debugEnabled = this.getGameOptions().getCurrentSystemValue("debugMode");
+
+// Alternative systemspace access
+const debugEnabled2 = this.getGameOptions().getCurrentValue(
+  "debugMode",
+  "systemspace",
+);
 ```
 
 ### Game Options - Error Handling
@@ -676,12 +686,14 @@ If invalid options are provided, the API returns enhanced error information:
     "Option 'difficulty' is locked: this option can only be changed before the game starts (current state: started)"
   ],
   "ignored": ["Unknown option 'unknownOption'"],
-  "locked": [{
-    "key": "difficulty",
-    "lifecycle": "pre-start",
-    "gameState": "started",
-    "reason": "this option can only be changed before the game starts (current state: started)"
-  }],
+  "locked": [
+    {
+      "key": "difficulty",
+      "lifecycle": "pre-start",
+      "gameState": "started",
+      "reason": "this option can only be changed before the game starts (current state: started)"
+    }
+  ],
   "game_state": "started"
 }
 ```
@@ -754,15 +766,20 @@ kubic-kode supports **scrollable TileMaps** - a powerful feature that enables la
 // Create a game engine with scrollable tile map
 const gameEngine = new GameEngine(100, 100, {
   useScrollableTileMap: true,
-  playStyle: "multi-set"
+  playStyle: "multi-set",
 });
 
 // Create a player with viewport configuration
-const player = new ViewportPlayer("player1", "Alice", { x: 10, y: 10 }, {
-  width: 15,        // Viewport width in tiles
-  height: 10,       // Viewport height in tiles
-  autoFollow: true  // Auto-follow player movement
-});
+const player = new ViewportPlayer(
+  "player1",
+  "Alice",
+  { x: 10, y: 10 },
+  {
+    width: 15, // Viewport width in tiles
+    height: 10, // Viewport height in tiles
+    autoFollow: true, // Auto-follow player movement
+  },
+);
 
 // Get only visible tiles for this player
 const scrollable = gameEngine.getScrollable();
@@ -818,7 +835,7 @@ kubic-kode includes an optional **Game State Machine (GSM)** for complex games r
 // Simple game (procedural)
 const engine = new GameEngine(3, 3);
 
-// Complex game (with GSM)  
+// Complex game (with GSM)
 const engine = new GameEngine(50, 50, { useStateMachine: true });
 ```
 
@@ -857,6 +874,7 @@ VITE_HOST_PORT=3000
 If you encounter port conflicts:
 
 1. **Backend Port**: Change the backend port by setting the `PORT` environment variable:
+
 ```sh
 PORT=3001 npm run dev-server
 ```
@@ -874,6 +892,7 @@ PORT=3001 npm run dev-server
 1. **Node.js Version**: Ensure you're using Node.js 20.x or later. Check with `node --version`.
 
 2. **Dependencies**: If you encounter module errors, try reinstalling dependencies:
+
 ```sh
 rm -rf node_modules package-lock.json
 npm install
