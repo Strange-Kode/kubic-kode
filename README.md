@@ -2,7 +2,7 @@
 
 **kubic-kode** is a modular 2D turn-based tilemap game engine, built for rapid development of grid-based games such as strategy, puzzle, and board games. It provides core abstractions for tilemaps, turn sequencing, and game state management.
 
-The project features a Node.js/Express backend for multiplayer session handling and real-time communication via WebSockets, alongside a React-based frontend demo (e.g., tic-tac-toe) to illustrate integration and usage. kubic-kode is designed for extensibility, enabling developers to prototype and deploy custom turn-based games with minimal setup.
+The project is a Node.js/Express backend SDK with multiplayer session handling and real-time communication via WebSockets, plus a client helper library (`client/kubic-kode-helper/`) for consumer apps. kubic-kode is designed for extensibility, enabling developers to prototype and deploy custom turn-based games with minimal setup.
 
 > **Codebase exploration (AI assistants & humans):** [`graphify-out/GRAPH_REPORT.md`](./graphify-out/GRAPH_REPORT.md) contains a generated knowledge graph (god nodes, communities, surprising edges) and per-symbol summaries under [`graphify-out/wiki/`](./graphify-out/wiki/). Read that first before grep-walking the SDK.
 
@@ -36,13 +36,11 @@ The project features a Node.js/Express backend for multiplayer session handling 
    npm install
    ```
 
-3. Copy and configure the environment files:
+3. Copy and configure the environment file:
 
    ```sh
    cp .env.example .env
-   cp client/demos/react-tic-tac-toe/.env.example client/demos/react-tic-tac-toe/.env
    # Set KUBIC_GAME_TOKEN_SECRET_KEY in .env to at least 32 characters
-   # Edit client/demos/react-tic-tac-toe/.env as needed
    ```
 
 ## Usage
@@ -55,15 +53,7 @@ Run the backend server (default port: 3000):
 npm run dev-server
 ```
 
-### Start the Frontend Demo
-
-In a separate terminal, start the React demo (default port: 3001):
-
-```sh
-npm run start-frontend
-```
-
-The frontend will be available at [http://localhost:3001](http://localhost:3001) and will communicate with the backend at [http://localhost:3000](http://localhost:3000).
+The backend exposes WebSocket and HTTP endpoints at [http://localhost:3000](http://localhost:3000). Consumer apps connect to it via the client helper library at `client/kubic-kode-helper/`.
 
 ## Architecture
 
@@ -854,20 +844,15 @@ The setup script (`node game-script/setup-game.js`) will automatically recommend
 
 ### WebSocket Connection Issues
 
-If you're experiencing WebSocket connection problems with the tic-tac-toe demo:
+If you're experiencing WebSocket connection problems:
 
-1. **Check Environment Variables**: Ensure `VITE_HOST_IP` and `VITE_HOST_PORT` are correctly set in `client/demos/react-tic-tac-toe/.env`:
+1. **Verify Backend is Running**: Make sure the backend server is started with `npm run dev-server` and listening on the correct port (default `3000`).
 
-```sh
-VITE_HOST_IP=localhost
-VITE_HOST_PORT=3000
-```
-
-2. **Verify Backend is Running**: Make sure the backend server is started with `npm run dev-server` and listening on the correct port.
+2. **Check the Client Helper Configuration**: Ensure your consumer app points the helper at the correct backend host/port (see `client/kubic-kode-helper/`).
 
 3. **Check Browser Console**: Look for WebSocket connection errors in the browser's developer console.
 
-4. **Network Configuration**: If running on a different machine or in a container, update `VITE_HOST_IP` to the actual IP address of your backend server.
+4. **Network Configuration**: If the backend runs on a different machine or in a container, update the host/port in your client config to match the actual backend address.
 
 ### Port Conflicts
 
