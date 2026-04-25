@@ -342,6 +342,80 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/subscriptions`
         );
 
+      case "kick":
+        // POST /session/:sessionId/kick
+        // Requires: { participantIdToKick } (hostId is taken from helper.participantId)
+        // Returns: { success, kicked_participant, remaining_participants }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!helper.participantId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No participant ID",
+            "NO_PARTICIPANT_ID",
+            { suggestion: "Join a session first" }
+          );
+        }
+        if (!data.participantIdToKick) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "participantIdToKick is required",
+            "PARTICIPANT_ID_REQUIRED",
+            { suggestion: "Provide the participant ID to kick" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/kick`,
+          {
+            hostId: helper.participantId,
+            participantIdToKick: data.participantIdToKick,
+          }
+        );
+
+      case "transfer-host":
+        // POST /session/:sessionId/transfer-host
+        // Requires: { newHostId } (currentHostId is taken from helper.participantId)
+        // Returns: { success, old_host, new_host }
+        if (!helper.sessionId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No active session",
+            "NO_ACTIVE_SESSION",
+            { suggestion: "Initialize a session first" }
+          );
+        }
+        if (!helper.participantId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "No participant ID",
+            "NO_PARTICIPANT_ID",
+            { suggestion: "Join a session first" }
+          );
+        }
+        if (!data.newHostId) {
+          const KubicClientError = helper.KubicClientError || Error;
+          throw new KubicClientError(
+            "newHostId is required",
+            "NEW_HOST_ID_REQUIRED",
+            { suggestion: "Provide the participant ID of the new host" }
+          );
+        }
+        return await helper._makeRequest(
+          "POST",
+          `/session/${helper.sessionId}/transfer-host`,
+          {
+            currentHostId: helper.participantId,
+            newHostId: data.newHostId,
+          }
+        );
+
       default:
         const KubicClientError = helper.KubicClientError || Error;
         throw new KubicClientError(
@@ -370,6 +444,8 @@ export function createSessionRoutes(helper) {
               "subscribe",
               "unsubscribe",
               "subscriptions",
+              "kick",
+              "transfer-host",
             ],
           }
         );

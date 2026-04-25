@@ -118,6 +118,8 @@ export class KubicKodeHelper {
     this.subscribeToEvents = highLevelAPI.subscribeToEvents;
     this.unsubscribeFromEvents = highLevelAPI.unsubscribeFromEvents;
     this.getSubscriptions = highLevelAPI.getSubscriptions;
+    this.kickParticipant = highLevelAPI.kickParticipant;
+    this.transferHost = highLevelAPI.transferHost;
 
     // Attach WebSocket methods for backward compatibility
     this.connectWebSocket = this.ws.connect.bind(this.ws);

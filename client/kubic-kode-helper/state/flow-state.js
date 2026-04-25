@@ -207,11 +207,13 @@ export function createFlowState(helper) {
       helper.events.on("kubic::gameStarted", gameHandlers.handleGameStarted);
       helper.events.on("kubic::winCount", gameHandlers.handleWinCount);
 
-      // Session lifecycle events (4 handlers)
+      // Session lifecycle events (6 handlers)
       helper.events.on("kubic::sessionEnded", sessionHandlers.handleSessionEnded);
       helper.events.on("kubic::sessionParticipantJoined", sessionHandlers.handleSessionParticipantJoined);
       helper.events.on("kubic::sessionSpectatorJoined", sessionHandlers.handleSessionSpectatorJoined);
       helper.events.on("kubic::sessionParticipantLeft", sessionHandlers.handleSessionParticipantLeft);
+      helper.events.on("kubic::participantKicked", sessionHandlers.handleParticipantKicked);
+      helper.events.on("kubic::hostTransferred", sessionHandlers.handleHostTransferred);
 
       // Connection lifecycle events (4 handlers)
       helper.events.on("kubic::participantDisconnected", connectionHandlers.handleParticipantDisconnected);
@@ -254,6 +256,8 @@ export function createFlowState(helper) {
       helper.events.off("kubic::sessionParticipantJoined", sessionHandlers.handleSessionParticipantJoined);
       helper.events.off("kubic::sessionSpectatorJoined", sessionHandlers.handleSessionSpectatorJoined);
       helper.events.off("kubic::sessionParticipantLeft", sessionHandlers.handleSessionParticipantLeft);
+      helper.events.off("kubic::participantKicked", sessionHandlers.handleParticipantKicked);
+      helper.events.off("kubic::hostTransferred", sessionHandlers.handleHostTransferred);
 
       // Connection lifecycle events
       helper.events.off("kubic::participantDisconnected", connectionHandlers.handleParticipantDisconnected);
