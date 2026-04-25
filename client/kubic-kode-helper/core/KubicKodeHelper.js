@@ -115,6 +115,9 @@ export class KubicKodeHelper {
     this.getGameConfig = highLevelAPI.getGameConfig;
     this.deleteGameConfigKey = highLevelAPI.deleteGameConfigKey;
     this.getShareableSessionLink = highLevelAPI.getShareableSessionLink;
+    this.subscribeToEvents = highLevelAPI.subscribeToEvents;
+    this.unsubscribeFromEvents = highLevelAPI.unsubscribeFromEvents;
+    this.getSubscriptions = highLevelAPI.getSubscriptions;
 
     // Attach WebSocket methods for backward compatibility
     this.connectWebSocket = this.ws.connect.bind(this.ws);
