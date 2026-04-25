@@ -38,10 +38,10 @@ Configure the root .env file with the game token encryption settings.
 
 ```env
 # Game Token Encryption
-GAME_TOKEN_SECRET_KEY=<your-secure-32-character-key>
-GAME_TOKEN_ALGORITHM=aes-256-gcm
-GAME_TOKEN_IV_LENGTH=16
-GAME_TOKEN_SALT_LENGTH=64
+KUBIC_GAME_TOKEN_SECRET_KEY=<your-secure-32-character-key>
+KUBIC_GAME_TOKEN_ALGORITHM=aes-256-gcm
+KUBIC_GAME_TOKEN_IV_LENGTH=16
+KUBIC_GAME_TOKEN_SALT_LENGTH=64
 ```
 
 ### 2. Dependencies
@@ -90,7 +90,7 @@ The system uses Node.js built-in modules:
 All game routes now require participant-specific tokens:
 
 ```http
-POST /game/play-turn/:sessionId
+POST /api/game/:sessionId/play-turn
 Content-Type: application/json
 
 {
@@ -156,7 +156,7 @@ localStorage.setItem("participantId", participant_id);
 
 ```javascript
 // Use the participant's token for game actions
-const moveResponse = await fetch("/api/game/play-turn/abc-123", {
+const moveResponse = await fetch("/api/game/abc-123/play-turn", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({

@@ -27,7 +27,7 @@ This directory contains examples of how to use the `KubicKodeHelper` with Alpine
 The `rps-usage-example.js` file contains modular examples showing different aspects of the KubicKodeHelper:
 
 ```javascript
-import { KubicKode } from "./kubic-kode-helper.js";
+import { KubicKode } from "./kubic-kode-helper/index.js";
 
 // Basic setup
 await basicSetup();
@@ -69,7 +69,7 @@ KubicKode.connectWebSocket();
 const initResponse = await KubicKode.initSession("rock-paper-scissors");
 
 // Join session
-const joinResponse = await KubicKode.joinSession("Alice", "human");
+const joinResponse = await KubicKode.joinSession("Alice", "user");
 
 // Get participants
 const participants = await KubicKode.route.session("participants");
@@ -94,13 +94,15 @@ const currentPlayer = await KubicKode.route.game("get-current-player");
 
 ```javascript
 // Using dynamic game method
-const moveResponse = await KubicKode.rock_paper_scissors.playTurn(0, 0, {
+const moveResponse = await KubicKode.route.rock_paper_scissors.playTurn(0, 0, {
     choice: "rock",
     playerName: "Alice"
 });
 
 // Using generic method
-const genericMove = await KubicKode.playTurn(0, 0, {
+const genericMove = await KubicKode.route.game("play-turn", {
+    xPos: 0,
+    yPos: 0,
     choice: "paper",
     playerName: "Alice"
 });
@@ -209,7 +211,9 @@ For example:
 
 ```javascript
 // In your game server file
-import { GameEventService } from "kubic-kode";
+import { gameEventService } from "kubic-kode";
+
+const { GameEventService } = gameEventService;
 
 // Register your custom events at startup
 GameEventService.registerBroadcast("myGame::cardDrawn");

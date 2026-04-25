@@ -108,7 +108,7 @@ import { KubicAuthenticationError } from '../game-engine/kubic-kode-error.js';
 throw new KubicAuthenticationError(
   "Invalid game token",
   "token-123",
-  { context: { endpoint: "/api/game/play-turn" } }
+  { context: { endpoint: "/api/game/:sessionId/play-turn" } }
 );
 ```
 
@@ -452,7 +452,9 @@ app.post('/api/session/:sessionId/join', async (req, res) => {
 import { KubicGameError, ErrorFactory } from '../game-engine/kubic-kode-error.js';
 
 class TicTacToeGame {
-  playTurn(playerId, x, y) {
+  playTurn(playerId, turnData) {
+    const { xPos: x, yPos: y } = turnData;
+
     // Validate player turn
     if (this.currentPlayer !== playerId) {
       throw ErrorFactory.game(

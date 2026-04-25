@@ -85,17 +85,17 @@ POST /api/session/:sessionId/spectate
 }
 
 // Get participant statistics
-GET /api/session/participants/stats/:sessionId
+GET /api/session/:sessionId/participants/stats
 // Returns: { total: 4, players: 2, spectators: 2, canStart: true }
 ```
 
 #### Protected Routes
 
-The following routes now require `participantId` and block spectators:
+The following routes require a participant game token and block spectators:
 
-- `POST /api/game/start/:sessionId` - Start game
-- `GET /api/game/stop/:sessionId` - Stop game  
-- `POST /api/game/play-turn/:sessionId` - Make moves (generic endpoint for all games)
+- `POST /api/game/:sessionId/start` - Start game
+- `POST /api/game/:sessionId/stop` - Stop game
+- `POST /api/game/:sessionId/play-turn` - Make moves (generic endpoint for all games)
 
 #### Middleware Protection
 
@@ -106,7 +106,7 @@ import { checkPlayableAccess } from "../../game-utility/game-utility.js";
 const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
 
 // Use in routes
-gameRouter.post("/game/start/:sessionId", checkPlayableAccessMiddleware, (req, res) => {
+gameRouter.post("/game/:sessionId/start", checkPlayableAccessMiddleware, (req, res) => {
   // Only playable participants can access this route
 });
 ```

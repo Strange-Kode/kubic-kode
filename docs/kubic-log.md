@@ -4,7 +4,7 @@ The server-side application now includes a comprehensive logging system (Kubic L
 
 ## Environment Variables
 
-### DEBUG_MODE
+### KUBIC_DEBUG_MODE / DEBUG_MODE
 
 Controls whether debug output is enabled:
 
@@ -12,7 +12,9 @@ Controls whether debug output is enabled:
 - `false` or `0` (default): Debug mode disabled
 - Any other value: Debug mode disabled
 
-### DEBUG_LEVEL
+`KUBIC_DEBUG_MODE` is preferred. `DEBUG_MODE` is still supported by the current scripts.
+
+### KUBIC_LOG_LEVEL / KUBIC_DEBUG_LEVEL / DEBUG_LEVEL
 
 Controls the verbosity level of debug output (when DEBUG_MODE is enabled):
 
@@ -22,29 +24,31 @@ Controls the verbosity level of debug output (when DEBUG_MODE is enabled):
 - `debug` (3): Error, warning, info, and debug messages
 - `trace` (4): All messages including trace-level details
 
+`KUBIC_LOG_LEVEL` is checked first, then `KUBIC_DEBUG_LEVEL`, then `DEBUG_LEVEL`.
+
 ## Usage Examples
 
 ### Enable Debug Mode
 
 ```bash
 # Enable debug mode with default info level
-DEBUG_MODE=true node game-server.js
+KUBIC_DEBUG_MODE=true KUBIC_LOG_LEVEL=info node game-server/game-server.js
 
 # Enable debug mode with specific level
-DEBUG_MODE=true DEBUG_LEVEL=debug node game-server.js
+KUBIC_DEBUG_MODE=true KUBIC_LOG_LEVEL=debug node game-server/game-server.js
 
 # Enable debug mode with trace level for maximum verbosity
-DEBUG_MODE=true DEBUG_LEVEL=trace node game-server.js
+KUBIC_DEBUG_MODE=true KUBIC_LOG_LEVEL=trace node game-server/game-server.js
 ```
 
 ### Disable Debug Mode
 
 ```bash
 # Debug mode disabled (default)
-node game-server.js
+node game-server/game-server.js
 
 # Explicitly disable debug mode
-DEBUG_MODE=false node game-server.js
+KUBIC_DEBUG_MODE=false node game-server/game-server.js
 ```
 
 ## Debug Levels Explained
@@ -135,6 +139,6 @@ Example output:
 ## Performance Impact
 
 - When debug mode is disabled, there is minimal performance impact
-- Debug messages are only processed when DEBUG_MODE is enabled
+- Debug messages are only processed when `KUBIC_DEBUG_MODE`/`DEBUG_MODE` is enabled
 - The system uses conditional logging to avoid unnecessary string formatting
 - Timestamps are only generated when messages will actually be logged

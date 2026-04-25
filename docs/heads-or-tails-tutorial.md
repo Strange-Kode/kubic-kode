@@ -63,6 +63,7 @@ The **GameContract** defines what methods game implementations must provide:
 - `addPlayer()` - Add a new player to the game
 - `startGame()` - Start the game
 - `resetForRestart()` - Reset game state for restart
+- `requiredPlayers()` - Return how many playable participants are required
 
 #### **Optional Methods** (CAN implement, defaults provided)
 
@@ -182,7 +183,9 @@ The PlayerEntity extends the base GameEntity class from kubic-kode. This entity 
 Create `game/backend-hot/game-entity/player-entity.js`:
 
 ```javascript
-import { GameEntity } from "kubic-kode";
+import { gameEntity } from "kubic-kode";
+
+const { GameEntity } = gameEntity;
 
 class PlayerEntity extends GameEntity {
   constructor(name) {
@@ -272,10 +275,12 @@ This is the core game class that implements the GameInterface contract. It manag
 Create `game/backend-hot/hot.js`:
 
 ```javascript
-import { GameEngine } from "kubic-kode";
+import { gameEngine } from "kubic-kode";
 import PlayerEntity from "./game-entity/player-entity.js";
 import { CoinEntity } from "./game-entity/coin-entity.js";
 import hotRouter from "./route/hot-routes.js";
+
+const { GameEngine } = gameEngine;
 
 // HeadsOrTailsGame is implemented according to the GameContract.
 // This means it can override methods to customize behavior
@@ -299,6 +304,10 @@ class HeadsOrTailsGame {
   // Required methods that MUST be implemented
   getGameEngine() {
     return this.engine;
+  }
+
+  requiredPlayers() {
+    return 2;
   }
 
   addPlayer(name) {
@@ -338,7 +347,9 @@ class HeadsOrTailsGame {
     });
   }
 
-  playTurn(playerId, guess, metadata = {}) {
+  playTurn(playerId, turnData, metadata = {}) {
+    const { guess } = turnData;
+
     // Get the current player from the engine
     const currentPlayer = this.engine.getCurrentTurnPlayers()[0];
     
@@ -388,9 +399,9 @@ class HeadsOrTailsGame {
       };
     }
 
-    // Move to next round
+    // Move to next round.
+    // Do not call this.engine.nextTurn() here; KubicKodeGame advances turns after playTurn().
     this.currentRound++;
-    this.engine.nextTurn();
 
     return {
       status: "ok",
@@ -493,8 +504,9 @@ Create `game/backend-hot/route/hot-routes.js`:
 
 ```javascript
 import express from "express";
-import { sessionManager } from "kubic-kode";
-import { GameEventService } from "kubic-kode";
+import { sessionManager, gameEventService } from "kubic-kode";
+
+const { GameEventService } = gameEventService;
 
 const hotRouter = express.Router();
 
@@ -1037,17 +1049,8 @@ function headsOrTailsGame() {
         
         async checkSession() {
             try {
-                const response = await fetch("/api/session/check");
-                const data = await response.json();
-                
-                if (data.available) {
-                    this.sessionId = data.sessionId;
-                    this.gamePhase = "playing";
-                    this.showNameModal = true;
-                } else {
-                    // Create a new session
-                    await this.createSession();
-                }
+                // Current API: create or reuse a session via /api/session/init/:gameId.
+                await this.createSession();
             } catch (error) {
                 console.error("Error checking session:", error);
                 this.gamePhase = "error";
@@ -1056,19 +1059,19 @@ function headsOrTailsGame() {
         
         async createSession() {
             try {
-                const response = await fetch("/api/session/create", {
+                const response = await fetch("/api/session/init/hot", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        gameVariantId: "hot",
+                        forceNew: true,
                         maxPlayers: 2
                     })
                 });
                 
                 const data = await response.json();
-                this.sessionId = data.sessionId;
+                this.sessionId = data.session_id;
                 this.gamePhase = "playing";
                 this.showNameModal = true;
             } catch (error) {
@@ -1084,24 +1087,24 @@ function headsOrTailsGame() {
             }
             
             try {
-                const response = await fetch(`/api/session/join/${this.sessionId}`, {
+                const response = await fetch(`/api/session/${this.sessionId}/join`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        name: this.playerName
+                        participantName: this.playerName,
+                        participantType: "user"
                     })
                 });
                 
                 const data = await response.json();
-                this.participantId = data.participantId;
+                this.participantId = data.participant_id;
+                this.gameToken = data.game_token;
                 this.showNameModal = false;
                 
-                // Start the game if we're the second player
-                if (data.participants.length === 2) {
-                    await this.startGame();
-                }
+                // Start the game after enough playable participants have joined.
+                // You can check /api/session/:sessionId/participants/stats before starting.
                 
                 this.fetchGameState();
             } catch (error) {
@@ -1112,7 +1115,16 @@ function headsOrTailsGame() {
         
         async startGame() {
             try {
-                const response = await fetch(`/api/game/start/${this.sessionId}`);
+                const response = await fetch(`/api/game/${this.sessionId}/start`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        participantId: this.participantId,
+                        gameToken: this.gameToken
+                    })
+                });
                 const data = await response.json();
                 
                 if (data.game_started) {
@@ -1126,7 +1138,17 @@ function headsOrTailsGame() {
         
         async fetchGameState() {
             try {
-                const response = await fetch(`/api/game/get-stats/${this.sessionId}`);
+                // There is no generic get-stats route; expose custom stats from your game route,
+                // or use generic read routes like get-current-player/get-tilemap/options.
+                const response = await fetch(`/api/game/${this.sessionId}/get-current-player`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        gameToken: this.gameToken
+                    })
+                });
                 const data = await response.json();
                 
                 if (data.success) {

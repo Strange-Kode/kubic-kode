@@ -365,13 +365,14 @@ kubicKode.connectWebSocket();
 
 ## Testing
 
-Run the heartbeat system tests:
+There is currently no dedicated `heartbeat-test.js` in this repository. Connection and heartbeat behavior is exercised indirectly by the E2E tests that open WebSocket connections:
 
 ```bash
-node test/heartbeat-test.js
+npm run test:tic-tac-toe
+npm run test:lobby
 ```
 
-The test suite covers:
+The covered scenarios include:
 
 - Session creation and participant management
 - Connection tracking and status updates

@@ -35,7 +35,9 @@ The setup script (`node game-script/setup-game.js`) will automatically recommend
 ### GameState
 
 ```javascript
-import { GameState } from "kubic-kode";
+import { gameStateMachine } from "kubic-kode";
+
+const { GameState } = gameStateMachine;
 
 class MenuState extends GameState {
   constructor(stateMachine) {
@@ -63,7 +65,9 @@ class MenuState extends GameState {
 ### StateTransition
 
 ```javascript
-import { StateTransition } from "kubic-kode";
+import { gameStateMachine } from "kubic-kode";
+
+const { StateTransition } = gameStateMachine;
 
 // Automatic transition when game ends
 const gameEndTransition = new StateTransition(
@@ -86,8 +90,11 @@ const pauseTransition = new StateTransition(
 Here's how the built-in tic-tac-toe could be implemented using GSM:
 
 ```javascript
-import { GameEngine, GameState, StateTransition, GameStateMachine } from "kubic-kode";
+import { gameEngine, gameStateMachine } from "kubic-kode";
 import PlayerEntity from "./game-entity/player-entity.js";
+
+const { GameEngine } = gameEngine;
+const { GameState, StateTransition, GameStateMachine } = gameStateMachine;
 
 // Game States
 class MenuState extends GameState {
@@ -151,7 +158,7 @@ class GameplayState extends GameState {
       return { status: "ok", player_has_won: true, player_id: playerId };
     }
     
-    engine.nextTurn();
+    // KubicKodeGame advances turns after playTurn(); game code should not call engine.nextTurn().
     return { status: "ok", player_has_won: false, player_id: playerId };
   }
 
@@ -242,7 +249,9 @@ class TicTacToeGSMGame {
     return this._engine;
   }
 
-  playTurn(playerId, x, y, metadata = {}) {
+  playTurn(playerId, turnData, metadata = {}) {
+    const { x, y } = turnData;
+
     // Forward to state machine
     this._engine.handlePlayerAction(playerId, "make_move", { x, y, ...metadata });
     

@@ -34,10 +34,12 @@ The project features a Node.js/Express backend for multiplayer session handling 
    npm install
    ```
 
-3. Copy and configure the environment file for the React demo:
+3. Copy and configure the environment files:
 
    ```sh
+   cp .env.example .env
    cp client/demos/react-tic-tac-toe/.env.example client/demos/react-tic-tac-toe/.env
+   # Set KUBIC_GAME_TOKEN_SECRET_KEY in .env to at least 32 characters
    # Edit client/demos/react-tic-tac-toe/.env as needed
    ```
 
@@ -114,10 +116,11 @@ The **Game Contract** defines what methods your game implementation must provide
 #### Required Methods (MUST implement)
 
 - `getGameEngine()` - Return the game engine instance
-- `playTurn(playerId, x, y, metadata)` - Handle a player's turn
+- `playTurn(playerId, turnData, metadata)` - Handle a player's turn
 - `addPlayer(name, isComputer)` - Add a player to the game
 - `startGame()` - Start the game
 - `resetForRestart()` - Reset game state for restart
+- `requiredPlayers()` - Return the number of playable participants needed to start
 
 #### Optional Methods (CAN implement)
 
@@ -147,7 +150,9 @@ The **Game Contract** defines what methods your game implementation must provide
 ### Example Game Implementation
 
 ```javascript
-import { GameEngine } from "kubic-kode";
+import { gameEngine } from "kubic-kode";
+
+const { GameEngine } = gameEngine;
 
 class MyGame {
   constructor() {
@@ -175,7 +180,11 @@ class MyGame {
     this.engine.resetTileMap();
   }
 
-  playTurn(playerId, x, y, metadata = {}) {
+  requiredPlayers() {
+    return 2;
+  }
+
+  playTurn(playerId, turnData, metadata = {}) {
     // Your game logic here
     return { status: "ok", player_has_won: false };
   }
@@ -271,7 +280,7 @@ POST /api/session/:sessionId/spectate
 const stats = await KubicKode.route.session("participant-stats");
 
 // Direct API call
-GET /api/session/participants/stats/:sessionId
+GET /api/session/:sessionId/participants/stats
 // Returns: { total: 4, players: 2, spectators: 2, canStart: true }
 ```
 
@@ -322,7 +331,7 @@ kubic-kode includes a **Lobby System** that manages active game sessions, allowi
 #### Get All Sessions
 
 ```bash
-GET /api/lobby/sessions
+GET /api/sessions/list
 ```
 
 Returns a list of all active sessions:
@@ -349,7 +358,7 @@ Returns a list of all active sessions:
 #### Get Session Details
 
 ```bash
-GET /api/lobby/session/:sessionId
+GET /api/session/:sessionId/lobby
 ```
 
 Returns detailed information about a specific session:
@@ -385,13 +394,14 @@ Returns detailed information about a specific session:
 
 ```javascript
 // Get all sessions
-const sessions = await KubicKode.route.lobby("sessions");
+const sessions = await KubicKode.listAllSessions();
 
 // Get specific session details
-const sessionDetails = await KubicKode.route.lobby("session", "abc123");
+const sessionDetails = await KubicKode.getSessionLobbyStatus("abc123");
 
 // Join a session from lobby
-await KubicKode.joinSession("Alice", "abc123");
+KubicKode.sessionId = "abc123";
+await KubicKode.joinSession("Alice", "user");
 ```
 
 ## WebSocket Broadcasts
@@ -545,7 +555,7 @@ The system supports two namespaces for organizing options:
 #### Get Game Options
 
 ```bash
-GET /api/game/options/:sessionId
+POST /api/game/:sessionId/options
 ```
 
 Returns information about available game options:
@@ -580,10 +590,12 @@ Returns information about available game options:
 #### Start Game with Options
 
 ```bash
-POST /api/game/start/:sessionId
+POST /api/game/:sessionId/start
 Content-Type: application/json
 
 {
+  "participantId": 1,
+  "gameToken": "participant_game_token",
   "gridSize": 5,
   "winCondition": 4
 }
@@ -623,14 +635,16 @@ POST /api/session/init/tic-tac-toe-configurable
 2. **Check available options**:
 
 ```bash
-GET /api/game/options/:sessionId
+POST /api/game/:sessionId/options
 ```
 
 3. **Start game with custom options**:
 
 ```bash
-POST /api/game/start/:sessionId
+POST /api/game/:sessionId/start
 {
+  "participantId": 1,
+  "gameToken": "participant_game_token",
   "gridSize": 5,
   "winCondition": 4,
   "system::debugMode": true
@@ -773,7 +787,7 @@ kubic-kode uses a secure game token authentication system for all game operation
 All game routes use POST requests with game tokens:
 
 ```javascript
-POST /api/game/get-tilemap/{sessionId}
+POST /api/game/{sessionId}/get-tilemap
 {
   "gameToken": "participant_game_token"
 }
@@ -788,8 +802,8 @@ The KubicKode helper automatically manages tokens:
 await KubicKode.joinSession("Alice");
 
 // Game operations (token automatically included)
-await KubicKode.getTileMap();
-await KubicKode.playTurn(0, 0);
+await KubicKode.route.game("get-tilemap");
+await KubicKode.route.game("play-turn", { xPos: 0, yPos: 0 });
 ```
 
 For native fetch implementations, tokens are stored in localStorage under `kubic_game_tokens`.

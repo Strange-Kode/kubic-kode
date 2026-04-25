@@ -43,7 +43,7 @@ npm run test:all
 # Run individual test suites
 npm run test:tic-tac-toe    # Game logic and flow tests
 npm run test:lobby          # Lobby system tests
-npm test                    # Default (runs tic-tac-toe tests)
+npm test                    # Default (runs tic-tac-toe + lobby tests)
 ```
 
 ### Prerequisites
@@ -237,7 +237,7 @@ Example for a new game:
 const result = await this.testCompleteGameFlow("my-new-game");
 
 // Test with game-specific options
-const startResponse = await this.makeRequest(`/api/game/start/${sessionId}`, {
+const startResponse = await this.makeRequest(`/api/game/${sessionId}/start`, {
   method: "POST",
   body: JSON.stringify({
     customOption: "value"
@@ -313,7 +313,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "18"
+          node-version: "20"
       - run: npm install
       - run: npm run start-server &
       - run: sleep 5  # Wait for server to start
