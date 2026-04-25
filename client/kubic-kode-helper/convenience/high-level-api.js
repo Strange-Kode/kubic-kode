@@ -659,5 +659,25 @@ export function createHighLevelAPI(helper) {
     async getSubscriptions() {
       return await helper.route.session("subscriptions");
     },
+
+    /**
+     * Kick a participant from the session (host only).
+     * Caller must be the current host - the BE rejects non-host kicks.
+     * @param {number} participantIdToKick - The participant ID to kick
+     * @returns {Promise<Object>} The API response with kicked_participant and remaining_participants
+     */
+    async kickParticipant(participantIdToKick) {
+      return await helper.route.session("kick", { participantIdToKick });
+    },
+
+    /**
+     * Transfer host privileges to another participant (current host only).
+     * The new host must be a playable participant (user or computer, not spectator).
+     * @param {number} newHostId - The participant ID of the new host
+     * @returns {Promise<Object>} The API response with old_host and new_host
+     */
+    async transferHost(newHostId) {
+      return await helper.route.session("transfer-host", { newHostId });
+    },
   };
 }

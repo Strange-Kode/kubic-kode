@@ -68,6 +68,9 @@ export default {
     }
 
     // Detect and broadcast auto host transfer
+    // The kubic::hostTransferred broadcast carries a `reason` field so consumers can
+    // distinguish this auto-promotion (`"host-left"`) from an explicit handoff
+    // (`"host-handoff"`, broadcast from the transferHost action below).
     const currentHost = gameSession.getParticipantManager().getHost();
     if (previousHost && currentHost && previousHost.id !== currentHost.id) {
       try {
@@ -75,7 +78,8 @@ export default {
           type: "kubic::hostTransferred",
           payload: {
             oldHost: previousHost,
-            newHost: currentHost
+            newHost: currentHost,
+            reason: "host-left"
           }
         });
 
@@ -206,12 +210,15 @@ export default {
     };
 
     // Broadcast host transfer
+    // reason: "host-handoff" - the current host actively called transferHost.
+    // Pairs with "host-left" emitted by the leave handler above.
     try {
       GameEventService.broadcastToSession(gameSession, {
         type: "kubic::hostTransferred",
         payload: {
           oldHost: oldHost,
-          newHost: newHost
+          newHost: newHost,
+          reason: "host-handoff"
         }
       });
 
