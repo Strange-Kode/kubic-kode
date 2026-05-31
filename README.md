@@ -55,6 +55,27 @@ npm run dev-server
 
 The backend exposes WebSocket and HTTP endpoints at [http://localhost:3000](http://localhost:3000). Consumer apps connect to it via the client helper library at `client/kubic-kode-helper/`.
 
+### Configuring CORS
+
+The backend is locked down by default: a browser request from another origin is blocked unless you allow that origin explicitly. Since your frontend almost always runs on a different origin than the API, allow it via the `KUBIC_ALLOWED_ORIGINS` environment variable - a comma-separated list:
+
+```sh
+# .env
+KUBIC_ALLOWED_ORIGINS=http://localhost:5173,https://yourgame.example.com
+```
+
+When you embed the server with `createGameServer`, you can pass origins directly instead:
+
+```js
+import { createGameServer } from "kubic-kode";
+
+await createGameServer({
+  corsOrigins: ["http://localhost:5173", "https://yourgame.example.com"],
+});
+```
+
+If neither is set, no cross-origin browser requests are allowed and the server logs a warning at startup. Same-origin requests and non-browser clients (which send no `Origin` header) are unaffected.
+
 ## Architecture
 
 ### Core Components
@@ -858,13 +879,11 @@ If you're experiencing WebSocket connection problems:
 
 If you encounter port conflicts:
 
-1. **Backend Port**: Change the backend port by setting the `PORT` environment variable:
+1. **Backend Port**: Change the backend port by setting the `KUBIC_PORT` environment variable:
 
 ```sh
-PORT=3001 npm run dev-server
+KUBIC_PORT=4000 npm run dev-server
 ```
-
-2. **Frontend Port**: Change the frontend port by modifying the start script in `package.json` or using Vite's port option.
 
 ### Game Session Issues
 

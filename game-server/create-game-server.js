@@ -131,7 +131,7 @@ function setupCORS(allowedOrigins) {
  * Creates and configures a Kubic Kode game server
  * @param {Object} options - Configuration options
  * @param {number} [options.port] - Server port (default: process.env.KUBIC_PORT || 3000)
- * @param {string[]} [options.corsOrigins] - Allowed CORS origins (default: ['http://localhost:3001'] or KUBIC_ALLOWED_ORIGINS)
+ * @param {string[]} [options.corsOrigins] - Allowed CORS origins (default: KUBIC_ALLOWED_ORIGINS, else none - cross-origin requests denied)
  * @param {string|string[]} [options.staticPaths] - Static file paths (default: '../client')
  * @param {Array<{path: string, router: Router}>} [options.gameRouters] - Custom game routers (default: [])
  * @param {string} [options.modulesPath] - Module system path (default: 'game-module/modules')
@@ -151,9 +151,12 @@ export async function createGameServer(options = {}) {
   // Extract options with defaults
   const {
     port = process.env.KUBIC_PORT || 3000,
-    corsOrigins = process.env.KUBIC_ALLOWED_ORIGINS 
-      ? process.env.KUBIC_ALLOWED_ORIGINS.split(',')
-      : ['http://localhost:3001'],
+    // Secure by default: no implicit allowed origin. Browser cross-origin
+    // requests are denied unless the consumer configures origins explicitly
+    // (matches setupCORS, which fails closed on an empty list).
+    corsOrigins = process.env.KUBIC_ALLOWED_ORIGINS
+      ? process.env.KUBIC_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+      : [],
     staticPaths = '../client',
     gameRouters = [],
     modulesPath = 'game-module/modules',
@@ -173,6 +176,11 @@ export async function createGameServer(options = {}) {
   }
 
   // Set up CORS
+  if (corsOrigins.length === 0) {
+    kubicLog.warn(
+      "No CORS origins configured - cross-origin browser requests will be blocked. Set KUBIC_ALLOWED_ORIGINS or pass corsOrigins."
+    );
+  }
   app.use(setupCORS(corsOrigins));
 
   // Middleware to parse JSON bodies

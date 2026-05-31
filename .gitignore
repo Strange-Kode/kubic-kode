@@ -81,7 +81,6 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
-dist-frontend
 
 # Gatsby files
 .cache/
@@ -89,21 +88,8 @@ dist-frontend
 # https://nextjs.org/blog/next-9-1#public-directory-support
 # public
 
-# vuepress build output
-.vuepress/dist
-
-# vuepress v2.x temp and cache directory
-.temp
-.cache
-
 # Sveltekit cache directory
 .svelte-kit/
-
-# vitepress build output
-**/.vitepress/dist
-
-# vitepress cache directory
-**/.vitepress/cache
 
 # Docusaurus cache and generated files
 .docusaurus
@@ -134,10 +120,6 @@ dist-frontend
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-# Vite logs files
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
 
 #vs code settings
 
