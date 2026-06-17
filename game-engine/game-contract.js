@@ -25,7 +25,7 @@ export class GameContract {
       "getTileMap",
       "getCurrentTurnPlayers",
       "getWinner",
-      "etInactivityTimeout",
+      "getInactivityTimeout",
       "isGameActive",
       "getGameStats",
       "stopGame",

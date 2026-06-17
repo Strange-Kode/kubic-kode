@@ -314,11 +314,13 @@ const isPlayable = gameSession.isParticipantPlayable(participant);
 
 ```javascript
 try {
-  // This will fail for spectators
+  // This will fail for spectators (and any non-playable participant)
   await KubicKode.startGame();
 } catch (error) {
-  if (error.message.includes("cannot perform game actions")) {
-    console.log("Spectators cannot start games");
+  // The client throws a KubicClientError. HTTP failures carry the status in
+  // error.context; the server's JSON error body is not surfaced in the message.
+  if (error.code === "HTTP_ERROR" && error.context.status === 403) {
+    console.log("This participant cannot start games (forbidden)");
   }
 }
 ```
@@ -347,26 +349,37 @@ kubic-kode includes a **Lobby System** that manages active game sessions, allowi
 GET /api/sessions/list
 ```
 
-Returns a list of all active sessions:
+Pass `?onlyJoinable=true` to filter out private and (by default) AI-only sessions. Returns a list of active sessions:
 
 ```json
 {
+  "success": true,
+  "only_joinable": false,
+  "total_sessions": 1,
   "sessions": [
     {
       "sessionId": "abc123",
-      "gameType": "tic-tac-toe-classic",
-      "status": "waiting",
-      "participants": {
-        "total": 2,
-        "players": 1,
-        "spectators": 1
-      },
-      "createdAt": "2024-01-15T10:30:00Z",
-      "lastActivity": "2024-01-15T10:35:00Z"
+      "gameVariantId": "tic-tac-toe-classic",
+      "started": false,
+      "maxPlayers": 2,
+      "participantCount": { "players": 1, "spectators": 1, "total": 2 },
+      "participants": [
+        { "id": 1, "name": "Alice", "type": "user", "isPlayable": true },
+        { "id": 2, "name": "Bob", "type": "spectator", "isPlayable": false }
+      ],
+      "host": { "id": 1, "name": "Alice", "joinedAt": "2024-01-15T10:30:00Z" },
+      "canStart": false,
+      "needsMorePlayers": true,
+      "readyStates": { "1": false },
+      "lobbyConfig": {},
+      "inSyncPhase": false,
+      "recentChat": []
     }
   ]
 }
 ```
+
+`host` is `null` until a playable participant is present.
 
 #### Get Session Details
 
@@ -374,31 +387,28 @@ Returns a list of all active sessions:
 GET /api/session/:sessionId/lobby
 ```
 
-Returns detailed information about a specific session:
+Returns lobby information for a specific session, nested under `lobby`. This is the same shape as each entry in the `/sessions/list` response. Note that it does not include turn or winner state - those come from the game-state endpoints, not the lobby.
 
 ```json
 {
-  "sessionId": "abc123",
-  "gameType": "tic-tac-toe-classic",
-  "status": "active",
-  "participants": [
-    {
-      "id": "p1",
-      "name": "Alice",
-      "type": "user",
-      "joinedAt": "2024-01-15T10:30:00Z"
-    },
-    {
-      "id": "p2",
-      "name": "Bob",
-      "type": "spectator",
-      "joinedAt": "2024-01-15T10:32:00Z"
-    }
-  ],
-  "gameState": {
-    "started": true,
-    "currentTurn": "p1",
-    "winner": null
+  "success": true,
+  "lobby": {
+    "sessionId": "abc123",
+    "gameVariantId": "tic-tac-toe-classic",
+    "started": false,
+    "maxPlayers": 2,
+    "participantCount": { "players": 1, "spectators": 1, "total": 2 },
+    "participants": [
+      { "id": 1, "name": "Alice", "type": "user", "isPlayable": true },
+      { "id": 2, "name": "Bob", "type": "spectator", "isPlayable": false }
+    ],
+    "host": { "id": 1, "name": "Alice", "joinedAt": "2024-01-15T10:30:00Z" },
+    "canStart": false,
+    "needsMorePlayers": true,
+    "readyStates": { "1": false },
+    "lobbyConfig": {},
+    "inSyncPhase": false,
+    "recentChat": []
   }
 }
 ```
@@ -441,6 +451,9 @@ These events are automatically broadcasted to all connected clients in a session
 - `kubic::sessionEnded` - Session ended
 - `kubic::participantDisconnected` - Participant lost connection
 - `kubic::participantReconnected` - Participant reconnected
+- `kubic::participantRemoved` - Participant removed from the session
+- `kubic::participantForceDisconnected` - Participant was force-disconnected
+- `kubic::connectionConfirmed` - WebSocket connection confirmed
 
 #### Lobby Events
 
@@ -460,27 +473,19 @@ These events are automatically broadcasted to all connected clients in a session
 
 ### Subscription-Based Events
 
-These events are only broadcasted to sessions that have explicitly subscribed to them:
+Subscriptions are an opt-in feed for auxiliary game-history events. Two things to know:
 
-#### Game History Events
+- Core gameplay and lifecycle events are already broadcast to every client by the game modules, regardless of subscription. Subscribing does **not** change whether you receive `kubic::turnPlayed`, `kubic::gameStarted`, `kubic::gameStopped`, `kubic::gameTied`, `kubic::playerWon`, or `kubic::restartVoteStarted`. `kubic::gameEnded` is likewise always delivered.
+- The events below are delivered **only** to sessions that subscribe to them:
 
-- `kubic::turnPlayed` - A turn was played
-- `kubic::gameStarted` - Game started (also critical)
-- `kubic::gameEnded` - Game ended
-- `kubic::gameTied` - Game tied (also critical)
-- `kubic::playerWon` - Player won (also critical)
-- `kubic::participantJoined` - Participant joined
-- `kubic::participantLeft` - Participant left
-- `kubic::restartVoteStarted` - Restart vote started
-- `kubic::restartVoteRegistered` - Restart vote registered
-- `kubic::restartVoteCleared` - Restart vote cleared
-- `kubic::playerAdded` - Player added to game
+#### Subscription-only events
+
+- `kubic::playerAdded` - Player added to a game instance
 - `kubic::gameInstanceStarted` - Game instance started
 - `kubic::gameInstanceReset` - Game instance reset
-- `kubic::gameStopped` - Game stopped
 - `kubic::invalidTurnAttempted` - Invalid turn attempted
-- `kubic::playerInactive` - Player became inactive
-- `kubic::timeLeft` - Inactivity timer countdown
+- `kubic::participantJoined` - Participant joined (history-feed event; for join notifications clients normally use the always-broadcast `kubic::sessionParticipantJoined`)
+- `kubic::participantLeft` - Participant left (history-feed event; normally use `kubic::sessionParticipantLeft`)
 
 ### Enabling Subscriptions
 
@@ -516,7 +521,7 @@ const subscriptions = await KubicKode.route.session("subscriptions");
 
 ### WebSocket Message Format
 
-All WebSocket messages follow this format:
+Broadcast events sent to a session follow this format (low-level heartbeat frames are sent without the `sessionData` envelope):
 
 ```json
 {
@@ -533,7 +538,7 @@ All WebSocket messages follow this format:
 
 ### Connection Management
 
-- **Heartbeat**: Clients must send `heartbeat` messages every 30 seconds
+- **Heartbeat**: The client sends `heartbeat` messages every 25 seconds; the server disconnects a participant after 60 seconds of silence
 - **Reconnection**: Clients can reconnect within 2 minutes to maintain session state
 - **Auto-cleanup**: Sessions are automatically cleaned up when no participants remain
 
@@ -889,7 +894,7 @@ KUBIC_PORT=4000 npm run dev-server
 
 1. **Session Not Found**: Clear browser localStorage and refresh the page to reset session state.
 
-2. **Participants Not Joining**: Check that the session ID is correct and the session hasn't expired (sessions auto-cleanup after 2 minutes of inactivity).
+2. **Participants Not Joining**: Check that the session ID is correct and the session is still active. Inactive sessions can be cleaned up (default threshold: 30 minutes) via the cleanup endpoint.
 
 ### Development Environment
 
