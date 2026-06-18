@@ -50,7 +50,9 @@ This runs the tic-tac-toe and lobby suites. You can run them individually with
 
 ## Branch naming
 
-Branch off `main`, named `<issue-number>-<short-kebab-description>`:
+Branch off `main`, named after the issue you're working on:
+`<issue-number>-<short-kebab-description>`. The branch name is what ties the
+work to its issue.
 
 ```
 161-rebuild-client-readme
@@ -59,22 +61,13 @@ Branch off `main`, named `<issue-number>-<short-kebab-description>`:
 
 ## Commit messages
 
-Use the format `#<issue-number> <description>`, so commits, branches, and
-issues line up:
-
-```
-#161 rebuild client README
-#145 switch kubicLog output to structured JSON
-```
-
-The body can hold whatever context is useful (rationale, file references,
-related tickets); keep the title in the format above.
+There is no enforced commit-message format. Write clear, descriptive messages,
+and use the body for any context worth keeping (rationale, file references,
+related tickets).
 
 ## Pull requests
 
 - Open PRs against `main`.
-- Reference the issue the work addresses, and close it from the PR (e.g.
-  `Closes #161`).
 - Write a description that explains the *why*, not just the *what*, especially
   for design or architectural changes.
 - Make sure the branch is up to date with `main` and `npm test` passes before
@@ -88,5 +81,4 @@ reproduce. For features, describe the use case before the proposed solution.
 
 ## Code style
 
-Match the style of the surrounding code. The project uses ESLint; keep your
-changes free of new lint warnings.
+Match the style of the surrounding code.
