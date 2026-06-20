@@ -25,7 +25,7 @@
   },
   "keywords": [],
   "author": "Nils & Joakim Karlsson",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "chokidar": "^4.0.3",
     "dotenv": "^17.2.0",
