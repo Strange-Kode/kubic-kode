@@ -1,6 +1,6 @@
 # Kubic Log Configuration
 
-The server-side application now includes a comprehensive logging system (Kubic Log) that controls terminal output based on configuration settings.
+The server-side application includes a logging system (Kubic Log) that controls terminal output based on configuration settings.
 
 ## Environment Variables
 
@@ -12,7 +12,7 @@ Controls whether debug output is enabled:
 - `false` or `0` (default): Debug mode disabled
 - Any other value: Debug mode disabled
 
-`KUBIC_DEBUG_MODE` is preferred. `DEBUG_MODE` is still supported by the current scripts.
+`KUBIC_DEBUG_MODE` is preferred. `DEBUG_MODE` is still supported as a fallback for backwards compatibility.
 
 ### KUBIC_LOG_LEVEL / KUBIC_DEBUG_LEVEL / DEBUG_LEVEL
 
@@ -50,6 +50,10 @@ node game-server/game-server.js
 # Explicitly disable debug mode
 KUBIC_DEBUG_MODE=false node game-server/game-server.js
 ```
+
+### npm Scripts
+
+`package.json` ships convenience scripts: `start-server`, `dev-server` (nodemon, trace), `dev-server:debug`, `dev-server:debug:trace`, `dev-server:debug:error`, and `start-server:debug`. Note these scripts set the legacy `DEBUG_MODE`/`DEBUG_LEVEL` vars rather than the preferred `KUBIC_*` vars; both are honored, with `KUBIC_*` taking precedence when present.
 
 ## Debug Levels Explained
 
