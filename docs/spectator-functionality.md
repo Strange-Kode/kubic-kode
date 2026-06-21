@@ -1,22 +1,26 @@
 # Spectator Functionality
 
-The kubic-kode game system now supports **spectators** - special session participants who can observe games but cannot interact with them.
+The kubic-kode game system supports **spectators** - special session participants who can observe games but cannot interact with them.
 
 ## Overview
 
-Spectators are session participants with type `"spectator"` who:
-- ✅ Can join sessions and observe games
-- ✅ Receive all game broadcasts and updates
-- ✅ Can view game state, tile maps, and participant lists
-- ❌ Cannot start or stop games
-- ❌ Cannot make moves or perform game actions
-- ❌ Cannot vote on restart requests
+Spectators are session participants with type `"spectator"`.
+
+Can:
+- Join sessions and observe games
+- Receive all game broadcasts and updates
+- View game state, tile maps, and participant lists
+
+Cannot:
+- Start or stop games
+- Make moves or perform game actions
+- Vote on restart requests
 
 ## Backend Implementation
 
 ### Participant Types
 
-The system now supports three participant types:
+The system supports three participant types:
 
 - `"user"` - Regular human participant
 - `"computer"` - AI participant
@@ -44,13 +48,16 @@ const spectatorId = gameSession.addParticipant("Charlie", "spectator");
 
 #### Game Start Requirements
 
-Games now require at least 2 **non-spectator** participants to start:
+Games require at least 2 **playable** participants (users or computers) to start. The check lives in `GameSession.markStarted()`; spectators never count toward it. Simplified:
 
 ```javascript
-// Only counts human and computer participants
-const playerParticipants = this.participants.filter(p => p.type !== "spectator");
-if (playerParticipants.length < 2) {
-  throw new Error("Cannot start game. Not enough players (need at least 2 non-spectator participants).");
+// GameSession.markStarted() - only counts playable participants (users and computers)
+const playable = this.getPlayableParticipants();
+if (playable.length < 2) {
+  throw ErrorFactory.validation(
+    "Cannot start game. Not enough players (need at least 2 playable participants)"
+    // (the real call also passes the offending field, value, and context)
+  );
 }
 ```
 
@@ -86,8 +93,10 @@ POST /api/session/:sessionId/spectate
 
 // Get participant statistics
 GET /api/session/:sessionId/participants/stats
-// Returns: { total: 4, players: 2, spectators: 2, canStart: true }
+// Returns: { sessionId, maxPlayers: 2, total: 4, players: 2, spectators: 2, canStart: true, started: false }
 ```
+
+`canStart` is `players >= maxPlayers` (here 2 >= 2). Note this is a separate condition from the start minimum in `markStarted()` (at least 2 playable); they coincide only when `maxPlayers` is 2.
 
 #### Protected Routes
 
@@ -99,16 +108,32 @@ The following routes require a participant game token and block spectators:
 
 #### Middleware Protection
 
+Spectators are blocked by the game-token middleware: `validateGameTokenWithParticipant`
+rejects any participant whose token maps to a non-playable participant (HTTP 403).
+The `stop` and `play-turn` routes additionally chain `validatePlayableParticipant`.
+
 ```javascript
-// Reusable middleware checks if participant is playable
-import { checkPlayableAccess } from "../../game-utility/game-utility.js";
+import { validateGameTokenWithParticipant } from "../game-token-middleware.js";
+import { validatePlayableParticipant } from "../../game-utility/game-utility.js";
 
-const checkPlayableAccessMiddleware = checkPlayableAccess(sessionManager);
+// Both are middleware factories: call them with the session manager to get the middleware.
 
-// Use in routes
-gameRouter.post("/game/:sessionId/start", checkPlayableAccessMiddleware, (req, res) => {
-  // Only playable participants can access this route
-});
+// start: token + participant validation (rejects spectators with 403)
+gameRouter.post(
+  "/game/:sessionId/start",
+  validateGameTokenWithParticipant(sessionManager),
+  (req, res) => {
+    // Only playable participants reach this handler
+  }
+);
+
+// stop / play-turn additionally require a playable participant
+gameRouter.post(
+  "/game/:sessionId/play-turn",
+  validateGameTokenWithParticipant(sessionManager),
+  validatePlayableParticipant(sessionManager),
+  (req, res) => { /* ... */ }
+);
 ```
 
 ## Frontend Implementation
@@ -143,18 +168,17 @@ await KubicKode.playTurn(0, 0); // Includes participantId in request body
 // 1. Initialize session
 await KubicKode.initSession("tic-tac-toe-classic");
 
-// 2. Join as spectator
+// 2. Join as spectator (this also opens the WebSocket connection)
 const result = await KubicKode.spectateSession("Charlie");
 
-// 3. Connect to WebSocket for real-time updates
-KubicKode.connectWebSocket();
-
-// 4. Listen for game events
-KubicKode.events.on("turnPlayed", (data) => {
+// 3. Listen for game events. The helper re-emits a played turn as
+//    "turnUpdated"; raw server broadcasts are available under their
+//    kubic:: names.
+KubicKode.events.on("turnUpdated", (data) => {
   console.log("A participant made a move:", data);
 });
 
-KubicKode.events.on("gameStarted", (data) => {
+KubicKode.events.on("kubic::gameStarted", (data) => {
   console.log("Game started:", data);
 });
 ```
@@ -165,25 +189,27 @@ KubicKode.events.on("gameStarted", (data) => {
 // Get all participants
 const participants = await KubicKode.route.session("participants");
 // Returns: [
-//   { id: 1, name: "Alice", type: "user" },
-//   { id: 2, name: "Bob", type: "user" },
-//   { id: 3, name: "Charlie", type: "spectator" }
+//   { id: 1, name: "Alice", type: "user", isPlayable: true },
+//   { id: 2, name: "Bob", type: "user", isPlayable: true },
+//   { id: 3, name: "Charlie", type: "spectator", isPlayable: false }
 // ]
 
 // Get participant statistics
 const stats = await KubicKode.route.session("participant-stats");
-// Returns: { total: 3, players: 2, spectators: 1, canStart: true }
+// Returns: { sessionId, maxPlayers: 2, total: 3, players: 2, spectators: 1, canStart: true, started: false }
 ```
 
 #### Error Handling
 
 ```javascript
 try {
-  // This will fail for spectators
+  // This will fail for spectators (and any non-playable participant)
   await KubicKode.startGame();
 } catch (error) {
-  if (error.message.includes("Spectators cannot perform this action")) {
-    console.log("Spectators cannot start games");
+  // The client throws a KubicClientError. HTTP failures carry the status in
+  // error.context; the server's JSON error body is not surfaced in the message.
+  if (error.code === "HTTP_ERROR" && error.context.status === 403) {
+    console.log("This participant cannot start games (forbidden)");
   }
 }
 ```

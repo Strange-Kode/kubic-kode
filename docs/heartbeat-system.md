@@ -6,27 +6,27 @@ The heartbeat and connection management system ensures that multiplayer games re
 
 ## Key Features
 
-### 🔗 Connection Tracking
+### Connection Tracking
 
 - **Real-time monitoring** of WebSocket connections per participant
 - **Connection status tracking** with timestamps and reconnection attempts
 - **Automatic cleanup** of stale connections
 
-### 💓 Heartbeat System
+### Heartbeat System
 
 - **Bidirectional heartbeats** between server and clients
 - **Configurable intervals** (30s server → client, 25s client → server)
 - **Automatic timeout detection** (60s without heartbeat = disconnected)
 - **Reconnection window** (2 minutes to allow reconnection)
 
-### 🚨 Disconnection Handling
+### Disconnection Handling
 
 - **Graceful disconnection detection** via WebSocket close events
 - **Timeout-based disconnection** for unresponsive clients
 - **Session viability checks** to prevent games with insufficient players
 - **Automatic session termination** when games become unplayable
 
-### 🔄 Reconnection Support
+### Reconnection Support
 
 - **Seamless reconnection** for temporarily disconnected players
 - **Connection state restoration** upon successful reconnection
@@ -44,10 +44,10 @@ const participantConnections = new Map(); // sessionId -> Map(participantId -> w
 const heartbeatIntervals = new Map(); // sessionId -> interval
 const connectionTimeouts = new Map(); // sessionId -> Map(participantId -> timeout)
 
-// Heartbeat configuration
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-const HEARTBEAT_TIMEOUT = 60000; // 60 seconds
-const RECONNECTION_WINDOW = 120000; // 2 minutes
+// Heartbeat configuration (env-configurable, with these defaults)
+const HEARTBEAT_INTERVAL = parseInt(process.env.KUBIC_HEARTBEAT_INTERVAL) || 30000; // 30 seconds
+const HEARTBEAT_TIMEOUT = parseInt(process.env.KUBIC_HEARTBEAT_TIMEOUT) || 60000; // 60 seconds
+const RECONNECTION_WINDOW = parseInt(process.env.KUBIC_RECONNECTION_WINDOW) || 120000; // 2 minutes
 ```
 
 **Key Methods:**
@@ -55,15 +55,20 @@ const RECONNECTION_WINDOW = 120000; // 2 minutes
 - `startHeartbeatForSession(sessionId)` - Start heartbeat for a session
 - `stopHeartbeatForSession(sessionId)` - Stop heartbeat for a session
 - `isParticipantConnected(sessionId, participantId)` - Check connection status
-- `handleParticipantDisconnection(sessionId, participantId)` - Handle disconnections
+- `getConnectedParticipants(sessionId)` - List connected participants
 - `cleanupSession(sessionId)` - Clean up session resources
 
-#### GameSession (`game-server/game-session.js`)
+Disconnection handling itself is internal to the service (driven by the heartbeat timeout and WebSocket close), not part of the public API.
+
+#### GameSession (`game-server/session/game-session.js`)
+
+`GameSession` composes the connection/participant managers; the public methods
+below delegate to them. (Connection state lives on the connection and participant
+managers under `game-server/session/`.)
 
 ```javascript
-// Connection management properties
-this._connectionStatus = new Map(); // participantId -> { connected, lastSeen, reconnectionAttempts }
-this._heartbeatStarted = false;
+// Managed internally by the session's connection/participant managers
+// participantId -> { connected, lastSeen, reconnectionAttempts }
 ```
 
 **Key Methods:**
@@ -72,7 +77,8 @@ this._heartbeatStarted = false;
 - `handleParticipantDisconnection(participantId)` - Handle participant disconnection
 - `handleParticipantReconnection(participantId)` - Handle participant reconnection
 - `checkSessionViability()` - Check if session has enough connected players
-- `startHeartbeat()` / `stopHeartbeat()` - Manage heartbeat for session
+
+Heartbeat for a session is managed by `GameEventService` (`startHeartbeatForSession` / `stopHeartbeatForSession`), not by `GameSession` directly.
 
 #### SessionManager (`game-server/session-manager.js`)
 
@@ -86,14 +92,18 @@ getSessionStats() // Get connection statistics
 
 ### Client-Side Components
 
-#### KubicKodeHelper (`client/kubic-kode-helper.js`)
+#### KubicKodeHelper (`client/kubic-kode-helper/`)
+
+Heartbeat logic lives in `client/kubic-kode-helper/network/websocket-client.js`;
+the client interval constant is in `client/kubic-kode-helper/core/constants.js`.
 
 ```javascript
-// Heartbeat properties
-this.heartbeatInterval = null;
+// The heartbeat interval handle is stored on the helper instance (helper.heartbeatInterval).
 
-// Enhanced WebSocket connection with participant ID
-const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${this.sessionId}&participantId=${this.participantId}`;
+// WebSocket URL, simplified. The real builder also applies a configurable path
+// (helper.config.websocketPath) and omits the port and participantId segments
+// when they are not set.
+const wsUrl = `${protocol}://${hostIP}:${hostPort}/?sessionId=${sessionId}&participantId=${participantId}`;
 ```
 
 **Key Methods:**
@@ -120,13 +130,13 @@ Get detailed connection status for a session.
   "session_id": "uuid",
   "status": {
     "sessionId": "uuid",
-    "started": false,
     "totalParticipants": 2,
     "connectedParticipants": 1,
     "disconnectedParticipants": 1,
     "playableParticipants": 2,
     "requiredParticipants": 2,
-    "viable": false
+    "viable": false,
+    "heartbeatStarted": true
   },
   "participants": [...]
 }
@@ -181,13 +191,15 @@ Force disconnect a participant (admin function).
 
 ### Server → Client Events
 
-#### `connectionConfirmed`
+Server broadcasts carry the `kubic::` namespace prefix in their `type` field.
+
+#### `kubic::connectionConfirmed`
 
 Sent when WebSocket connection is established with participant ID.
 
 ```json
 {
-  "type": "connectionConfirmed",
+  "type": "kubic::connectionConfirmed",
   "payload": {
     "sessionId": "uuid",
     "participantId": 1
@@ -195,39 +207,39 @@ Sent when WebSocket connection is established with participant ID.
 }
 ```
 
-#### `heartbeat`
+#### `kubic::heartbeat`
 
 Server heartbeat sent every 30 seconds.
 
 ```json
 {
-  "type": "heartbeat",
+  "type": "kubic::heartbeat",
   "payload": {
     "timestamp": 1640995200000
   }
 }
 ```
 
-#### `heartbeatResponse`
+#### `kubic::heartbeatResponse`
 
 Response to client heartbeat.
 
 ```json
 {
-  "type": "heartbeatResponse",
+  "type": "kubic::heartbeatResponse",
   "payload": {
     "timestamp": 1640995200000
   }
 }
 ```
 
-#### `participantDisconnected`
+#### `kubic::participantDisconnected`
 
 Broadcast when a participant is considered disconnected.
 
 ```json
 {
-  "type": "participantDisconnected",
+  "type": "kubic::participantDisconnected",
   "payload": {
     "participantId": 1,
     "participantName": "Alice",
@@ -236,13 +248,13 @@ Broadcast when a participant is considered disconnected.
 }
 ```
 
-#### `participantReconnected`
+#### `kubic::participantReconnected`
 
 Broadcast when a participant successfully reconnects.
 
 ```json
 {
-  "type": "participantReconnected",
+  "type": "kubic::participantReconnected",
   "payload": {
     "participantId": 1,
     "participantName": "Alice",
@@ -251,13 +263,13 @@ Broadcast when a participant successfully reconnects.
 }
 ```
 
-#### `sessionEnded`
+#### `kubic::sessionEnded`
 
 Broadcast when session ends due to insufficient players.
 
 ```json
 {
-  "type": "sessionEnded",
+  "type": "kubic::sessionEnded",
   "payload": {
     "reason": "insufficient_players",
     "message": "Session ended due to insufficient connected players",
@@ -271,7 +283,8 @@ Broadcast when session ends due to insufficient players.
 
 #### `heartbeat`
 
-Client heartbeat sent every 25 seconds.
+Client heartbeat sent every 25 seconds. The client sends the bare type; the
+server accepts both `heartbeat` and `kubic::heartbeat`.
 
 ```json
 {
@@ -282,19 +295,7 @@ Client heartbeat sent every 25 seconds.
 }
 ```
 
-#### `gameAction`
-
-Any game action (resets timeout).
-
-```json
-{
-  "type": "gameAction",
-  "payload": {
-    "action": "playTurn",
-    "data": {...}
-  }
-}
-```
+The heartbeat is the only client to server WebSocket message the server acts on; any other inbound message is ignored. Game actions are not sent over the socket - they go over REST (for example `POST /api/game/:sessionId/play-turn`), which is also where game-token auth is enforced. The WebSocket is used purely for server to client broadcasts (game state, participant events) and for liveness via heartbeats.
 
 ## Configuration
 
@@ -302,29 +303,28 @@ Any game action (resets timeout).
 
 ```javascript
 // Server configuration (game-server/game-event-service.js)
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds - server sends heartbeat
-const HEARTBEAT_TIMEOUT = 60000; // 60 seconds - consider disconnected if no heartbeat
-const RECONNECTION_WINDOW = 120000; // 2 minutes - time to allow reconnection
+// Defaults shown; each is overridable via the matching env var.
+const HEARTBEAT_INTERVAL = parseInt(process.env.KUBIC_HEARTBEAT_INTERVAL) || 30000; // server sends heartbeat
+const HEARTBEAT_TIMEOUT = parseInt(process.env.KUBIC_HEARTBEAT_TIMEOUT) || 60000; // consider disconnected if no heartbeat
+const RECONNECTION_WINDOW = parseInt(process.env.KUBIC_RECONNECTION_WINDOW) || 120000; // time to allow reconnection
 
-// Client configuration (client/kubic-kode-helper.js)
-const CLIENT_HEARTBEAT_INTERVAL = 25000; // 25 seconds - client sends heartbeat
+// Client configuration (client/kubic-kode-helper/core/constants.js)
+export const HEARTBEAT_INTERVAL = 25000; // 25 seconds - client sends heartbeat
 ```
 
 ### Session Cleanup
 
-```javascript
-// Default cleanup settings
-const DEFAULT_INACTIVE_TIME = 30 * 60 * 1000; // 30 minutes
-const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
-```
+Cleanup of inactive sessions is on demand, not automatic. `sessionManager.cleanupInactiveSessions(maxInactiveTime)` removes sessions idle longer than `maxInactiveTime` (default `30 * 60 * 1000`, i.e. 30 minutes) and is invoked through the cleanup REST route; nothing runs it on a timer.
+
+The only periodic timer is an optional session monitor, enabled with `KUBIC_SESSION_MONITOR=true` (interval `KUBIC_SESSION_MONITOR_INTERVAL`, default 60000ms). It only logs a summary of open sessions; it does not clean anything up.
 
 ## Usage Examples
 
 ### Server-Side
 
 ```javascript
-// Start heartbeat for a session
-session.startHeartbeat();
+// Start heartbeat for a session (also started automatically when a game starts)
+GameEventService.startHeartbeatForSession(sessionId);
 
 // Check participant connection
 if (session.isParticipantConnected(participantId)) {
@@ -346,16 +346,16 @@ if (!session.checkSessionViability()) {
 // Initialize with heartbeat support
 const kubicKode = new KubicKodeHelper();
 
-// Listen for connection events
-kubicKode.events.on("participantDisconnected", (data) => {
+// Listen for connection events. Server-broadcast events keep the kubic:: prefix.
+kubicKode.events.on("kubic::participantDisconnected", (data) => {
   console.log(`${data.participantName} disconnected`);
 });
 
-kubicKode.events.on("participantReconnected", (data) => {
+kubicKode.events.on("kubic::participantReconnected", (data) => {
   console.log(`${data.participantName} reconnected`);
 });
 
-kubicKode.events.on("sessionEnded", (data) => {
+kubicKode.events.on("kubic::sessionEnded", (data) => {
   console.log(`Session ended: ${data.message}`);
 });
 
@@ -436,8 +436,8 @@ The covered scenarios include:
 Enable debug logging:
 
 ```javascript
-// In kubic-log.js
-kubicLog.setLevel("debug");
+import { kubicLog } from "./kubic-log.js";
+kubicLog.setMode(true, "debug");
 ```
 
 Monitor connection events:
@@ -448,9 +448,9 @@ kubicLog.debug(`[GameEventService] Participant ${participantId} connected`);
 kubicLog.debug(`[GameEventService] Participant ${participantId} disconnected`);
 
 // Client-side
-console.log("💓 Heartbeat sent");
-console.log("🔌 WebSocket connected");
-console.log("⚠️ Participant disconnected");
+console.log("Heartbeat sent");
+console.log("WebSocket connected");
+console.log("Participant disconnected");
 ```
 
 ## Performance Considerations

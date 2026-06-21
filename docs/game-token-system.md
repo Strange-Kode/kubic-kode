@@ -107,28 +107,32 @@ Content-Type: application/json
 
 - **Algorithm**: AES-256-GCM
 - **Key Derivation**: PBKDF2 with 100,000 iterations
-- **Random IV**: 16-byte random initialization vector
-- **Salt**: 64-byte random salt
+- **Random IV**: 16-byte random initialization vector (default; `KUBIC_GAME_TOKEN_IV_LENGTH`)
+- **Salt**: 64-byte random salt (default; `KUBIC_GAME_TOKEN_SALT_LENGTH`)
 - **Authentication**: Built-in GCM authentication tag
 
 ### Validation
 
-- **Session Binding**: Tokens are bound to specific sessions
-- **Participant Binding**: Tokens are bound to specific participants
-- **Timestamp Validation**: Tokens include creation timestamps
+- **Session Binding**: Tokens encode a session and are rejected on session mismatch
+- **Participant Binding**: Tokens encode a participant; when a request also supplies `participantId`, a mismatch is rejected (the check is skipped if the request omits it)
+- **Expiration**: Tokens carry a creation timestamp and are rejected after a 24-hour max age
 - **HTTP Method Enforcement**: Only POST requests accepted
 - **Middleware Protection**: All game routes protected
 
 ### Token Structure
+
+This is the plaintext payload that gets encrypted:
 
 ```javascript
 {
   sessionId: "session-uuid",
   participantId: 1,
   timestamp: 1640995200000,
-  // Encrypted and encoded as base64
+  nonce: "<random hex>" // 16 random bytes; validation rejects tokens without it
 }
 ```
+
+The payload above is AES-256-GCM encrypted; the token string handed to the client is `base64(salt + iv + authTag + ciphertext)`, not a base64 encoding of the raw object.
 
 ## Usage Examples
 
@@ -147,21 +151,23 @@ const joinResponse = await fetch("/api/session/abc-123/join", {
 
 const { participant_id, game_token } = await joinResponse.json();
 
-// Store the token securely
-localStorage.setItem("gameToken", game_token);
-localStorage.setItem("participantId", participant_id);
+// The KubicKode helper stores tokens for you under the single localStorage key
+// `kubic_game_tokens`, as a nested { [sessionId]: { [participantId]: token } } map.
+// If you manage tokens yourself, mirror that scheme rather than flat keys.
 ```
 
 ### 2. Make a Game Move
 
 ```javascript
-// Use the participant's token for game actions
+// Use the participant's token for game actions. With the helper, this is
+// handled for you: KubicKode.playTurn(1, 1) injects the stored gameToken and
+// participantId automatically. The raw request looks like:
 const moveResponse = await fetch("/api/game/abc-123/play-turn", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    gameToken: localStorage.getItem("gameToken"),
-    participantId: localStorage.getItem("participantId"),
+    gameToken: "participant-specific-token",
+    participantId: 1,
     xPos: 1,
     yPos: 1
   })
@@ -170,42 +176,55 @@ const moveResponse = await fetch("/api/game/abc-123/play-turn", {
 
 ## Error Responses
 
+Error responses use the shape `{ error: true, message, code }` (some include extra
+context fields). HTTP status codes are noted per case.
+
 ### Token Validation Errors
 
 ```json
+// 401
 {
-  "error": "Game token is required",
-  "code": "MISSING_TOKEN"
+  "error": true,
+  "message": "Game token is required",
+  "code": "MISSING_GAME_TOKEN"
 }
 ```
 
 ```json
+// 401
 {
-  "error": "Invalid game token",
-  "code": "INVALID_TOKEN"
+  "error": true,
+  "message": "Invalid or expired game token",
+  "code": "INVALID_GAME_TOKEN"
 }
 ```
 
 ```json
+// 403 (also includes tokenSessionId / requestSessionId)
 {
-  "error": "Game token does not match session",
-  "code": "SESSION_MISMATCH"
+  "error": true,
+  "message": "Game token is not valid for this session",
+  "code": "TOKEN_SESSION_MISMATCH"
 }
 ```
 
 ```json
+// 403 (also includes tokenParticipantId / requestParticipantId)
 {
-  "error": "Game token does not match participant",
-  "code": "PARTICIPANT_MISMATCH"
+  "error": true,
+  "message": "Game token is not valid for this participant",
+  "code": "TOKEN_PARTICIPANT_MISMATCH"
 }
 ```
 
 ### HTTP Method Errors
 
 ```json
+// 405 (no code field; includes the offending method)
 {
-  "error": "Game tokens must be sent via POST requests",
-  "code": "INVALID_METHOD"
+  "error": true,
+  "message": "Game token validation only allowed via POST requests",
+  "method": "GET"
 }
 ```
 
@@ -221,14 +240,16 @@ const moveResponse = await fetch("/api/game/abc-123/play-turn", {
 
 ## Security Best Practices
 
-1. **Secure Storage**: Store tokens securely (not in localStorage for production)
+1. **Secure Storage**: Store tokens securely
 2. **HTTPS Only**: Use HTTPS in production
 3. **Environment Variables**: Keep encryption keys secure
-4. **Token Expiration**: Consider implementing token expiration
+
+Tokens already expire after a fixed 24-hour max age (enforced in
+`GameTokenService.validateToken`); this is currently hardcoded, not configurable.
 
 ## Future Enhancements
 
-- **Token Expiration**: Add TTL to tokens
+- **Configurable Expiration**: Make the 24-hour token TTL configurable
 - **Refresh Tokens**: Implement token refresh mechanism
 - **Audit Logging**: Add comprehensive audit trails
 - **Rate Limiting**: Implement rate limiting per participant
