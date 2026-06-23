@@ -77,6 +77,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `handleInactivity()` - Handle inactive players
 - `initializeGameOptions()` - Set up game options
 - `calculateComputerMove()` - Calculate AI moves
+- `establishFirstPlayers()` - Choose who plays first when the game starts
+- `removePlayer()` - Remove a player from the game
 
 #### **Wrapper Methods** (Always provided by KubicKodeGame)
 
@@ -85,6 +87,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `resetGameOptions()` - Reset options to defaults
 - `applyGameOptions()` - Apply option changes
 - `recordCustomEvent()` - Record custom events
+- `setPlayerMappings()` - Map participant IDs to player IDs
+- `getPlayerMappings()` - Read the participant-to-player ID mapping
 
 ### Game Options System
 
@@ -155,16 +159,16 @@ The **GameEngine** is the core component that manages:
 kubic-kode provides two main route systems:
 
 - **sessionRoutes**: Handle session creation, joining, and management
-- **gameRoutes**: Handle game lifecycle (start, restart, get stats, etc.)
+- **gameRoutes**: Handle game actions and reads - start, stop, play-turn, get-current-player, is-active, get-tilemap, options. There is no generic "get stats" route; a game exposes its own (see `/hot/state` below). Restart is not a game route either - it is handled by the session restart-vote routes.
 
 ### WebSocket Communication
 
 **WebSockets** provide real-time bidirectional communication:
 
-- **Server to Client**: Game state updates, turn notifications, player actions
-- **Client to Server**: Player moves, game actions
-- **Automatic reconnection**: Handles connection drops gracefully
-- **Session-based**: Messages are scoped to specific game sessions
+- **Server to Client**: game state, turn results, and participant events (join, disconnect, reconnect)
+- **Client to Server**: heartbeats only - game actions (join, start, play a turn) go over REST POST, not the socket
+- **Reconnection**: the server keeps a reconnection window so a dropped client can rejoin its session
+- **Session-based**: a connection is scoped to a session by the `?sessionId=...&participantId=...` query params on the socket URL, and broadcasts go only to that session's connections
 
 ### Game Registry
 
@@ -215,6 +219,18 @@ class PlayerEntity extends GameEntity {
   clearGuesses() {
     this.guesses = [];
     this.score = 0;
+  }
+
+  // The engine identifies players via getPlayerId()/getPlayerName(): it calls
+  // getPlayerId() as early as registerPlayerEntity(). GameEntity only exposes
+  // getEntityId()/getEntityName(), so entities used as players must add these
+  // aliases or registration (and every later turn lookup) throws.
+  getPlayerId() {
+    return this.getEntityId();
+  }
+
+  getPlayerName() {
+    return this.getEntityName();
   }
 
   toJSON() {
@@ -414,6 +430,21 @@ class HeadsOrTailsGame {
     };
   }
 
+  // End the game: pick the winner by highest score, then stop the engine.
+  // Called from playTurn() once the final round has been played.
+  endGame() {
+    const ranked = [...this.engine.getPlayerEntities()].sort(
+      (a, b) => b.score - a.score
+    );
+    const [leader, runnerUp] = ranked;
+
+    // A shared top score is a tie, so no winner is recorded.
+    this.winner =
+      leader && (!runnerUp || leader.score !== runnerUp.score) ? leader : null;
+
+    this.engine.stopGame();
+  }
+
   // Optional methods that provide custom behavior
   getTileMap() {
     return this.engine.getTileMap();
@@ -444,7 +475,8 @@ class HeadsOrTailsGame {
   }
 
   isGameActive() {
-    return this.engine.isGameStarted() && !this.engine.isGameStopped();
+    // stopGame() flips the started flag back off, so a single check is enough.
+    return this.engine.isGameStarted();
   }
 
   // Optional: Handle inactive players
@@ -525,7 +557,8 @@ hotRouter.post("/hot/play-turn/:sessionId", (req, res) => {
     : [currentPlayers?.getPlayerId()].filter(Boolean);
   const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
 
-  let roundStatus = gameInstance.playTurn(currentPlayerId, guess);
+  // playTurn() expects turnData as an object ({ guess }), not the bare string.
+  let roundStatus = gameInstance.playTurn(currentPlayerId, { guess });
   
   res.json(roundStatus);
 
@@ -548,6 +581,37 @@ hotRouter.get("/hot/history/:sessionId", (req, res) => {
   
   const history = gameInstance.getGameHistory();
   res.json(history);
+});
+
+// Get full game state for the UI.
+// kubic-kode has no generic "get stats" route - the framework's get-current-player
+// only returns the current turn's player id(s). A game exposes its own richer state
+// through a custom route like this one, built on getGameStats().
+hotRouter.get("/hot/state/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+
+  const stats = gameInstance.getGameStats();
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  const currentPlayerIds = Array.isArray(currentPlayers)
+    ? currentPlayers.map((p) => p.getPlayerId())
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
+
+  res.json({ ...stats, current_player_ids: currentPlayerIds });
+});
+
+// Restart the game.
+// startGame() calls resetForRestart() and then restarts the engine, so this single
+// call is enough. kubic-kode's built-in restart is a multi-player vote flow
+// (/session/:sessionId/request-restart-vote); a custom route keeps this tutorial simple.
+hotRouter.post("/hot/restart/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+
+  gameInstance.startGame();
+  res.json({ success: true });
 });
 
 export default hotRouter;
@@ -1138,22 +1202,12 @@ function headsOrTailsGame() {
         
         async fetchGameState() {
             try {
-                // There is no generic get-stats route; expose custom stats from your game route,
-                // or use generic read routes like get-current-player/get-tilemap/options.
-                const response = await fetch(`/api/game/${this.sessionId}/get-current-player`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        gameToken: this.gameToken
-                    })
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    this.updateGameState(data.data);
-                }
+                // Our custom /hot/state route returns the full game state as a flat object.
+                // The framework's generic get-current-player route only returns the current
+                // player id(s), which is not enough to render scores, rounds, or the winner.
+                const response = await fetch(`/api/hot/state/${this.sessionId}`);
+                const gameStats = await response.json();
+                this.updateGameState(gameStats);
             } catch (error) {
                 console.error("Error fetching game state:", error);
             }
@@ -1230,7 +1284,12 @@ function headsOrTailsGame() {
         
         async restartGame() {
             try {
-                const response = await fetch(`/api/game/restart/${this.sessionId}`);
+                const response = await fetch(`/api/hot/restart/${this.sessionId}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1343,16 +1402,16 @@ Update your `package.json` to include the development script:
 
 ## Key Features Implemented
 
-- ✅ Turn-based gameplay using kubic-kode framework
-- ✅ Real-time WebSocket communication
-- ✅ Session management for multiplayer
-- ✅ Game state persistence and history
-- ✅ Responsive UI with Alpine.js
-- ✅ Coin flip animation
-- ✅ Score tracking
-- ✅ Game restart functionality
-- ✅ Game options system integration
-- ✅ No-boilerplate design pattern
+- Turn-based gameplay using kubic-kode framework
+- Real-time WebSocket communication
+- Session management for multiplayer
+- Game state persistence and history
+- Responsive UI with Alpine.js
+- Coin flip animation
+- Score tracking
+- Game restart functionality
+- Game options system integration
+- No-boilerplate design pattern
 
 ## Extending the Game
 
@@ -1368,8 +1427,8 @@ You can easily extend this game by:
 ## Best Practices
 
 1. **Use Game Options**: Always use the game options system for configurable settings
-2. **Access via getOptionValue()**: Use `this.getOptionValue("optionName")` to access current values
-3. **No Instance Properties**: Don't store option values as instance properties
+2. **Read options via the options system**: `this.getOptionValue("optionName")` returns the current applied value. This game mirrors `maxRounds` into an instance property for convenience; if you do that, keep it in sync from `applyGameOptions()` so the two never diverge
+3. **Keep applied options authoritative**: apply runtime changes in `applyGameOptions()` rather than reading a stale copy elsewhere
 4. **Implement Required Methods**: Always implement the required contract methods
 5. **Leverage Defaults**: Don't implement optional methods unless you need custom behavior
 6. **Use Wrapper Methods**: Take advantage of the wrapper methods provided by KubicKodeGame
