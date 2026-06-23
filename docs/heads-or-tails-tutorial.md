@@ -221,9 +221,10 @@ class PlayerEntity extends GameEntity {
     this.score = 0;
   }
 
-  // The engine and turn logic identify players via getPlayerId()/getPlayerName().
-  // GameEntity only exposes getEntityId()/getEntityName(), so entities used as
-  // players must expose these aliases or the engine cannot resolve turns.
+  // The engine identifies players via getPlayerId()/getPlayerName(): it calls
+  // getPlayerId() as early as registerPlayerEntity(). GameEntity only exposes
+  // getEntityId()/getEntityName(), so entities used as players must add these
+  // aliases or registration (and every later turn lookup) throws.
   getPlayerId() {
     return this.getEntityId();
   }
