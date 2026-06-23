@@ -77,6 +77,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `handleInactivity()` - Handle inactive players
 - `initializeGameOptions()` - Set up game options
 - `calculateComputerMove()` - Calculate AI moves
+- `establishFirstPlayers()` - Choose who plays first when the game starts
+- `removePlayer()` - Remove a player from the game
 
 #### **Wrapper Methods** (Always provided by KubicKodeGame)
 
@@ -85,6 +87,8 @@ The **GameContract** defines what methods game implementations must provide:
 - `resetGameOptions()` - Reset options to defaults
 - `applyGameOptions()` - Apply option changes
 - `recordCustomEvent()` - Record custom events
+- `setPlayerMappings()` - Map participant IDs to player IDs
+- `getPlayerMappings()` - Read the participant-to-player ID mapping
 
 ### Game Options System
 
@@ -215,6 +219,17 @@ class PlayerEntity extends GameEntity {
   clearGuesses() {
     this.guesses = [];
     this.score = 0;
+  }
+
+  // The engine and turn logic identify players via getPlayerId()/getPlayerName().
+  // GameEntity only exposes getEntityId()/getEntityName(), so entities used as
+  // players must expose these aliases or the engine cannot resolve turns.
+  getPlayerId() {
+    return this.getEntityId();
+  }
+
+  getPlayerName() {
+    return this.getEntityName();
   }
 
   toJSON() {
@@ -414,6 +429,21 @@ class HeadsOrTailsGame {
     };
   }
 
+  // End the game: pick the winner by highest score, then stop the engine.
+  // Called from playTurn() once the final round has been played.
+  endGame() {
+    const ranked = [...this.engine.getPlayerEntities()].sort(
+      (a, b) => b.score - a.score
+    );
+    const [leader, runnerUp] = ranked;
+
+    // A shared top score is a tie, so no winner is recorded.
+    this.winner =
+      leader && (!runnerUp || leader.score !== runnerUp.score) ? leader : null;
+
+    this.engine.stopGame();
+  }
+
   // Optional methods that provide custom behavior
   getTileMap() {
     return this.engine.getTileMap();
@@ -444,7 +474,8 @@ class HeadsOrTailsGame {
   }
 
   isGameActive() {
-    return this.engine.isGameStarted() && !this.engine.isGameStopped();
+    // stopGame() flips the started flag back off, so a single check is enough.
+    return this.engine.isGameStarted();
   }
 
   // Optional: Handle inactive players
@@ -525,7 +556,8 @@ hotRouter.post("/hot/play-turn/:sessionId", (req, res) => {
     : [currentPlayers?.getPlayerId()].filter(Boolean);
   const currentPlayerId = currentPlayerIds[0]; // For this game, we need one player
 
-  let roundStatus = gameInstance.playTurn(currentPlayerId, guess);
+  // playTurn() expects turnData as an object ({ guess }), not the bare string.
+  let roundStatus = gameInstance.playTurn(currentPlayerId, { guess });
   
   res.json(roundStatus);
 
@@ -548,6 +580,37 @@ hotRouter.get("/hot/history/:sessionId", (req, res) => {
   
   const history = gameInstance.getGameHistory();
   res.json(history);
+});
+
+// Get full game state for the UI.
+// kubic-kode has no generic "get stats" route - the framework's get-current-player
+// only returns the current turn's player id(s). A game exposes its own richer state
+// through a custom route like this one, built on getGameStats().
+hotRouter.get("/hot/state/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+
+  const stats = gameInstance.getGameStats();
+  const currentPlayers = gameInstance.getGameEngine().getCurrentTurnPlayers();
+  const currentPlayerIds = Array.isArray(currentPlayers)
+    ? currentPlayers.map((p) => p.getPlayerId())
+    : [currentPlayers?.getPlayerId()].filter(Boolean);
+
+  res.json({ ...stats, current_player_ids: currentPlayerIds });
+});
+
+// Restart the game.
+// startGame() calls resetForRestart() and then restarts the engine, so this single
+// call is enough. kubic-kode's built-in restart is a multi-player vote flow
+// (/session/:sessionId/request-restart-vote); a custom route keeps this tutorial simple.
+hotRouter.post("/hot/restart/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const gameSession = sessionManager.getSession(sessionId);
+  const gameInstance = gameSession.getGameInstance();
+
+  gameInstance.startGame();
+  res.json({ success: true });
 });
 
 export default hotRouter;
@@ -1138,22 +1201,12 @@ function headsOrTailsGame() {
         
         async fetchGameState() {
             try {
-                // There is no generic get-stats route; expose custom stats from your game route,
-                // or use generic read routes like get-current-player/get-tilemap/options.
-                const response = await fetch(`/api/game/${this.sessionId}/get-current-player`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        gameToken: this.gameToken
-                    })
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    this.updateGameState(data.data);
-                }
+                // Our custom /hot/state route returns the full game state as a flat object.
+                // The framework's generic get-current-player route only returns the current
+                // player id(s), which is not enough to render scores, rounds, or the winner.
+                const response = await fetch(`/api/hot/state/${this.sessionId}`);
+                const gameStats = await response.json();
+                this.updateGameState(gameStats);
             } catch (error) {
                 console.error("Error fetching game state:", error);
             }
@@ -1230,7 +1283,12 @@ function headsOrTailsGame() {
         
         async restartGame() {
             try {
-                const response = await fetch(`/api/game/restart/${this.sessionId}`);
+                const response = await fetch(`/api/hot/restart/${this.sessionId}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1343,16 +1401,16 @@ Update your `package.json` to include the development script:
 
 ## Key Features Implemented
 
-- ✅ Turn-based gameplay using kubic-kode framework
-- ✅ Real-time WebSocket communication
-- ✅ Session management for multiplayer
-- ✅ Game state persistence and history
-- ✅ Responsive UI with Alpine.js
-- ✅ Coin flip animation
-- ✅ Score tracking
-- ✅ Game restart functionality
-- ✅ Game options system integration
-- ✅ No-boilerplate design pattern
+- Turn-based gameplay using kubic-kode framework
+- Real-time WebSocket communication
+- Session management for multiplayer
+- Game state persistence and history
+- Responsive UI with Alpine.js
+- Coin flip animation
+- Score tracking
+- Game restart functionality
+- Game options system integration
+- No-boilerplate design pattern
 
 ## Extending the Game
 
