@@ -159,16 +159,16 @@ The **GameEngine** is the core component that manages:
 kubic-kode provides two main route systems:
 
 - **sessionRoutes**: Handle session creation, joining, and management
-- **gameRoutes**: Handle game lifecycle (start, restart, get stats, etc.)
+- **gameRoutes**: Handle game actions and reads - start, stop, play-turn, get-current-player, is-active, get-tilemap, options. There is no generic "get stats" route; a game exposes its own (see `/hot/state` below). Restart is not a game route either - it is handled by the session restart-vote routes.
 
 ### WebSocket Communication
 
 **WebSockets** provide real-time bidirectional communication:
 
-- **Server to Client**: Game state updates, turn notifications, player actions
-- **Client to Server**: Player moves, game actions
-- **Automatic reconnection**: Handles connection drops gracefully
-- **Session-based**: Messages are scoped to specific game sessions
+- **Server to Client**: game state, turn results, and participant events (join, disconnect, reconnect)
+- **Client to Server**: heartbeats only - game actions (join, start, play a turn) go over REST POST, not the socket
+- **Reconnection**: the server keeps a reconnection window so a dropped client can rejoin its session
+- **Session-based**: a connection is scoped to a session by the `?sessionId=...&participantId=...` query params on the socket URL, and broadcasts go only to that session's connections
 
 ### Game Registry
 
@@ -1427,8 +1427,8 @@ You can easily extend this game by:
 ## Best Practices
 
 1. **Use Game Options**: Always use the game options system for configurable settings
-2. **Access via getOptionValue()**: Use `this.getOptionValue("optionName")` to access current values
-3. **No Instance Properties**: Don't store option values as instance properties
+2. **Read options via the options system**: `this.getOptionValue("optionName")` returns the current applied value. This game mirrors `maxRounds` into an instance property for convenience; if you do that, keep it in sync from `applyGameOptions()` so the two never diverge
+3. **Keep applied options authoritative**: apply runtime changes in `applyGameOptions()` rather than reading a stale copy elsewhere
 4. **Implement Required Methods**: Always implement the required contract methods
 5. **Leverage Defaults**: Don't implement optional methods unless you need custom behavior
 6. **Use Wrapper Methods**: Take advantage of the wrapper methods provided by KubicKodeGame
