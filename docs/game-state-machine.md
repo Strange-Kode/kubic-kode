@@ -131,14 +131,14 @@ class GameplayState extends GameState {
   handlePlayerAction(playerId, action, data) {
     if (action === "make_move") {
       const result = this._playMove(playerId, data.x, data.y);
-      
+
       if (result.player_has_won) {
         this._winner = result.player_id;
         this.getStateMachine().setGlobalData("winner", this._winner);
         this.getStateMachine().setGlobalData("gameEnded", true);
-      } else if (action === "pause_game") {
-        this.getStateMachine().transitionTo("paused");
       }
+    } else if (action === "pause_game") {
+      this.getStateMachine().transitionTo("paused");
     }
   }
 

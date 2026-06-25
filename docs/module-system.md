@@ -7,7 +7,7 @@ The KubicKode Module System is a dynamic, extensible module loading and manageme
 ## Key Features
 
 - **Automatic Module Discovery**: Modules are automatically loaded from the `game-module/modules/` directory
-- **Hot Reloading**: Modules are automatically reloaded when files change (development mode)
+- **Hot Reloading**: When file watching is enabled, modules are automatically reloaded when their files change (native modules are always watched via `initModuleSystem`; user modules opt in via `loadModulesFromDirectory(dir, { watch: true })`)
 - **Lifecycle Hooks**: Built-in hooks for module loading, reloading, and custom events
 - **Validation System**: Optional `validate()` method for dependency checking
 - **Dynamic Registration**: Programmatic module registration for client extensions
@@ -40,6 +40,11 @@ export default {
   async init() {
     // Set up module, register hooks, etc.
   },
+
+  // Optional: Clean up (called before the module is reloaded or unregistered)
+  async teardown() {
+    // Release resources, remove listeners, etc.
+  },
   
   // Your module methods
   myMethod() {
@@ -62,7 +67,7 @@ export default {
 
 ### Hot Reloading
 
-When a module file changes (in development mode with file watching enabled):
+When a module file changes (with file watching enabled):
 
 1. **`before:reload` Hook**: Fires before reload
 2. **Module Reload**: Module is reloaded using the same process as initial load
@@ -518,6 +523,7 @@ import {
 interface Module {
   validate?(): Promise<void> | void;  // Optional validation
   init?(): Promise<void> | void;      // Optional initialization
+  teardown?(): Promise<void> | void;  // Optional cleanup (called on reload/unregister)
   [key: string]: any;                  // Your module methods
 }
 ```
