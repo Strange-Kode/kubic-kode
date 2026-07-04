@@ -1,6 +1,6 @@
 # Scrollable TileMap
 
-The Scrollable TileMap feature extends Kubic Kode's tile-based game engine to support large worlds with player-specific viewports. This allows each player to see only a subset of the entire game world, enabling more immersive and performance-friendly large-scale games.
+The Scrollable TileMap feature extends kubic-kode's tile-based game engine to support large worlds with player-specific viewports. This allows each player to see only a subset of the entire game world, enabling more immersive and performance-friendly large-scale games.
 
 ## Overview
 
@@ -94,7 +94,7 @@ const scrollable = gameEngine.getScrollable();
 scrollable.centerPlayerViewportOn("player1", 25, 25);
 
 // Follow a player's position with their viewport
-scrollable.followPlayerWithViewport("player1", player.position);
+scrollable.followPlayerWithViewport("player1", player.getEntityPosition());
 ```
 
 ### Visibility Checks
@@ -234,7 +234,7 @@ function getPlayerVisibleWorld(playerId) {
 
 // Send only visible tiles to each player
 gameEngine.getPlayerEntities().forEach(player => {
-  const visibleWorld = getPlayerVisibleWorld(player.id);
+  const visibleWorld = getPlayerVisibleWorld(player.getPlayerId());
   // Send visibleWorld to the player's client
 });
 ```
