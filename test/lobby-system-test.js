@@ -6,6 +6,8 @@
  * auto-joining, and all validation features.
  */
 
+import { pathToFileURL } from "url";
+
 import E2ETestRunner from "./e2e-test-runner.js";
 
 class LobbySystemTest extends E2ETestRunner {
@@ -831,8 +833,11 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-// Run the tests if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run the tests if this file is executed directly.
+// Compare against pathToFileURL(...).href, not a hand-built `file://` + path
+// string: import.meta.url percent-encodes the path (spaces -> %20), so the raw
+// string form never matches when the repo path contains a space.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(error => {
     console.error("💥 Unexpected error:", error);
     process.exit(1);

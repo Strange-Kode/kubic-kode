@@ -232,6 +232,36 @@ throw new KubicGameOptionsError(
 );
 ```
 
+### KubicContractError
+
+For game-contract violations (a game implementation missing a required method, etc.).
+
+```javascript
+import { KubicContractError } from '../game-engine/kubic-kode-error.js';
+
+throw new KubicContractError(
+  "Game is missing required methods: playTurn",
+  "GameContract",
+  "MyGame",
+  { context: { missingMethods: ["playTurn"] } }
+);
+```
+
+### KubicBroadcastError
+
+For WebSocket broadcast-registration issues (reserved namespace, duplicate event name, etc.).
+
+```javascript
+import { KubicBroadcastError } from '../game-engine/kubic-kode-error.js';
+
+throw new KubicBroadcastError(
+  "Cannot deregister built-in kubic:: broadcast event",
+  "kubic::gameStarted",
+  "reserved-namespace",
+  { context: { eventType: "kubic::gameStarted" } }
+);
+```
+
 ## ErrorFactory
 
 The `ErrorFactory` provides convenient static methods for creating specific error types:
@@ -270,6 +300,8 @@ throw ErrorFactory.participant(
   { context: { sessionId: "session-123" } }
 );
 ```
+
+`ErrorFactory` has one method per error type - each mirrors the arguments of the corresponding error class: `validation`, `session`, `game`, `participant`, `authentication`, `network`, `notFound`, `conflict`, `permission`, `system`, `websocket`, `gameOptions`, `contract`, and `broadcast`. To wrap a plain `Error` as a `KubicKodeError`, use the static `KubicKodeError.fromError(error, options)`.
 
 ## Error Codes
 
@@ -362,6 +394,17 @@ throw new KubicKodeError("Session not found", {
 - `OPTION_NOT_FOUND`
 - `OPTION_LOCKED`
 - `INVALID_OPTION_VALUE`
+
+#### Contract Errors
+- `CONTRACT_ERROR`
+- `MISSING_REQUIRED_METHOD`
+- `INVALID_INTERFACE`
+
+#### Broadcast Errors
+- `BROADCAST_ERROR`
+- `ILLEGAL_BROADCAST_NAMESPACE`
+- `DUPLICATE_BROADCAST_NAME`
+- `BROADCAST_NOT_FOUND`
 
 ## Utility Functions
 
