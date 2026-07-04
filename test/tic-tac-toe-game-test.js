@@ -6,6 +6,8 @@
  * Updated to use game token authentication system.
  */
 
+import { pathToFileURL } from "url";
+
 import E2ETestRunner from "./e2e-test-runner.js";
 
 class TicTacToeGameTest extends E2ETestRunner {
@@ -274,7 +276,7 @@ class TicTacToeGameTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantName: "Alice",
-            participantType: "human"
+            participantType: "user"
           })
         });
         
@@ -282,7 +284,7 @@ class TicTacToeGameTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantName: "Bob",
-            participantType: "human"
+            participantType: "user"
           })
         });
 
@@ -577,8 +579,11 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-// Run the tests if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run the tests if this file is executed directly.
+// Compare against pathToFileURL(...).href, not a hand-built `file://` + path
+// string: import.meta.url percent-encodes the path (spaces -> %20), so the raw
+// string form never matches when the repo path contains a space.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(error => {
     console.error("💥 Unexpected error:", error);
     process.exit(1);

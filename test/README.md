@@ -1,6 +1,8 @@
 # KubicKode Testing Suite
 
-This directory contains comprehensive end-to-end tests for the KubicKode game system. The test suite validates complete game flow from session creation to game completion, including WebSocket communication, multiplayer scenarios, and game-specific functionality.
+This directory contains end-to-end tests for the KubicKode game system, covering game flow from session creation to game completion, including WebSocket communication, multiplayer scenarios, and game-specific functionality.
+
+> **Port override:** the runners target `http://localhost:3000` by default. If your server runs on a different port (for example, because 3000 is already in use), start it with `KUBIC_PORT=<port>` and point the tests at it with `KUBIC_TEST_BASE_URL=http://localhost:<port>` and `KUBIC_TEST_WS_URL=ws://localhost:<port>`.
 
 ## Overview
 
@@ -11,7 +13,7 @@ The testing suite provides:
 - **Multiplayer Scenario Testing**: Tests multiple players joining and playing together
 - **Game Logic Testing**: Validates win conditions, move validation, and game state management
 - **Session Management Testing**: Tests session isolation, participant handling, and cleanup
-- **API Endpoint Testing**: Validates all REST API endpoints and error handling
+- **API Endpoint Testing**: Validates the core REST API endpoints and error handling
 
 ## Files
 
@@ -46,23 +48,11 @@ npm run test:lobby          # Lobby system tests
 npm test                    # Default (runs tic-tac-toe + lobby tests)
 ```
 
-### Prerequisites
-
-1. **Server Running**: Make sure your KubicKode server is running:
-   ```bash
-   npm run start-server
-   ```
-
-2. **Dependencies**: Ensure all dependencies are installed:
-   ```bash
-   npm install
-   ```
-
 ## Test Scenarios
 
 The main test suite (`tic-tac-toe-game-test.js`) runs three comprehensive test scenarios:
 
-### 1. Complete Tic-Tac-Toe Game ✅
+### 1. Complete Tic-Tac-Toe Game
 
 Tests the entire game lifecycle with a full 5-move game:
 
@@ -75,7 +65,7 @@ Tests the entire game lifecycle with a full 5-move game:
 7. **Game Restart**: Tests restarting with proper session management
 8. **Session Cleanup**: Ensures proper resource cleanup
 
-### 2. Game Configurations Test ✅
+### 2. Game Configurations Test
 
 Tests different game configurations:
 
@@ -83,7 +73,7 @@ Tests different game configurations:
 - **Grid Size Validation**: Verifies proper grid dimensions
 - **Game Options**: Tests configuration parameter handling
 
-### 3. WebSocket Events Test ✅
+### 3. WebSocket Events Test
 
 Comprehensive real-time communication testing:
 
@@ -150,7 +140,7 @@ Duration: 6745ms
 
 The lobby system test (`lobby-system-test.js`) provides comprehensive testing of all lobby functionality including host management, session configuration, auto-join, chat, ready checks, and validation scenarios.
 
-### Lobby Test Coverage ✅
+### Lobby Test Coverage
 
 - **Complete Lobby Flow**: Session creation, host assignment, configuration, auto-join, chat, sync, and validation
 - **API Endpoints**: All 15+ new lobby endpoints (session listing, config, chat, ready states, participant management)
@@ -233,13 +223,18 @@ The framework is designed to work with any game type. To test a new game:
 Example for a new game:
 
 ```javascript
-// Test with a different game
-const result = await this.testCompleteGameFlow("my-new-game");
+// Initialize a session for your game id
+const initResponse = await this.makeRequest(`/api/session/init/my-new-game`, {
+  method: "POST",
+  body: JSON.stringify({ forceNew: true })
+});
 
-// Test with game-specific options
+// Start with game-specific options (the POST body carries the game token)
 const startResponse = await this.makeRequest(`/api/game/${sessionId}/start`, {
   method: "POST",
   body: JSON.stringify({
+    participantId,
+    gameToken,
     customOption: "value"
   })
 });
@@ -281,12 +276,10 @@ const startResponse = await this.makeRequest(`/api/game/${sessionId}/start`, {
 
 ### Debug Mode
 
-For detailed debugging, you can modify the test runner to show more information:
+The runner already logs every session event to the console (including each WebSocket message received). For more detail on the server side, start the server with debug logging:
 
-```javascript
-// In e2e-test-runner.js, uncomment console.log statements
-console.log(`[useGameWebSocket] WebSocket opened for session: ${sessionId}`);
-console.log(`[useGameWebSocket] Received WebSocket message:`, data);
+```bash
+npm run start-server:debug
 ```
 
 ### Manual Testing
@@ -294,8 +287,8 @@ console.log(`[useGameWebSocket] Received WebSocket message:`, data);
 You can also run individual test methods for debugging:
 
 ```javascript
-const testRunner = new E2ETestRunner();
-await testRunner.testCompleteGameFlow();
+const testRunner = new TicTacToeGameTest();
+await testRunner.testCompleteTicTacToeGame();
 ```
 
 ## Integration with CI/CD

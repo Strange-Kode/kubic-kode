@@ -15,8 +15,8 @@ import fetch from "node-fetch";
 class E2ETestRunner {
   constructor(config = {}) {
     this.config = {
-      baseUrl: "http://localhost:3000",
-      wsUrl: "ws://localhost:3000",
+      baseUrl: process.env.KUBIC_TEST_BASE_URL || "http://localhost:3000",
+      wsUrl: process.env.KUBIC_TEST_WS_URL || "ws://localhost:3000",
       timeout: 10000,
       retryAttempts: 3,
       retryDelay: 1000,
@@ -161,7 +161,7 @@ class E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantName: "Alice",
-          participantType: "human"
+          participantType: "user"
         })
       });
       
@@ -182,7 +182,7 @@ class E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantName: "Bob",
-          participantType: "human"
+          participantType: "user"
         })
       });
       
@@ -319,9 +319,9 @@ class E2ETestRunner {
 
       // Join multiple players
       const players = [
-        { name: "Alice", type: "human" },
-        { name: "Bob", type: "human" },
-        { name: "Charlie", type: "human" }
+        { name: "Alice", type: "user" },
+        { name: "Bob", type: "user" },
+        { name: "Charlie", type: "user" }
       ];
 
       const playerIds = [];
@@ -393,7 +393,7 @@ class E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantName: "Test",
-            participantType: "human"
+            participantType: "user"
           })
         });
         results.push({ test: "Invalid session ID", success: false, expected: "Should fail" });
@@ -414,7 +414,7 @@ class E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantName: "Alice",
-          participantType: "human"
+          participantType: "user"
         })
       });
       
@@ -422,7 +422,7 @@ class E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantName: "Bob",
-          participantType: "human"
+          participantType: "user"
         })
       });
       
