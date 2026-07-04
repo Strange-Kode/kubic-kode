@@ -339,7 +339,8 @@ class TicTacToeGameTest extends E2ETestRunner {
     }
 
     console.log(`  🎉 ${testName} completed!`);
-    return { success: true, results };
+    // Surface a real failure: the scenario only passes if every configuration did.
+    return { success: results.every((r) => r.success), results };
   }
 
   /**

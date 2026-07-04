@@ -15,8 +15,9 @@ import fetch from "node-fetch";
 class E2ETestRunner {
   constructor(config = {}) {
     this.config = {
-      baseUrl: process.env.KUBIC_TEST_BASE_URL || "http://localhost:3000",
-      wsUrl: process.env.KUBIC_TEST_WS_URL || "ws://localhost:3000",
+      // Strip any trailing slash so `${baseUrl}${endpoint}` never doubles the slash.
+      baseUrl: (process.env.KUBIC_TEST_BASE_URL || "http://localhost:3000").replace(/\/$/, ""),
+      wsUrl: (process.env.KUBIC_TEST_WS_URL || "ws://localhost:3000").replace(/\/$/, ""),
       timeout: 10000,
       retryAttempts: 3,
       retryDelay: 1000,
