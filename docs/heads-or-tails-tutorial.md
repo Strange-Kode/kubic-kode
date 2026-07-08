@@ -2,6 +2,10 @@
 
 This tutorial will guide you through creating a complete turn-based heads or tails game using the kubic-kode framework. We'll build both the backend game logic and a frontend interface using Alpine.js.
 
+> **This is a simplified, self-contained example.** It builds its own custom `/hot/...` routes and a hand-rolled client so the whole game lives in one place, which is good for learning. It is not the standard path: most games implement the framework's generic game routes on the server and talk to them from the browser with the KubicKode helper (which manages tokens, the session, and WebSocket events for you). See [Building and Playing a Game](./building-and-playing-a-game.md) for that path and how the two differ.
+>
+> The imports below use the package name `kubic-kode`, which is correct when you have installed it as a dependency in your own project. If you are building *inside* the kubic-kode repo itself, import via relative paths instead (as the demos under `client/demos/` do).
+
 ## Prerequisites
 
 - Node.js (version 20.x or later)
