@@ -254,3 +254,7 @@ Tokens already expire after a fixed 24-hour max age (enforced in
 - **Audit Logging**: Add comprehensive audit trails
 - **Rate Limiting**: Implement rate limiting per participant
 - **Token Revocation**: Add ability to revoke tokens
+
+## See also
+
+- [Building and Playing a Game](./building-and-playing-a-game.md) - the game routes that require these tokens, and how the KubicKode helper supplies them for you
