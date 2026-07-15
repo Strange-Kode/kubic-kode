@@ -139,7 +139,7 @@ Properties: `started`, `active`, `tilemap` (`tilemap[y][x]`), `currentPlayerId` 
 Methods: `getTile(x, y)`, `getGridDimensions()` -> `{ rows, cols }`, `updateGame(data)`, `updateTilemap(t)`, `isMyTurn()`, `getCurrentPlayer()`, `getState()`, `reset()`; plus `register`/`use` (registry, above).
 Emits: `gameStateUpdated`, `tilemapUpdated`, `gameLoadingChanged`, `gameErrorChanged`, `gameReset`.
 
-Caveat: `isMyTurn()` and `getCurrentPlayer()` compare/look up the engine `currentPlayerId` against **participant** ids, which is an id-namespace mismatch (issue #175). Reliable turn check: `game.currentPlayerId === game.playerMappings[KubicKode.participantId]`.
+`isMyTurn()` resolves your participant id to an engine player id via `playerMappings` and compares that against `currentPlayerId`; `getCurrentPlayer()` reverse-maps `currentPlayerId` to a session participant. Both return safe defaults (`false` / `null`) when no mappings exist yet (before game start). Never compare a participant id to a player id directly - they are separate id spaces that often coincide numerically.
 
 ### `KubicKode.voting`
 
@@ -237,7 +237,6 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 ## Known caveats
 
-- `game.isMyTurn()` / `game.getCurrentPlayer()` mix the participant and engine player id spaces (#175); use `playerMappings` as shown above.
 - `getShareableSessionLink()` is synchronous, unlike every other high-level method.
 - `events` has no `once()`; unsubscribe manually with `off()`.
 - Ready-check / sync-phase session routes are not yet exposed by the helper (#92).

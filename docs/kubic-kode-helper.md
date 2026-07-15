@@ -120,14 +120,15 @@ Note that registered-game routes post to the game's own custom endpoints (`/{gam
 
 ### Whose turn is it?
 
-Participants and players live in different id spaces: the **participant id** identifies you in the session, while the **player id** is the engine's positive integer that `get-current-player` returns. The bridge is `KubicKode.game.playerMappings` (participantId -> playerId), populated on game start. The reliable check is:
+Participants and players live in different id spaces: the **participant id** identifies you in the session, while the **player id** is the engine's positive integer that `get-current-player` returns. The bridge is `KubicKode.game.playerMappings` (participantId -> playerId), populated on game start.
+
+`KubicKode.game.isMyTurn()` does the mapping lookup for you (and `getCurrentPlayer()` reverse-maps the current player id to the session participant):
 
 ```javascript
-const myPlayerId = KubicKode.game.playerMappings[KubicKode.participantId];
-const isMyTurn = KubicKode.game.currentPlayerId === myPlayerId;
+if (KubicKode.game.isMyTurn()) enableMoveButtons();
 ```
 
-Avoid `KubicKode.game.isMyTurn()` for now: it compares the engine player id directly against your participant id, which only matches by coincidence (tracked in #175).
+Both return safe defaults (`false` / `null`) before the game has started and the mappings exist. If you compute turn ownership yourself, always go through `playerMappings` - never compare a participant id to a player id directly, even though they often coincide numerically.
 
 ## Real-time events
 

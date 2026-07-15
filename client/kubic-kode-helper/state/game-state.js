@@ -60,14 +60,29 @@ export function createGameState(helper) {
       };
     },
 
-    // Check if it's current user's turn
+    // Check if it's the current user's turn.
+    // Session participant ids and engine player ids are separate id spaces
+    // that often coincide numerically (the first joiner tends to become
+    // player 1); playerMappings is the only reliable bridge between them.
     isMyTurn() {
-      return this.currentPlayerId === helper.participantId;
+      const myPlayerId = this.playerMappings[helper.participantId];
+      return myPlayerId !== undefined && myPlayerId === this.currentPlayerId;
     },
 
-    // Get current player info
+    // Get the session participant whose turn it is.
     getCurrentPlayer() {
-      return helper.session.getParticipant(this.currentPlayerId);
+      for (const [participantId, playerId] of Object.entries(this.playerMappings)) {
+        if (playerId === this.currentPlayerId) {
+          // Object.entries() yields string keys; participant ids from the
+          // server are numbers, so try both forms.
+          return (
+            helper.session.getParticipant(participantId) ??
+            helper.session.getParticipant(Number(participantId)) ??
+            null
+          );
+        }
+      }
+      return null;
     },
 
     // Get current game state
