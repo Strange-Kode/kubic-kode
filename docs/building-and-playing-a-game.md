@@ -73,7 +73,7 @@ await KubicKode.route.game("play-turn", { column: 3 }); // helper adds participa
 - `KubicKode.route.game(action, data)` is the general call for any game route - `"start"`, `"play-turn"`, `"get-current-player"`, `"get-tilemap"`, `"is-active"`, `"options"`, `"stop"`, `"get-player-mappings"`. The helper injects `participantId` and `gameToken` from what it stored at join; you only pass your move/data fields.
 - High-level verbs exist too (`initSession`, `joinSession`, `startGame`, ...). `KubicKode.playTurn(x, y)` is coordinate sugar for games registered with the client-side game registry; for anything else use `route.game("play-turn", ...)`.
 
-The helper has much more (reactive state, the full event set, restart voting, chat, config, the client game registry). That full reference is its own document - see issue #130.
+The helper has much more (reactive state, the full event set, restart voting, chat, config, the client game registry). See the [helper guide](./kubic-kode-helper.md) and the complete [helper reference](./kubic-kode-helper-reference.md).
 
 ## The underlying HTTP routes
 

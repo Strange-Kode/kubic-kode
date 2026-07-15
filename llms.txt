@@ -1,0 +1,22 @@
+# kubic-kode
+
+> kubic-kode is a Node.js framework for turn-based, session-based multiplayer browser games: a game engine (turn sequencing, tile map, entities, win/tie handling, computer players), an importable Express game server (sessions, lobby, game-token auth, WebSocket broadcasts), and a browser helper library that wraps the client side.
+
+## Docs
+
+- [Building and Playing a Game](docs/building-and-playing-a-game.md): the core contract - server-side GameContract/PlayStatus, client-side helper flow, and the generic game routes underneath
+- [KubicKode Helper Reference](docs/kubic-kode-helper-reference.md): complete flat API surface of the browser helper (methods, route actions, events, state, config, errors) - written for LLM consumption
+- [KubicKode Helper Guide](docs/kubic-kode-helper.md): task-oriented guide to the browser helper
+- [Heads or Tails Tutorial](docs/heads-or-tails-tutorial.md): end-to-end build of a simple game (simplified custom-route pattern)
+- [Game Token System](docs/game-token-system.md): participant game tokens - issuing, encryption, validation, error codes
+- [Heartbeat System](docs/heartbeat-system.md): WebSocket liveness, disconnect/reconnect windows
+- [Module System](docs/module-system.md): the server's module loader (game/turn/player modules, hooks, hot reload)
+- [Game State Machine](docs/game-state-machine.md): optional GSM for multi-phase games
+- [Error System](docs/kubic-kode-error-system.md): KubicKodeError classes, ErrorFactory, error codes
+- [Spectator Functionality](docs/spectator-functionality.md): spectators vs playable participants
+- [Kubic Log](docs/kubic-log.md): logging configuration
+
+## Optional
+
+- [Scrollable TileMap](docs/scrollable-tilemap.md): large-world viewports (currently non-functional, see issue #178)
+- [Test Suite README](test/README.md): e2e test workflow
