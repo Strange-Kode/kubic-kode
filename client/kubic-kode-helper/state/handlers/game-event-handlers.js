@@ -21,10 +21,12 @@ export function createGameEventHandlers(helper) {
      * @param {Object} payload - Event payload with playerId
      */
     handlePlayerWon: (payload) => {
-      // Find the winner participant
-      const winnerParticipant = helper.session.participants.find(
-        (p) => p.id === payload.playerId
-      );
+      // payload.playerId is an engine player id, not a participant id -
+      // resolve it through the player mappings. The direct id match is kept
+      // as a fallback for sessions where no mappings were received.
+      const winnerParticipant =
+        helper.game.getParticipantForPlayer(payload.playerId) ??
+        helper.session.participants.find((p) => p.id === payload.playerId);
 
       if (winnerParticipant) {
         helper.flow.winner = winnerParticipant;
@@ -86,10 +88,19 @@ export function createGameEventHandlers(helper) {
       // Fetch fresh tilemap and current player from server (skipped when host app manages its own state)
       if (helper.config.autoFetchOnEvents) {
         try {
-          const [tilemapResult, currentPlayerResult] = await Promise.all([
-            helper.route.game("get-tilemap"),
-            helper.route.game("get-current-player"),
-          ]);
+          // Player mappings normally arrive with the gameStarted broadcast; a
+          // client that joined or reconnected mid-game never saw it, so
+          // backfill once when the mappings are empty (turn ownership and
+          // winner resolution depend on them).
+          const needsMappings =
+            Object.keys(helper.game.playerMappings).length === 0;
+
+          const [tilemapResult, currentPlayerResult, playerMappingsResult] =
+            await Promise.all([
+              helper.route.game("get-tilemap"),
+              helper.route.game("get-current-player"),
+              needsMappings ? helper.route.game("get-player-mappings") : null,
+            ]);
 
           if (tilemapResult.success) {
             helper.game.updateTilemap(tilemapResult.data.tiles);
@@ -103,6 +114,12 @@ export function createGameEventHandlers(helper) {
                 ? currentPlayerResult.data.current_player_ids[0]
                 : null);
             helper.game.updateGame({ currentPlayerId });
+          }
+
+          if (playerMappingsResult?.success) {
+            helper.game.updateGame({
+              playerMappings: playerMappingsResult.data.player_mappings,
+            });
           }
         } catch (error) {
           console.error(

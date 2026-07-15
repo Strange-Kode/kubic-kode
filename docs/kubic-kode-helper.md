@@ -128,7 +128,7 @@ Participants and players live in different id spaces: the **participant id** ide
 if (KubicKode.game.isMyTurn()) enableMoveButtons();
 ```
 
-Both return safe defaults (`false` / `null`) before the game has started and the mappings exist. If you compute turn ownership yourself, always go through `playerMappings` - never compare a participant id to a player id directly, even though they often coincide numerically.
+Both return safe defaults (`false` / `null`) while the mappings or the current player are not yet known. If you compute turn ownership yourself, always go through `playerMappings` - never compare a participant id to a player id directly, even though they often coincide numerically.
 
 ## Real-time events
 

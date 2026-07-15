@@ -22,7 +22,7 @@ Conventions used below:
 | `autoReconnect` | `true` | Reconnect the socket on unexpected close |
 | `retryAttempts` | `3` | HTTP retry count |
 | `retryDelay` | `1000` | ms between HTTP retries |
-| `autoFetchOnEvents` | `true` | Refresh tilemap/current player on `kubic::turnPlayed` / `kubic::gameStarted` |
+| `autoFetchOnEvents` | `true` | Refresh tilemap/current player on `kubic::turnPlayed` / `kubic::gameStarted` (also backfills `playerMappings` on turn events if empty, e.g. after a mid-game join/reconnect) |
 
 Instance fields a consumer may read: `KubicKode.sessionId`, `KubicKode.participantId`, `KubicKode.gameToken`, `KubicKode.currentGame`.
 
@@ -136,10 +136,10 @@ Emits: `sessionStateUpdated`, `participantsUpdated`, `sessionLoadingChanged`, `s
 ### `KubicKode.game`
 
 Properties: `started`, `active`, `tilemap` (`tilemap[y][x]`), `currentPlayerId` (engine player id), `playerMappings` (participantId -> playerId), `isGameLoading`, `gameError`, `lastMoveResult`.
-Methods: `getTile(x, y)`, `getGridDimensions()` -> `{ rows, cols }`, `updateGame(data)`, `updateTilemap(t)`, `isMyTurn()`, `getCurrentPlayer()`, `getState()`, `reset()`; plus `register`/`use` (registry, above).
+Methods: `getTile(x, y)`, `getGridDimensions()` -> `{ rows, cols }`, `updateGame(data)`, `updateTilemap(t)`, `isMyTurn()`, `getCurrentPlayer()`, `getParticipantForPlayer(playerId)`, `getState()`, `reset()`; plus `register`/`use` (registry, above).
 Emits: `gameStateUpdated`, `tilemapUpdated`, `gameLoadingChanged`, `gameErrorChanged`, `gameReset`.
 
-`isMyTurn()` resolves your participant id to an engine player id via `playerMappings` and compares that against `currentPlayerId`; `getCurrentPlayer()` reverse-maps `currentPlayerId` to a session participant. Both return safe defaults (`false` / `null`) when no mappings exist yet (before game start). Never compare a participant id to a player id directly - they are separate id spaces that often coincide numerically.
+`isMyTurn()` resolves your participant id to an engine player id via `playerMappings` and compares that against `currentPlayerId`; `getCurrentPlayer()` / `getParticipantForPlayer(playerId)` reverse-map an engine player id to a session participant. All return safe defaults (`false` / `null`) while the mappings or the current player are not yet known. Never compare a participant id to a player id directly - they are separate id spaces that often coincide numerically.
 
 ### `KubicKode.voting`
 

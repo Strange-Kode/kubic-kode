@@ -71,13 +71,20 @@ export function createGameState(helper) {
 
     // Get the session participant whose turn it is.
     getCurrentPlayer() {
-      for (const [participantId, playerId] of Object.entries(this.playerMappings)) {
-        if (playerId === this.currentPlayerId) {
-          // Object.entries() yields string keys; participant ids from the
-          // server are numbers, so try both forms.
+      return this.getParticipantForPlayer(this.currentPlayerId);
+    },
+
+    // Resolve an engine player id to the session participant it belongs to.
+    getParticipantForPlayer(playerId) {
+      if (playerId === null || playerId === undefined) return null;
+      for (const [participantId, mappedPlayerId] of Object.entries(this.playerMappings)) {
+        if (mappedPlayerId === playerId) {
+          // Object.entries() yields string keys while participant ids from
+          // the server are numbers, so the numeric form is the live lookup;
+          // the string form is kept for non-numeric id schemes.
           return (
-            helper.session.getParticipant(participantId) ??
             helper.session.getParticipant(Number(participantId)) ??
+            helper.session.getParticipant(participantId) ??
             null
           );
         }

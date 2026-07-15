@@ -12,10 +12,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "npm run test:tic-tac-toe && npm run test:lobby",
+    "test": "npm run test:helper && npm run test:tic-tac-toe && npm run test:lobby",
+    "test:helper": "node test/helper-game-state-test.js",
     "test:tic-tac-toe": "node test/tic-tac-toe-game-test.js",
     "test:lobby": "node test/lobby-system-test.js",
-    "test:all": "npm run test:tic-tac-toe && npm run test:lobby",
+    "test:all": "npm run test:helper && npm run test:tic-tac-toe && npm run test:lobby",
     "start-server": "node game-server/game-server.js",
     "dev-server": "DEBUG_MODE=true DEBUG_LEVEL=trace nodemon game-server/game-server.js",
     "dev-server:debug": "DEBUG_MODE=true DEBUG_LEVEL=info nodemon game-server/game-server.js",
