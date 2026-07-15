@@ -18,5 +18,4 @@
 
 ## Optional
 
-- [Scrollable TileMap](docs/scrollable-tilemap.md): large-world viewports (currently non-functional, see issue #178)
 - [Test Suite README](test/README.md): e2e test workflow

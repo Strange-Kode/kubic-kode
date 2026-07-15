@@ -11,7 +11,6 @@ The project is a Node.js/Express backend SDK with multiplayer session handling a
 - **Modular Game Engine**: Core abstractions for tilemaps, turn sequencing, and game state management
 - **Multiplayer Support**: Real-time communication via WebSockets with spectator functionality
 - **Turn-Based Gameplay**: Flexible turn systems (single-set, multi-set, multi-subset)
-- **Scrollable TileMap**: Support for large worlds with player-specific viewports and fog-of-war
 - **Game Token Authentication**: Secure authentication system for all game operations
 - **Extensible Architecture**: Component-based entity system for easy game customization
 
@@ -42,6 +41,38 @@ The project is a Node.js/Express backend SDK with multiplayer session handling a
    cp .env.example .env
    # Set KUBIC_GAME_TOKEN_SECRET_KEY in .env to at least 32 characters
    ```
+
+### Using kubic-kode in your own project
+
+kubic-kode is **not published to npm** - you get it from GitHub. Two supported ways to build a game on top of it:
+
+**1. Build inside a clone.** Clone the repository (steps above) and add your game next to the built-in demos (see `client/demos/backend-tic-tac-toe/`), importing framework modules via relative paths. Simplest way to get going, and how the in-repo demos work.
+
+**2. Vendor it into your project (git submodule + `file:` dependency).** Keeps your game in its own repository while all the `from "kubic-kode"` imports in the docs work as written:
+
+```sh
+git submodule add https://github.com/Strange-Kode/kubic-kode.git kubic-kode
+cd kubic-kode && npm install && cd ..   # the submodule needs its own dependencies
+```
+
+```json
+// your package.json
+{
+  "dependencies": {
+    "kubic-kode": "file:./kubic-kode"
+  }
+}
+```
+
+```sh
+npm install
+```
+
+```javascript
+import { sessionRoutes, gameRoutes, gameRegistry } from "kubic-kode";
+```
+
+To pull framework updates later: `git submodule update --remote`, then commit the new submodule pointer.
 
 ## Usage
 
@@ -762,47 +793,6 @@ The `establishFirstPlayers` method is automatically called during game start and
   "status": "New game created"
 }
 ```
-
-## Scrollable TileMap
-
-kubic-kode supports **scrollable TileMaps** - a powerful feature that enables large-scale worlds with player-specific viewports. This allows each player to view only a subset of the entire game world, enabling more immersive and performance-friendly large-scale games.
-
-### Key Benefits
-
-- **Large Worlds**: Support for massive tile maps
-- **Player Viewports**: Each player has their own view of the world
-- **Fog of War**: Players only see tiles within their viewport
-- **Auto-Follow**: Viewports can automatically follow player movement
-- **Manual Scrolling**: Players can manually scroll their viewport
-- **Performance**: Only visible tiles are processed and sent to clients
-
-### Kubic Kode - Quick Start
-
-```javascript
-// Create a game engine with scrollable tile map
-const gameEngine = new GameEngine(100, 100, {
-  useScrollableTileMap: true,
-  playStyle: "multi-set",
-});
-
-// Create a player with viewport configuration
-const player = new ViewportPlayer(
-  "player1",
-  "Alice",
-  { x: 10, y: 10 },
-  {
-    width: 15, // Viewport width in tiles
-    height: 10, // Viewport height in tiles
-    autoFollow: true, // Auto-follow player movement
-  },
-);
-
-// Get only visible tiles for this player
-const scrollable = gameEngine.getScrollable();
-const visibleTiles = scrollable.getVisibleTilesForPlayer("player1");
-```
-
-For detailed documentation, see [docs/scrollable-tilemap.md](docs/scrollable-tilemap.md).
 
 ## Game Token Authentication
 
