@@ -2,6 +2,11 @@
   "name": "kubic-kode",
   "version": "1.0.0",
   "description": "2D turn based tilemap game engine and related stuff",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Strange-Kode/kubic-kode.git"
+  },
   "main": "index.js",
   "module": "index.js",
   "exports": {

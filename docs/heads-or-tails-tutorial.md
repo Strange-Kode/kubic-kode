@@ -26,6 +26,7 @@ heads-or-tails-game/
 │   │   └── game-entity/
 │   │       ├── player-entity.js
 │   │       └── coin-entity.js
+├── kubic-kode/          (the framework, vendored from GitHub)
 ├── public/
 │   ├── index.html
 │   ├── style.css
@@ -45,10 +46,18 @@ cd heads-or-tails-game
 npm init -y
 ```
 
-Install the required dependencies:
+kubic-kode is not published to npm - vendor it from GitHub as a git submodule (or plain clone) and reference it as a `file:` dependency. That is what makes the `from "kubic-kode"` imports in this tutorial work:
 
 ```bash
-npm install express kubic-kode dotenv
+git init                          # submodules need a git repo
+git submodule add https://github.com/Strange-Kode/kubic-kode.git kubic-kode
+cd kubic-kode && npm install && cd ..   # the framework needs its own dependencies
+```
+
+Install the project's dependencies, with kubic-kode pointing at the vendored folder:
+
+```bash
+npm install express dotenv ./kubic-kode
 npm install --save-dev nodemon
 ```
 
