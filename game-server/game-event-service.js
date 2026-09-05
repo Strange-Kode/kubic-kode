@@ -156,7 +156,11 @@ function getRegisteredBroadcasts() {
 }
 
 function initWebSocketServer(server) {
-  wss = new WebSocketServer({ server, perMessageDeflate: true });
+  // permessage-deflate instantly closes the socket after upgrade on some
+  // mobile browsers (confirmed via A/B on a Samsung S22: 1Hz reconnect storm
+  // with it on, stable with it off - Strange-Kode/kubic-kode#189). ws also
+  // disables it by default on the server and warns about zlib fragmentation.
+  wss = new WebSocketServer({ server, perMessageDeflate: false });
   
   wss.on("connection", (ws, req) => {
     const params = new URLSearchParams(req.url.split("?")[1]);
@@ -461,7 +465,7 @@ function broadcastToSession(gameSession, messageObj) {
   kubicLog.debug(`[GameEventService]::broadcastToSession: Broadcasting ${messageObj.type} to session ${sessionId} with ${conns.length} connections`);
   kubicLog.trace(`[GameEventService]::broadcastToSession: Message:`, finalMessageObj);
   
-  // Log size for turnPlayed events to measure compression effectiveness
+  // Log payload size for turnPlayed events (delta vs full-tilemap comparison)
   if (messageObj.type === "kubic::turnPlayed") {
     const uncompressedBytes = Buffer.byteLength(message, "utf8");
     const uncompressedKB = (uncompressedBytes / 1024).toFixed(1);
