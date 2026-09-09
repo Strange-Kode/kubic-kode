@@ -1,16 +1,84 @@
 import { HEARTBEAT_INTERVAL } from '../core/constants.js';
 
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30000;
+const RECONNECT_JITTER_MS = 500;
+
 /**
  * WebSocket Client factory function
  * Creates a WebSocket client for real-time communication
+ *
+ * Lifecycle: at most one live socket, owned here. `release()` is the only way
+ * a socket stops being ours; it detaches the handlers before closing, so
+ * nothing a released socket does afterwards (a late close event, a queued
+ * message) reaches the helper or schedules a reconnect. `helper.websocket`
+ * mirrors the live socket for readers outside this module: a socket that is
+ * connecting, open or closing, or null - including while a reconnect is
+ * pending.
  *
  * @param {Object} helper - Reference to the main KubicKodeHelper instance
  * @returns {Object} WebSocket client with connection management methods
  */
 export function createWebSocketClient(helper) {
+  let socket = null;
+  let heartbeatTimer = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  let hasConnectedBefore = false;
+
+  const setSocket = (next) => {
+    socket = next;
+    helper.websocket = next;
+  };
+
+  const clearHeartbeatTimer = () => {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  };
+
+  const cancelReconnect = () => {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  };
+
+  const release = (code, reason) => {
+    cancelReconnect();
+    clearHeartbeatTimer();
+    if (!socket) return;
+    const released = socket;
+    setSocket(null);
+    released.onopen = null;
+    released.onmessage = null;
+    released.onclose = null;
+    released.onerror = null;
+    released.close(code, reason);
+  };
+
+  const buildUrl = () => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const hostPort = helper.config.websocketPort ?? "3000";
+    const portSegment = hostPort ? `:${hostPort}` : "";
+    const wsPath = helper.config.websocketPath || "/";
+    const url = new URL(`${protocol}//${window.location.hostname}${portSegment}${wsPath}`);
+    url.searchParams.set("sessionId", helper.sessionId);
+    if (helper.participantId) {
+      url.searchParams.set("participantId", helper.participantId);
+    }
+    return url.toString();
+  };
+
+  /* Exponential backoff with jitter: a server that is down or restarting must
+     not see every open tab retry in lockstep once per second */
+  const nextReconnectDelay = () => {
+    const delay = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts, RECONNECT_MAX_DELAY_MS);
+    reconnectAttempts += 1;
+    return delay + Math.floor(Math.random() * RECONNECT_JITTER_MS);
+  };
+
   return {
     /**
-     * Initialize WebSocket connection for real-time events
+     * Initialize WebSocket connection for real-time events. Replaces a live
+     * socket cleanly; the replaced socket never emits websocketDisconnected.
      * @returns {Object} Helper reference for chaining
      */
     connect() {
@@ -18,29 +86,16 @@ export function createWebSocketClient(helper) {
         return helper;
       }
 
-      if (helper.websocket) {
-        helper.websocket.close();
-      }
+      release(1000, "Replaced");
 
-      // Construct WebSocket URL with participant ID for connection tracking
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const next = new WebSocket(buildUrl());
+      setSocket(next);
 
-      const hostIP = window.location.hostname;
-      const hostPort = helper.config.websocketPort ?? "3000";
-      const portSegment = hostPort ? `:${hostPort}` : "";
-      const wsPath = helper.config.websocketPath || "/";
-
-      let wsUrl = `${protocol}://${hostIP}${portSegment}${wsPath}?sessionId=${helper.sessionId}`;
-      if (helper.participantId) {
-        wsUrl += `&participantId=${helper.participantId}`;
-      }
-
-      helper.websocket = new WebSocket(wsUrl);
-
-      // Send participant name when WebSocket opens
-      helper.websocket.onopen = () => {
-        const isReconnect = helper._hasConnectedBefore === true;
+      next.onopen = () => {
+        const isReconnect = hasConnectedBefore;
+        hasConnectedBefore = true;
         helper._hasConnectedBefore = true;
+        reconnectAttempts = 0;
 
         helper.events.emit("websocketConnected", { isReconnect });
 
@@ -50,7 +105,7 @@ export function createWebSocketClient(helper) {
         }
       };
 
-      helper.websocket.onmessage = (event) => {
+      next.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
@@ -72,19 +127,24 @@ export function createWebSocketClient(helper) {
         }
       };
 
-      helper.websocket.onclose = (event) => {
-        helper.events.emit("websocketDisconnected", event);
+      // Only a live socket still has this handler: release() detaches it first
+      next.onclose = (event) => {
+        setSocket(null);
+        clearHeartbeatTimer();
 
-        // Stop heartbeat on disconnect
-        this.stopHeartbeat();
-
-        // Only reconnect if autoReconnect is enabled and it's not a manual close
+        // Armed before the event goes out, so a listener that reconnects
+        // synchronously cancels this timer instead of racing it
         if (helper.config.autoReconnect && event.code !== 1000) {
-          setTimeout(() => this.connect(), 1000);
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            this.connect();
+          }, nextReconnectDelay());
         }
+
+        helper.events.emit("websocketDisconnected", event);
       };
 
-      helper.websocket.onerror = (error) => {
+      next.onerror = (error) => {
         console.error("WebSocket error:", error);
         helper.events.emit("websocketError", error);
       };
@@ -93,14 +153,20 @@ export function createWebSocketClient(helper) {
     },
 
     /**
+     * Whether a socket is connecting, open or closing. False while a reconnect
+     * is pending, so a caller that wants a connection now can call connect().
+     * @returns {boolean}
+     */
+    hasLiveSocket() {
+      return socket !== null;
+    },
+
+    /**
      * Start heartbeat to keep connection alive
      */
     startHeartbeat() {
-      if (helper.heartbeatInterval) {
-        this.stopHeartbeat();
-      }
-
-      helper.heartbeatInterval = setInterval(() => {
+      clearHeartbeatTimer();
+      heartbeatTimer = setInterval(() => {
         this.sendHeartbeat();
       }, HEARTBEAT_INTERVAL);
     },
@@ -109,18 +175,15 @@ export function createWebSocketClient(helper) {
      * Stop heartbeat
      */
     stopHeartbeat() {
-      if (helper.heartbeatInterval) {
-        clearInterval(helper.heartbeatInterval);
-        helper.heartbeatInterval = null;
-      }
+      clearHeartbeatTimer();
     },
 
     /**
      * Send heartbeat to server
      */
     sendHeartbeat() {
-      if (helper.websocket && helper.websocket.readyState === WebSocket.OPEN) {
-        helper.websocket.send(
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(
           JSON.stringify({
             type: "heartbeat",
             payload: { timestamp: Date.now() },
@@ -135,8 +198,8 @@ export function createWebSocketClient(helper) {
      */
     handleHeartbeat(data) {
       // Respond to server heartbeat
-      if (helper.websocket && helper.websocket.readyState === WebSocket.OPEN) {
-        helper.websocket.send(
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(
           JSON.stringify({
             type: "heartbeat",
             payload: { timestamp: Date.now() },
@@ -175,15 +238,16 @@ export function createWebSocketClient(helper) {
     },
 
     /**
-     * Disconnect WebSocket connection
+     * Disconnect WebSocket connection. Closes cleanly, cancels a pending
+     * reconnect, and leaves config untouched so the next session reconnects
+     * normally. The next connect() reports isReconnect: false.
      * @returns {Object} Helper reference for chaining
      */
     disconnect() {
-      if (helper.websocket) {
-        helper.config.autoReconnect = false; // Prevent auto-reconnection
-        helper.websocket.close(1000, "Manual disconnect");
-        helper.websocket = null;
-      }
+      release(1000, "Manual disconnect");
+      hasConnectedBefore = false;
+      helper._hasConnectedBefore = false;
+      reconnectAttempts = 0;
       return helper;
     }
   };

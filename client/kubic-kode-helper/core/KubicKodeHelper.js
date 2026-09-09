@@ -55,9 +55,9 @@ export class KubicKodeHelper {
     // Event listeners storage (used by event-emitter)
     this.eventListeners = new Map();
 
-    // WebSocket state (used by websocket-client)
+    // WebSocket state mirrored by websocket-client, which owns the lifecycle
     this.websocket = null;
-    this.heartbeatInterval = null;
+    this._hasConnectedBefore = false;
 
     // Initialize network layer
     this.http = createHttpClient(this);
