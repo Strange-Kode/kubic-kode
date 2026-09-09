@@ -1,8 +1,10 @@
-import { HEARTBEAT_INTERVAL } from '../core/constants.js';
-
-const RECONNECT_BASE_DELAY_MS = 1000;
-const RECONNECT_MAX_DELAY_MS = 30000;
-const RECONNECT_JITTER_MS = 500;
+import {
+  HEARTBEAT_INTERVAL,
+  RECONNECT_BASE_DELAY_MS,
+  RECONNECT_JITTER_MS,
+  RECONNECT_MAX_DELAY_MS,
+  WS_CLOSE_NORMAL,
+} from '../core/constants.js';
 
 /**
  * WebSocket Client factory function
@@ -86,7 +88,7 @@ export function createWebSocketClient(helper) {
         return helper;
       }
 
-      release(1000, "Replaced");
+      release(WS_CLOSE_NORMAL, "Replaced");
 
       const next = new WebSocket(buildUrl());
       setSocket(next);
@@ -134,7 +136,7 @@ export function createWebSocketClient(helper) {
 
         // Armed before the event goes out, so a listener that reconnects
         // synchronously cancels this timer instead of racing it
-        if (helper.config.autoReconnect && event.code !== 1000) {
+        if (helper.config.autoReconnect && event.code !== WS_CLOSE_NORMAL) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
             this.connect();
@@ -244,7 +246,7 @@ export function createWebSocketClient(helper) {
      * @returns {Object} Helper reference for chaining
      */
     disconnect() {
-      release(1000, "Manual disconnect");
+      release(WS_CLOSE_NORMAL, "Manual disconnect");
       hasConnectedBefore = false;
       helper._hasConnectedBefore = false;
       reconnectAttempts = 0;

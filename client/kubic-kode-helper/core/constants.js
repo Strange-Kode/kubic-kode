@@ -30,3 +30,19 @@ export const AUTO_START_MODES = {
  * WebSocket heartbeat interval in milliseconds
  */
 export const HEARTBEAT_INTERVAL = 25000; // 25 seconds
+
+/**
+ * WebSocket close code for a normal closure (RFC 6455). The client sends it
+ * when it closes a socket on purpose, and a close with this code never
+ * triggers a reconnect.
+ */
+export const WS_CLOSE_NORMAL = 1000;
+
+/**
+ * Reconnect backoff after an unexpected close: the delay starts at the base,
+ * doubles per failed attempt up to the max, and carries random jitter so
+ * clients do not retry in lockstep. Reset on a successful open.
+ */
+export const RECONNECT_BASE_DELAY_MS = 1000;
+export const RECONNECT_MAX_DELAY_MS = 30000;
+export const RECONNECT_JITTER_MS = 500;
