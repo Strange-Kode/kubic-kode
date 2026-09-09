@@ -98,7 +98,7 @@ Heartbeat logic lives in `client/kubic-kode-helper/network/websocket-client.js`;
 the client interval constant is in `client/kubic-kode-helper/core/constants.js`.
 
 ```javascript
-// The heartbeat interval handle is stored on the helper instance (helper.heartbeatInterval).
+// The heartbeat interval handle lives inside websocket-client.js, bound to the live socket.
 
 // WebSocket URL, simplified. The real builder also applies a configurable path
 // (helper.config.websocketPath) and omits the port and participantId segments

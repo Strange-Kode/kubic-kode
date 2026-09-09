@@ -326,8 +326,8 @@ export function createHighLevelAPI(helper) {
         });
       }
 
-      // Connect WebSocket if needed
-      if (!helper.websocket) {
+      // Connect WebSocket if needed (a pending reconnect counts as needed)
+      if (!helper.ws.hasLiveSocket()) {
         helper.connectWebSocket();
       }
 

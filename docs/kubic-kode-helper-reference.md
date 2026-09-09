@@ -202,8 +202,8 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 | Event | Payload | Fired |
 |-------|---------|-------|
-| `websocketConnected` | `{ isReconnect }` | socket open |
-| `websocketDisconnected` | CloseEvent | socket close |
+| `websocketConnected` | `{ isReconnect }` | socket open (`isReconnect` is false for the first open after `disconnectWebSocket()`) |
+| `websocketDisconnected` | CloseEvent | unexpected socket close only; not fired by `disconnectWebSocket()` or when `connectWebSocket()` replaces a live socket |
 | `websocketError` | Error | socket error |
 | `sessionInitialized` | `{ sessionId }` | after `/session/init/*` |
 | `gameEnded` | `{ winner, isTie, reason? }` | win, tie, or inactivity ending |
@@ -226,7 +226,9 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 - `KubicKode.connectWebSocket()` - connects to `ws(s)://{hostname}:{config.websocketPort}{config.websocketPath}?sessionId=...[&participantId=...]`. Requires `sessionId`; connect **after joining** so the socket is tied to your participant.
 - Heartbeats start automatically when a `participantId` is present: `{ type: "heartbeat" }` every 25 s, answered by `kubic::heartbeatResponse`.
-- On unexpected close (code != 1000) the helper reconnects automatically if `config.autoReconnect`; `disconnectWebSocket()` closes cleanly without reconnecting.
+- On unexpected close (code != 1000) the helper reconnects automatically if `config.autoReconnect`, with exponential backoff from 1 s to 30 s plus jitter, reset on the next successful open. `disconnectWebSocket()` closes cleanly (code 1000), cancels a pending reconnect, and leaves `config.autoReconnect` untouched.
+- Calling `connectWebSocket()` while a socket is live replaces it: the old socket is detached and closed with code 1000 and never triggers a reconnect or a `websocketDisconnected` event. At most one socket exists per helper.
+- `KubicKode.websocket` is the live socket (connecting, open or closing) or `null`, including while a reconnect is pending; `KubicKode.ws.hasLiveSocket()` is the predicate to use.
 - A REST fallback heartbeat exists: `KubicKode.sendRestHeartbeat()` -> POST `/session/:sessionId/heartbeat`.
 
 ## Tokens, HTTP, errors
