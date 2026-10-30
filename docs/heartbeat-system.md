@@ -162,18 +162,6 @@ Send heartbeat to confirm participant is still alive.
 }
 ```
 
-#### POST `/api/sessions/cleanup`
-
-Clean up inactive sessions.
-
-**Request:**
-
-```json
-{
-  "maxInactiveTime": 1800000 // 30 minutes
-}
-```
-
 #### POST `/api/session/:sessionId/disconnect`
 
 Force disconnect a participant (admin function).

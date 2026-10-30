@@ -37,6 +37,8 @@ export const HEARTBEAT_INTERVAL = 25000; // 25 seconds
  * triggers a reconnect.
  */
 export const WS_CLOSE_NORMAL = 1000;
+/* Server refused the seat (missing or wrong game token). Retrying cannot fix it. */
+export const WS_CLOSE_UNAUTHORIZED = 4401;
 
 /**
  * Reconnect backoff after an unexpected close: the delay starts at the base,

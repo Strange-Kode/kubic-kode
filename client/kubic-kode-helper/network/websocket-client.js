@@ -4,6 +4,7 @@ import {
   RECONNECT_JITTER_MS,
   RECONNECT_MAX_DELAY_MS,
   WS_CLOSE_NORMAL,
+  WS_CLOSE_UNAUTHORIZED,
 } from '../core/constants.js';
 
 /**
@@ -65,6 +66,9 @@ export function createWebSocketClient(helper) {
     url.searchParams.set("sessionId", helper.sessionId);
     if (helper.participantId) {
       url.searchParams.set("participantId", helper.participantId);
+      if (helper.gameToken) {
+        url.searchParams.set("gameToken", helper.gameToken);
+      }
     }
     return url.toString();
   };
@@ -136,7 +140,8 @@ export function createWebSocketClient(helper) {
 
         // Armed before the event goes out, so a listener that reconnects
         // synchronously cancels this timer instead of racing it
-        if (helper.config.autoReconnect && event.code !== WS_CLOSE_NORMAL) {
+        const isRetryable = event.code !== WS_CLOSE_NORMAL && event.code !== WS_CLOSE_UNAUTHORIZED;
+        if (helper.config.autoReconnect && isRetryable) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
             this.connect();

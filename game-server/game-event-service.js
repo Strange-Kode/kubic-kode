@@ -1,6 +1,11 @@
 import { WebSocketServer } from "ws";
 import { kubicLog } from "../kubic-log.js";
 import { KubicBroadcastError, ErrorCodes } from "../game-engine/kubic-kode-error.js";
+import { gameTokenService } from "./game-token-service.js";
+
+/* Application close code for a refused seat. The client treats it as final
+   and does not reconnect, unlike every other abnormal close. */
+const WS_CLOSE_UNAUTHORIZED = 4401;
 
 const connectionsBySession = new Map();
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
@@ -166,8 +171,21 @@ function initWebSocketServer(server) {
     const params = new URLSearchParams(req.url.split("?")[1]);
     const sessionId = params.get("sessionId");
     const participantId = params.get("participantId");
-    
+    const gameToken = params.get("gameToken");
+
     kubicLog.info(`[GameEventService]::initWebSocketServer: New WebSocket connection for session: ${sessionId}, participant: ${participantId}`);
+
+    // A seat is claimed from the URL alone, so the same token every game
+    // route demands has to be presented here too, before any seat state
+    // (connection map, timeouts, viability) is touched.
+    if (participantId) {
+      const refusal = getSeatRefusal(sessionId, participantId, gameToken);
+      if (refusal) {
+        kubicLog.warn(`[GameEventService]::initWebSocketServer: Refused seat ${participantId} on session ${sessionId}: ${refusal}`);
+        ws.close(WS_CLOSE_UNAUTHORIZED, refusal);
+        return;
+      }
+    }
     
     if (!connectionsBySession.has(sessionId)) {
       connectionsBySession.set(sessionId, []);
@@ -227,6 +245,26 @@ function initWebSocketServer(server) {
       kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
     });
   });
+}
+
+/**
+ * Why a socket may not bind to a seat, or null when it may. Mirrors the
+ * checks in game-token-middleware so the socket and the HTTP routes agree
+ * on what a valid seat is.
+ * @returns {string|null} Close reason, kept short: ws caps it at 123 bytes.
+ */
+function getSeatRefusal(sessionId, participantId, gameToken) {
+  if (!gameToken) return "Game token required";
+  const tokenData = gameTokenService.instance.validateToken(gameToken);
+  if (!tokenData) return "Invalid or expired game token";
+  if (tokenData.sessionId !== sessionId) return "Token not valid for session";
+  if (String(tokenData.participantId) !== String(participantId)) return "Token not valid for participant";
+  if (_sessionManager) {
+    const session = _sessionManager.getSession(sessionId);
+    if (!session) return "Session not found";
+    if (!session.getParticipantById(participantId)) return "Participant not found";
+  }
+  return null;
 }
 
 function handleHeartbeat(sessionId, participantId, ws) {
@@ -488,7 +526,10 @@ function cleanupSession(sessionId) {
   // Clear timeouts
   if (connectionTimeouts.has(sessionId)) {
     const timeouts = connectionTimeouts.get(sessionId);
-    timeouts.forEach(timeout => clearTimeout(timeout));
+    timeouts.forEach(({ heartbeatTimeout, reconnectionTimeout }) => {
+      clearTimeout(heartbeatTimeout);
+      clearTimeout(reconnectionTimeout);
+    });
     connectionTimeouts.delete(sessionId);
   }
   

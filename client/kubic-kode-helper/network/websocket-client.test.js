@@ -206,6 +206,32 @@ describe("websocket-client lifecycle", () => {
     assert.strictEqual(FakeWebSocket.instances.length, 1);
   });
 
+  test("the game token rides on the URL only when a participant is set", () => {
+    const helper = createHelper();
+    helper.gameToken = "tok=en&x";
+    const client = createWebSocketClient(helper);
+
+    client.connect();
+    assert.strictEqual(new URL(socketAt(0).url).searchParams.get("gameToken"), "tok=en&x");
+
+    helper.participantId = null;
+    client.connect();
+    assert.strictEqual(new URL(socketAt(1).url).searchParams.get("gameToken"), null);
+  });
+
+  test("a seat refused with 4401 reports the disconnect and never reconnects", () => {
+    const helper = createHelper();
+    const client = createWebSocketClient(helper);
+
+    client.connect();
+    socketAt(0).onclose({ code: 4401, reason: "Game token required" });
+
+    assert.strictEqual(countEmitted(helper, "websocketDisconnected"), 1);
+    mock.timers.tick(60000);
+    assert.strictEqual(FakeWebSocket.instances.length, 1);
+    assert.strictEqual(client.hasLiveSocket(), false);
+  });
+
   test("session and participant ids are URL-encoded", () => {
     const helper = createHelper();
     helper.sessionId = "s&participantId=other";
