@@ -1,10 +1,11 @@
 import { WebSocketServer } from "ws";
 import { kubicLog } from "../kubic-log.js";
 import { KubicBroadcastError, ErrorCodes } from "../game-engine/kubic-kode-error.js";
-import { gameTokenService } from "./game-token-service.js";
+import { getSeatRefusal } from "./game-token-middleware.js";
 
-/* Application close code for a refused seat. The client treats it as final
-   and does not reconnect, unlike every other abnormal close. */
+/* Application close code for a refused seat; the client's WS_CLOSE_UNAUTHORIZED
+   (client/kubic-kode-helper/core/constants.js) is its pair and treats it as
+   final, no reconnect. The client bundle cannot share a module with the server. */
 const WS_CLOSE_UNAUTHORIZED = 4401;
 
 const connectionsBySession = new Map();
@@ -178,11 +179,19 @@ function initWebSocketServer(server) {
     // A seat is claimed from the URL alone, so the same token every game
     // route demands has to be presented here too, before any seat state
     // (connection map, timeouts, viability) is touched.
+    // Installed before the refusal path: a peer we are closing on can still
+    // send a bad frame, and ws turns an unlistened error into an uncaught one
+    ws.on("error", (error) => {
+      kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
+    });
+
     if (participantId) {
-      const refusal = getSeatRefusal(sessionId, participantId, gameToken);
-      if (refusal) {
-        kubicLog.warn(`[GameEventService]::initWebSocketServer: Refused seat ${participantId} on session ${sessionId}: ${refusal}`);
-        ws.close(WS_CLOSE_UNAUTHORIZED, refusal);
+      const seat = _sessionManager
+        ? getSeatRefusal(_sessionManager, sessionId, participantId, gameToken)
+        : { status: 503, message: "Server not ready" };
+      if (seat.status) {
+        kubicLog.warn(`[GameEventService]::initWebSocketServer: Refused seat ${participantId} on session ${sessionId}: ${seat.message}`);
+        ws.close(WS_CLOSE_UNAUTHORIZED, seat.message);
         return;
       }
     }
@@ -241,30 +250,7 @@ function initWebSocketServer(server) {
       }
     });
     
-    ws.on("error", (error) => {
-      kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
-    });
   });
-}
-
-/**
- * Why a socket may not bind to a seat, or null when it may. Mirrors the
- * checks in game-token-middleware so the socket and the HTTP routes agree
- * on what a valid seat is.
- * @returns {string|null} Close reason, kept short: ws caps it at 123 bytes.
- */
-function getSeatRefusal(sessionId, participantId, gameToken) {
-  if (!gameToken) return "Game token required";
-  const tokenData = gameTokenService.instance.validateToken(gameToken);
-  if (!tokenData) return "Invalid or expired game token";
-  if (tokenData.sessionId !== sessionId) return "Token not valid for session";
-  if (String(tokenData.participantId) !== String(participantId)) return "Token not valid for participant";
-  if (_sessionManager) {
-    const session = _sessionManager.getSession(sessionId);
-    if (!session) return "Session not found";
-    if (!session.getParticipantById(participantId)) return "Participant not found";
-  }
-  return null;
 }
 
 function handleHeartbeat(sessionId, participantId, ws) {
@@ -525,11 +511,8 @@ function cleanupSession(sessionId) {
   
   // Clear timeouts
   if (connectionTimeouts.has(sessionId)) {
-    const timeouts = connectionTimeouts.get(sessionId);
-    timeouts.forEach(({ heartbeatTimeout, reconnectionTimeout }) => {
-      clearTimeout(heartbeatTimeout);
-      clearTimeout(reconnectionTimeout);
-    });
+    const participantIds = Array.from(connectionTimeouts.get(sessionId).keys());
+    participantIds.forEach(participantId => clearParticipantTimeout(sessionId, participantId));
     connectionTimeouts.delete(sessionId);
   }
   

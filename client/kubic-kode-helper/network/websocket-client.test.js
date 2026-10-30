@@ -224,7 +224,7 @@ describe("websocket-client lifecycle", () => {
     const client = createWebSocketClient(helper);
 
     client.connect();
-    socketAt(0).onclose({ code: 4401, reason: "Game token required" });
+    socketAt(0).onclose({ code: 4401, reason: "Game token is required" });
 
     assert.strictEqual(countEmitted(helper, "websocketDisconnected"), 1);
     mock.timers.tick(60000);

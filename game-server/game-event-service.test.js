@@ -63,7 +63,7 @@ describe("initWebSocketServer seat binding", () => {
     const result = await connect(`sessionId=${SESSION_ID}&participantId=${SEAT}`);
     assert.strictEqual(result.outcome, "closed");
     assert.strictEqual(result.code, 4401);
-    assert.strictEqual(result.reason, "Game token required");
+    assert.strictEqual(result.reason, "Game token is required");
     assert.deepStrictEqual(result.messages, []);
   });
 
@@ -71,14 +71,14 @@ describe("initWebSocketServer seat binding", () => {
     const otherSeatToken = gameTokenService.instance.generateToken(SESSION_ID, 2);
     const result = await connect(`sessionId=${SESSION_ID}&participantId=${SEAT}&gameToken=${encodeURIComponent(otherSeatToken)}`);
     assert.strictEqual(result.code, 4401);
-    assert.strictEqual(result.reason, "Token not valid for participant");
+    assert.strictEqual(result.reason, "Game token is not valid for this participant");
   });
 
   test("a token for another session is refused", async () => {
     const otherSessionToken = gameTokenService.instance.generateToken("session-2", SEAT);
     const result = await connect(`sessionId=${SESSION_ID}&participantId=${SEAT}&gameToken=${encodeURIComponent(otherSessionToken)}`);
     assert.strictEqual(result.code, 4401);
-    assert.strictEqual(result.reason, "Token not valid for session");
+    assert.strictEqual(result.reason, "Game token is not valid for this session");
   });
 
   test("garbage in place of a token is refused", async () => {
@@ -100,5 +100,38 @@ describe("initWebSocketServer seat binding", () => {
   test("a session-only socket with no seat still connects", async () => {
     const result = await connect(`sessionId=${SESSION_ID}`);
     assert.strictEqual(result.outcome, "open");
+  });
+});
+
+describe("a refused socket", () => {
+  before(async () => {
+    server = http.createServer();
+    GameEventService.setSessionManager(sessionManagerDouble);
+    GameEventService.initWebSocketServer(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    port = server.address().port;
+  });
+
+  after(async () => {
+    GameEventService.cleanupSession(SESSION_ID);
+    server.close();
+    await once(server, "close");
+  });
+
+  test("survives a malformed frame from the peer without an uncaught error", async () => {
+    const uncaught = [];
+    const onUncaught = (error) => uncaught.push(error);
+    process.on("uncaughtException", onUncaught);
+
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/?sessionId=${SESSION_ID}&participantId=${SEAT}`);
+    await once(socket, "open");
+    /* An unmasked text frame: clients must mask, so ws raises an error on it */
+    socket._socket.write(Buffer.from([0x81, 0x01, 0x41]));
+    await once(socket, "close");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    process.off("uncaughtException", onUncaught);
+    assert.deepStrictEqual(uncaught, []);
   });
 });

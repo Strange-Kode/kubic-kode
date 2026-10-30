@@ -2,8 +2,64 @@ import { gameTokenService } from "./game-token-service.js";
 import { kubicLog } from "../kubic-log.js";
 
 /**
- * Middleware to validate game tokens
- * Ensures that game tokens are only passed via POST requests and are valid
+ * The one answer to "may this token act as this seat in this session", shared
+ * by the HTTP routes and the websocket handshake so both refuse the same
+ * things for the same reasons. A seat claim (participantId given) is only
+ * honoured by a token issued for that seat.
+ * @param {Object} sessionManager
+ * @param {string} sessionId
+ * @param {string|number|null|undefined} participantId - The seat the caller claims, if any
+ * @param {string|undefined} gameToken
+ * @returns {{ status: number, message: string } | { tokenData: Object, gameSession: Object }}
+ *   A refusal carrying the HTTP status and the response fields, or the resolved seat
+ */
+export function getSeatRefusal(sessionManager, sessionId, participantId, gameToken) {
+  if (!gameToken) {
+    return { status: 401, message: "Game token is required", code: "MISSING_GAME_TOKEN" };
+  }
+
+  const tokenData = gameTokenService.instance.validateToken(gameToken);
+  if (!tokenData) {
+    return { status: 401, message: "Invalid or expired game token", code: "INVALID_GAME_TOKEN" };
+  }
+
+  if (tokenData.sessionId !== sessionId) {
+    return {
+      status: 403,
+      message: "Game token is not valid for this session",
+      code: "TOKEN_SESSION_MISMATCH",
+      tokenSessionId: tokenData.sessionId,
+      requestSessionId: sessionId
+    };
+  }
+
+  const gameSession = sessionManager.getSession(sessionId);
+  if (!gameSession) {
+    return { status: 404, message: "Game session not found", sessionId };
+  }
+
+  // URL params arrive as strings and JSON bodies as numbers
+  const hasSeatClaim = participantId !== undefined && participantId !== null && participantId !== "";
+  if (hasSeatClaim && String(tokenData.participantId) !== String(participantId)) {
+    return {
+      status: 403,
+      message: "Game token is not valid for this participant",
+      code: "TOKEN_PARTICIPANT_MISMATCH",
+      tokenParticipantId: tokenData.participantId,
+      requestParticipantId: participantId
+    };
+  }
+
+  if (tokenData.participantId && !gameSession.getParticipantById(tokenData.participantId)) {
+    return { status: 404, message: "Participant not found", participantId: tokenData.participantId };
+  }
+
+  return { tokenData, gameSession };
+}
+
+/**
+ * Middleware to validate game tokens, with the seat check when the body names a participant.
+ * Read-only game routes use this directly: a spectator's token passes.
  * @param {Object} sessionManager - The session manager instance
  * @returns {Function} Express middleware function
  */
@@ -18,100 +74,44 @@ export function validateGameToken(sessionManager) {
       });
     }
 
-    const { gameToken } = req.body;
+    const { gameToken, participantId } = req.body;
     const { sessionId } = req.params;
 
-    // Check if game token is provided
-    if (!gameToken) {
-      return res.status(401).json({
-        error: true,
-        message: "Game token is required",
-        code: "MISSING_GAME_TOKEN"
-      });
-    }
-
-    // Validate the game token
-    const tokenData = gameTokenService.instance.validateToken(gameToken);
-    if (!tokenData) {
-      return res.status(401).json({
-        error: true,
-        message: "Invalid or expired game token",
-        code: "INVALID_GAME_TOKEN"
-      });
-    }
-
-    // Check if token is for the correct session
-    if (tokenData.sessionId !== sessionId) {
-      return res.status(403).json({
-        error: true,
-        message: "Game token is not valid for this session",
-        code: "TOKEN_SESSION_MISMATCH",
-        tokenSessionId: tokenData.sessionId,
-        requestSessionId: sessionId
-      });
-    }
-
-    // Verify that the session exists
-    const gameSession = sessionManager.getSession(sessionId);
-    if (!gameSession) {
-      return res.status(404).json({
-        error: true,
-        message: "Game session not found",
-        sessionId: sessionId
-      });
+    const seat = getSeatRefusal(sessionManager, sessionId, participantId, gameToken);
+    if (seat.status) {
+      const { status, ...body } = seat;
+      return res.status(status).json({ error: true, ...body });
     }
 
     // Attach token data and session to request for use in route handlers
-    req.gameTokenData = tokenData;
-    req.gameSession = gameSession;
+    req.gameTokenData = seat.tokenData;
+    req.gameSession = seat.gameSession;
 
-    kubicLog.debug(`[GameTokenMiddleware] Validated game token for session: ${sessionId}, participant: ${tokenData.participantId || "none"}`);
+    kubicLog.debug(`[GameTokenMiddleware] Validated game token for session: ${sessionId}, participant: ${seat.tokenData.participantId || "none"}`);
     next();
   };
 }
 
+export const validateGameTokenWithParticipantReadOnly = validateGameToken;
+
 /**
- * Middleware to validate game tokens with participant-specific validation
- * Ensures that the token is valid for a specific participant
+ * Middleware for routes that change game state: the token's participant must also be playable.
  * @param {Object} sessionManager - The session manager instance
  * @returns {Function} Express middleware function
  */
 export function validateGameTokenWithParticipant(sessionManager) {
+  const basicValidation = validateGameToken(sessionManager);
+
   return (req, res, next) => {
-    // First validate the basic game token
-    const basicValidation = validateGameToken(sessionManager);
-    
     basicValidation(req, res, (err) => {
       if (err) {
         return next(err);
       }
 
-      const { participantId } = req.body;
-      const { gameTokenData } = req;
-
-      // If participantId is provided in the request, validate it matches the token
-      if (participantId && gameTokenData.participantId && gameTokenData.participantId !== participantId) {
-        return res.status(403).json({
-          error: true,
-          message: "Game token is not valid for this participant",
-          code: "TOKEN_PARTICIPANT_MISMATCH",
-          tokenParticipantId: gameTokenData.participantId,
-          requestParticipantId: participantId
-        });
-      }
-
-      // If token has a participantId, validate that the participant exists and is playable
+      const { gameTokenData, gameSession } = req;
       if (gameTokenData.participantId) {
-        const participant = req.gameSession.getParticipantById(gameTokenData.participantId);
-        if (!participant) {
-          return res.status(404).json({
-            error: true,
-            message: "Participant not found",
-            participantId: gameTokenData.participantId
-          });
-        }
-
-        if (!req.gameSession.isParticipantPlayable(participant)) {
+        const participant = gameSession.getParticipantById(gameTokenData.participantId);
+        if (!gameSession.isParticipantPlayable(participant)) {
           return res.status(403).json({
             error: true,
             message: "This participant cannot perform game actions",
@@ -120,55 +120,6 @@ export function validateGameTokenWithParticipant(sessionManager) {
         }
       }
 
-      kubicLog.debug(`[GameTokenMiddleware] Validated participant-specific game token for session: ${req.params.sessionId}, participant: ${gameTokenData.participantId}`);
-      next();
-    });
-  };
-}
-
-/**
- * Middleware to validate game tokens with participant-specific validation for read-only endpoints
- * Allows spectators to access read-only game information
- * @param {Object} sessionManager - The session manager instance
- * @returns {Function} Express middleware function
- */
-export function validateGameTokenWithParticipantReadOnly(sessionManager) {
-  return (req, res, next) => {
-    // First validate the basic game token
-    const basicValidation = validateGameToken(sessionManager);
-    
-    basicValidation(req, res, (err) => {
-      if (err) {
-        return next(err);
-      }
-
-      const { participantId } = req.body;
-      const { gameTokenData } = req;
-
-      // If participantId is provided in the request, validate it matches the token
-      if (participantId && gameTokenData.participantId && gameTokenData.participantId !== participantId) {
-        return res.status(403).json({
-          error: true,
-          message: "Game token is not valid for this participant",
-          code: "TOKEN_PARTICIPANT_MISMATCH",
-          tokenParticipantId: gameTokenData.participantId,
-          requestParticipantId: participantId
-        });
-      }
-
-      // If token has a participantId, validate that the participant exists (but don't check if playable)
-      if (gameTokenData.participantId) {
-        const participant = req.gameSession.getParticipantById(gameTokenData.participantId);
-        if (!participant) {
-          return res.status(404).json({
-            error: true,
-            message: "Participant not found",
-            participantId: gameTokenData.participantId
-          });
-        }
-      }
-
-      kubicLog.debug(`[GameTokenMiddleware] Validated read-only game token for session: ${req.params.sessionId}, participant: ${gameTokenData.participantId}`);
       next();
     });
   };

@@ -326,6 +326,11 @@ export function createHighLevelAPI(helper) {
         });
       }
 
+      // A seat socket without its token is refused outright, so do not open one
+      if (!helper.gameToken) {
+        return { success: false, error: "No game token stored for this seat" };
+      }
+
       // Connect WebSocket if needed (a pending reconnect counts as needed)
       if (!helper.ws.hasLiveSocket()) {
         helper.connectWebSocket();
