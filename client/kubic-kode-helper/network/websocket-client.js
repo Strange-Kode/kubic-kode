@@ -138,10 +138,16 @@ export function createWebSocketClient(helper) {
         setSocket(null);
         clearHeartbeatTimer();
 
+        // A refused seat is final: no retry, and a distinct event so listeners
+        // never wait on a reconnect that will not come
+        if (event.code === WS_CLOSE_UNAUTHORIZED) {
+          helper.events.emit("websocketRefused", { code: event.code, reason: event.reason });
+          return;
+        }
+
         // Armed before the event goes out, so a listener that reconnects
         // synchronously cancels this timer instead of racing it
-        const isRetryable = event.code !== WS_CLOSE_NORMAL && event.code !== WS_CLOSE_UNAUTHORIZED;
-        if (helper.config.autoReconnect && isRetryable) {
+        if (helper.config.autoReconnect && event.code !== WS_CLOSE_NORMAL) {
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
             this.connect();

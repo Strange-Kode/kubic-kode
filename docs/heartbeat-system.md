@@ -302,7 +302,7 @@ export const HEARTBEAT_INTERVAL = 25000; // 25 seconds - client sends heartbeat
 
 ### Session Cleanup
 
-Cleanup of inactive sessions is on demand, not automatic. `sessionManager.cleanupInactiveSessions(maxInactiveTime)` removes sessions idle longer than `maxInactiveTime` (default `30 * 60 * 1000`, i.e. 30 minutes) and is invoked by the host application (Plixit runs it from a five-minute sweep); the SDK itself runs it on no timer and exposes no route for it.
+Cleanup of inactive sessions is on demand, not automatic. `sessionManager.cleanupInactiveSessions(maxInactiveTime)` removes sessions idle longer than `maxInactiveTime` (default `30 * 60 * 1000`, i.e. 30 minutes) and is invoked by the host application; the SDK itself runs it on no timer and exposes no route for it.
 
 The only periodic timer is an optional session monitor, enabled with `KUBIC_SESSION_MONITOR=true` (interval `KUBIC_SESSION_MONITOR_INTERVAL`, default 60000ms). It only logs a summary of open sessions; it does not clean anything up.
 

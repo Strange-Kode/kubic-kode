@@ -25,6 +25,8 @@ const sessionManagerDouble = {
 let server;
 let port;
 
+/* A ping is only answered by a socket the server kept: the handshake handler
+   runs before any frame is read, and a closing socket sends no pong */
 const connect = (query) =>
   new Promise((resolve, reject) => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`);
@@ -32,33 +34,30 @@ const connect = (query) =>
     socket.on("message", (data) => messages.push(JSON.parse(data.toString())));
     socket.on("close", (code, reason) => resolve({ outcome: "closed", code, reason: reason.toString(), messages }));
     socket.on("error", reject);
-    socket.on("open", () => {
-      /* Give the server a tick to either confirm the seat or refuse it */
-      setTimeout(() => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.close(1000);
-          resolve({ outcome: "open", messages });
-        }
-      }, 50);
+    socket.on("open", () => socket.ping());
+    socket.on("pong", () => {
+      socket.removeAllListeners("close");
+      socket.close(1000);
+      resolve({ outcome: "open", messages });
     });
   });
 
+before(async () => {
+  server = http.createServer();
+  GameEventService.setSessionManager(sessionManagerDouble);
+  GameEventService.initWebSocketServer(server);
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  port = server.address().port;
+});
+
+after(async () => {
+  GameEventService.cleanupSession(SESSION_ID);
+  server.close();
+  await once(server, "close");
+});
+
 describe("initWebSocketServer seat binding", () => {
-  before(async () => {
-    server = http.createServer();
-    GameEventService.setSessionManager(sessionManagerDouble);
-    GameEventService.initWebSocketServer(server);
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    port = server.address().port;
-  });
-
-  after(async () => {
-    GameEventService.cleanupSession(SESSION_ID);
-    server.close();
-    await once(server, "close");
-  });
-
   test("a seat without a token is refused with 4401 before any confirmation", async () => {
     const result = await connect(`sessionId=${SESSION_ID}&participantId=${SEAT}`);
     assert.strictEqual(result.outcome, "closed");
@@ -101,24 +100,25 @@ describe("initWebSocketServer seat binding", () => {
     const result = await connect(`sessionId=${SESSION_ID}`);
     assert.strictEqual(result.outcome, "open");
   });
+
+  test("a session-only socket for a session that does not exist is refused", async () => {
+    const result = await connect("sessionId=no-such-session");
+    assert.strictEqual(result.code, 4401);
+    assert.strictEqual(result.reason, "Game session not found");
+  });
+
+  test("before the session manager is set, a socket is told to try again later", async () => {
+    GameEventService.setSessionManager(null);
+    try {
+      const result = await connect(`sessionId=${SESSION_ID}&participantId=${SEAT}`);
+      assert.strictEqual(result.code, 1013);
+    } finally {
+      GameEventService.setSessionManager(sessionManagerDouble);
+    }
+  });
 });
 
 describe("a refused socket", () => {
-  before(async () => {
-    server = http.createServer();
-    GameEventService.setSessionManager(sessionManagerDouble);
-    GameEventService.initWebSocketServer(server);
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    port = server.address().port;
-  });
-
-  after(async () => {
-    GameEventService.cleanupSession(SESSION_ID);
-    server.close();
-    await once(server, "close");
-  });
-
   test("survives a malformed frame from the peer without an uncaught error", async () => {
     const uncaught = [];
     const onUncaught = (error) => uncaught.push(error);
