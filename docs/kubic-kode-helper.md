@@ -55,7 +55,7 @@ await KubicKode.route.game("play-turn", { xPos: 0, yPos: 0 });
 Two things the helper is doing for you here:
 
 - **Tokens**: `joinSession` stores the participant's game token (localStorage key `kubic_game_tokens`); every `route.game(...)` call re-reads it and injects `participantId` + `gameToken` into the request body automatically.
-- **WebSocket scoping**: `connectWebSocket()` builds the socket URL with `?sessionId=...&participantId=...`, which is how the server ties the connection to your session. It also sends heartbeats every 25 seconds and auto-reconnects on unexpected closes.
+- **WebSocket scoping**: `connectWebSocket()` builds the socket URL with `?sessionId=...&participantId=...&gameToken=...`, which is how the server ties the connection to your session; a seat whose token is missing or wrong is closed with 4401 and emits `websocketRefused`. It also sends heartbeats every 25 seconds and auto-reconnects on unexpected closes.
 
 ## Sessions and the lobby
 

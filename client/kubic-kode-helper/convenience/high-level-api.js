@@ -306,10 +306,16 @@ export function createHighLevelAPI(helper) {
         );
       }
 
-      // Update internal state
+      // A seat socket without its token is refused outright, so adopt no
+      // seat this helper cannot connect as
+      const gameToken = helper._getGameToken(newSessionId, newParticipantId);
+      if (!gameToken) {
+        return { success: false, error: "No game token stored for this seat" };
+      }
+
       helper.sessionId = newSessionId;
       helper.participantId = newParticipantId;
-      helper.gameToken = helper._getGameToken(newSessionId, newParticipantId);
+      helper.gameToken = gameToken;
 
       // Update session state object
       helper.session.updateSession({

@@ -465,20 +465,6 @@ sessionRouter.get("/sessions/viable", (req, res) => {
   }
 });
 
-// Clean up inactive sessions
-sessionRouter.post("/sessions/cleanup", (req, res) => {
-  const { maxInactiveTime } = req.body || {};
-  
-  try {
-    const inactiveTime = maxInactiveTime || 30 * 60 * 1000; // 30 minutes default
-    const result = kubicModules.session.cleanupInactiveSessions(sessionManager, inactiveTime);
-    res.json(result);
-  } catch (err) {
-    kubicLog.error("session-routes.js::Session cleanup error:", err);
-    res.status(500).json({ error: "Failed to cleanup sessions." });
-  }
-});
-
 // Heartbeat endpoint for clients to confirm they're still alive
 sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
   const { participantId } = req.body;

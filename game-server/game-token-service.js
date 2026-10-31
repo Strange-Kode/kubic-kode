@@ -191,7 +191,14 @@ class GameTokenService {
    */
   decrypt(encryptedData) {
     const combined = Buffer.from(encryptedData, "base64");
-    
+
+    // Key derivation below is deliberately slow; junk from an unauthenticated
+    // peer must not pay for it
+    const minimumLength = this.__saltLength + this.__ivLength + 16 + 1;
+    if (combined.length < minimumLength) {
+      throw new Error("Encrypted payload too short");
+    }
+
     // Extract components
     const salt = combined.subarray(0, this.__saltLength);
     const iv = combined.subarray(this.__saltLength, this.__saltLength + this.__ivLength);
@@ -225,32 +232,6 @@ class GameTokenService {
     decrypted += decipher.final("utf8");
     
     return decrypted;
-  }
-
-  /**
-   * Check if a token is valid for a specific session
-   * @param {string} encryptedToken - The encrypted token
-   * @param {string} sessionId - The session ID to validate against
-   * @param {string} participantId - The participant ID to validate against (optional)
-   * @returns {boolean} - True if token is valid for the session
-   */
-  isTokenValidForSession(encryptedToken, sessionId, participantId = null) {
-    const tokenData = this.validateToken(encryptedToken);
-    if (!tokenData) {
-      return false;
-    }
-
-    if (tokenData.sessionId !== sessionId) {
-      kubicLog.warn(`[GameTokenService]::isTokenValidForSession - Token session mismatch. Expected: ${sessionId}, Got: ${tokenData.sessionId}`);
-      return false;
-    }
-
-    if (participantId && tokenData.participantId && tokenData.participantId !== participantId) {
-      kubicLog.warn(`[GameTokenService]::isTokenValidForSession - Token participant mismatch. Expected: ${participantId}, Got: ${tokenData.participantId}`);
-      return false;
-    }
-
-    return true;
   }
 }
 

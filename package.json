@@ -18,7 +18,7 @@
   },
   "scripts": {
     "test": "npm run test:unit && npm run test:tic-tac-toe && npm run test:lobby",
-    "test:unit": "node --test $(find client -name '*.test.js' -not -path '*/node_modules/*')",
+    "test:unit": "node --test $(find client game-server -name '*.test.js' -not -path '*/node_modules/*')",
     "test:tic-tac-toe": "node test/tic-tac-toe-game-test.js",
     "test:lobby": "node test/lobby-system-test.js",
     "test:all": "npm run test:unit && npm run test:tic-tac-toe && npm run test:lobby",

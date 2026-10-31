@@ -1,6 +1,14 @@
 import { WebSocketServer } from "ws";
 import { kubicLog } from "../kubic-log.js";
 import { KubicBroadcastError, ErrorCodes } from "../game-engine/kubic-kode-error.js";
+import { resolveSeat } from "./game-token-middleware.js";
+
+/* Application close code for a refused seat; the client's WS_CLOSE_UNAUTHORIZED
+   (client/kubic-kode-helper/core/constants.js) is its pair and treats it as
+   final, no reconnect. The client bundle cannot share a module with the server. */
+const WS_CLOSE_UNAUTHORIZED = 4401;
+/* Standard "Try Again Later": the client's backoff retries it, unlike 4401 */
+const WS_CLOSE_TRY_AGAIN_LATER = 1013;
 
 const connectionsBySession = new Map();
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
@@ -155,6 +163,22 @@ function getRegisteredBroadcasts() {
   return Array.from(registeredBroadcasts);
 }
 
+/**
+ * A seat is claimed from the URL alone, so the same token every game route
+ * demands has to be presented here too, before any seat state (connection
+ * map, timeouts, viability) is touched. A seatless socket only reads the
+ * session's broadcasts, but it still has to name a live session: every
+ * sessionId it names becomes a key in the connection map.
+ * @returns {string|null} The close reason, or null when the socket may bind
+ */
+function getHandshakeRefusal(sessionId, participantId, gameToken) {
+  if (participantId) {
+    const seat = resolveSeat(_sessionManager, sessionId, participantId, gameToken);
+    return seat.refusal ? seat.refusal.message : null;
+  }
+  return _sessionManager.getSession(sessionId) ? null : "Game session not found";
+}
+
 function initWebSocketServer(server) {
   // permessage-deflate instantly closes the socket after upgrade on some
   // mobile browsers (confirmed via A/B on a Samsung S22: 1Hz reconnect storm
@@ -166,8 +190,27 @@ function initWebSocketServer(server) {
     const params = new URLSearchParams(req.url.split("?")[1]);
     const sessionId = params.get("sessionId");
     const participantId = params.get("participantId");
-    
+    const gameToken = params.get("gameToken");
+
     kubicLog.info(`[GameEventService]::initWebSocketServer: New WebSocket connection for session: ${sessionId}, participant: ${participantId}`);
+
+    // Installed before the refusal path: a peer we are closing on can still
+    // send a bad frame, and ws turns an unlistened error into an uncaught one
+    ws.on("error", (error) => {
+      kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
+    });
+
+    if (!_sessionManager) {
+      ws.close(WS_CLOSE_TRY_AGAIN_LATER, "Server not ready");
+      return;
+    }
+
+    const refusalMessage = getHandshakeRefusal(sessionId, participantId, gameToken);
+    if (refusalMessage) {
+      kubicLog.warn(`[GameEventService]::initWebSocketServer: Refused socket for session ${sessionId}, participant ${participantId}: ${refusalMessage}`);
+      ws.close(WS_CLOSE_UNAUTHORIZED, refusalMessage);
+      return;
+    }
     
     if (!connectionsBySession.has(sessionId)) {
       connectionsBySession.set(sessionId, []);
@@ -223,9 +266,6 @@ function initWebSocketServer(server) {
       }
     });
     
-    ws.on("error", (error) => {
-      kubicLog.error(`[GameEventService]::initWebSocketServer: WebSocket error for session ${sessionId}, participant ${participantId}:`, error);
-    });
   });
 }
 
@@ -487,8 +527,8 @@ function cleanupSession(sessionId) {
   
   // Clear timeouts
   if (connectionTimeouts.has(sessionId)) {
-    const timeouts = connectionTimeouts.get(sessionId);
-    timeouts.forEach(timeout => clearTimeout(timeout));
+    const participantIds = Array.from(connectionTimeouts.get(sessionId).keys());
+    participantIds.forEach(participantId => clearParticipantTimeout(sessionId, participantId));
     connectionTimeouts.delete(sessionId);
   }
   
