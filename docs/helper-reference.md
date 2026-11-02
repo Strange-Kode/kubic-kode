@@ -1,12 +1,13 @@
 # KubicKode Helper - API Reference
 
-Complete, flat reference of the client helper's public surface (`client/kubic-kode-helper/`). Written to be dropped into a coding agent's context; for a narrative introduction see the [helper guide](./kubic-kode-helper.md).
+Complete, flat reference of the browser helper (`client/kubic-kode-helper/`), the frontend's only interface to a kubic-kode server. Written to be dropped into a coding agent's context. For a walkthrough see [Building a game](./building-a-game.md); for the model behind it, [concepts](./concepts.md).
 
 Conventions used below:
 
-- `KubicKode` is the singleton (`import { KubicKode } from ".../kubic-kode-helper/index.js"`; also `window.KubicKode` in browsers). `KubicKodeHelper` (the class) and `KubicClientError` are exported alongside it.
+- `KubicKode` is the singleton (`import { KubicKode } from ".../kubic-kode-helper/index.js"`; also `window.KubicKode` in browsers). `KubicKodeHelper` (the class) and `KubicClientError` are exported alongside it; `new KubicKodeHelper()` + `configure(...)` gives an independent second client (e.g. a bot or a second player in tests).
+- Outside a browser (Node 22+ for bots/tests) the helper needs `window`, `location` and `localStorage` globals shimmed before import, and its WebSocket keeps the process alive until `disconnectWebSocket()`.
 - All async methods resolve to `{ success: boolean, data: object }` and throw `KubicClientError` on failure.
-- "auth: participant" means the helper auto-injects `participantId` + `gameToken` into the request body; "auth: token" means only `gameToken`. Tokens are read from localStorage on every call.
+- "auth: participant" means the helper auto-injects `participantId` + `gameToken` into the request body; "auth: token" means only `gameToken`. `route.game` re-reads the token from localStorage on every call; registered-game routes use the in-memory `KubicKode.gameToken`.
 
 ## Configuration
 
@@ -14,15 +15,14 @@ Conventions used below:
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `apiPrefix` | `"/api"` | Base path for all HTTP calls (same origin) |
-| `websocketPort` | `"3000"` | Port for the WebSocket connection |
+| `apiPrefix` | `"/api"` | Prefix for all HTTP calls. Relative = same origin; use an absolute URL (`"http://localhost:3000/api"`) when the API is on another origin |
+| `websocketPort` | `"3000"` | WebSocket port, on the page's hostname; normally the server's `KUBIC_PORT`. `""` omits the port (same origin, e.g. behind a reverse proxy) |
 | `websocketPath` | `"/"` | Socket path (for reverse proxies) |
 | `frontendUrl` | `null` | Base URL for `getShareableSessionLink()` |
-| `defaultGame` | `null` | Declared but currently unused (`initSession()` falls back to `currentGame`, not this) |
 | `autoReconnect` | `true` | Reconnect the socket on unexpected close |
-| `retryAttempts` | `3` | HTTP retry count |
-| `retryDelay` | `1000` | ms between HTTP retries |
-| `autoFetchOnEvents` | `true` | Refresh tilemap/current player on `kubic::turnPlayed` / `kubic::gameStarted` |
+| `retryAttempts` | `3` | Total HTTP attempts, including the first |
+| `retryDelay` | `1000` | ms between attempts |
+| `autoFetchOnEvents` | `true` | Re-fetch tilemap + current player on `kubic::turnPlayed`, plus player mappings on `kubic::gameStarted`. (The re-sync on connect fetches regardless) |
 
 Instance fields a consumer may read: `KubicKode.sessionId`, `KubicKode.participantId`, `KubicKode.gameToken`, `KubicKode.currentGame`.
 
@@ -32,13 +32,13 @@ Session lifecycle:
 
 | Method | Returns (`data`) | Throws (`code`) |
 |--------|------------------|-----------------|
-| `initSession(gameId?, { forceNew?, maxPlayers? })` | `{ session_id }`; sets `sessionId`, emits `sessionInitialized` | `GAME_TYPE_REQUIRED` if no gameId and no `currentGame` (set via `game.use()`) |
-| `joinSession(name, type = "user")` | `{ participant_id, game_token, is_host? }`; stores token, sets `participantId` | route errors |
-| `spectateSession(name)` | `{ participant_id, game_token }` | route errors |
+| `initSession(gameId?, { forceNew?, maxPlayers? })` | `{ session_id, session_created }`; sets `sessionId` and `currentGame`, emits `sessionInitialized`. Pass `forceNew: true` to always create a new session (`maxPlayers` applies to new sessions) | `GAME_TYPE_REQUIRED` if no gameId and no `currentGame`; any failure is rewrapped as `SESSION_INIT_FAILED` |
+| `joinSession(name, type = "user")` | `{ participant_id, game_token }`; stores token, sets `participantId`, opens the WebSocket | route errors |
+| `spectateSession(name)` | `{ participant_id, game_token }`; opens the WebSocket | route errors |
 | `joinAsSpectator(name)` | as `spectateSession` | `SPECTATOR_NAME_REQUIRED` |
-| `leaveSession()` | `{ }`; clears token + resets `session`/`game` state | `NO_SESSION_TO_LEAVE` |
+| `leaveSession()` | `{ success }`; clears the token, `sessionId`, `participantId`, closes the socket, resets every state namespace | `NO_SESSION_TO_LEAVE` |
 | `addAIParticipant(name = "AI Opponent")` | `{ participant_id, game_token }` (token stored; does not overwrite yours) | `NO_ACTIVE_SESSION` |
-| `syncSessionState(sessionId, participantId)` | `{ sessionId, participantId }`; adopts an existing session (e.g. from a share link) | `SYNC_PARAMS_REQUIRED` |
+| `syncSessionState(sessionId, participantId)` | `{ sessionId, participantId }`; re-adopts a seat this browser already holds a token for (e.g. after reload) and opens the socket. Resolves `{ success: false, error }` if no token is stored for that seat | `SYNC_PARAMS_REQUIRED` |
 
 Session discovery:
 
@@ -47,7 +47,7 @@ Session discovery:
 | `listAllSessions()` | `{ sessions, total_sessions }` |
 | `listJoinableSessions()` | `{ sessions, total_sessions, only_joinable: true }` |
 | `listSessionsByGame(gameId, onlyJoinable = true)` | `{ sessions, total_sessions }` (throws `GAME_ID_REQUIRED`) |
-| `autoJoinSession(gameId, name, type = "user", createIfNone = true)` | `{ session_id, participant_id, session_created, lobby_status, game_token }` (throws `AUTO_JOIN_PARAMS_REQUIRED`) |
+| `autoJoinSession(gameId, name, type = "user", createIfNone = true)` | `{ session_id, participant_id, session_created, lobby_status, game_token }`; opens the WebSocket (throws `AUTO_JOIN_PARAMS_REQUIRED`) |
 | `checkSessionAvailability(sessionId)` | `{ isAvailable, participantCount, spectatorCount, participants }` |
 | `getSessionLobbyStatus(sessionId?)` | `{ lobby }` |
 | `getShareableSessionLink({ baseUrl? })` | **synchronous**; `{ sessionId, link }` (throws `FRONTEND_URL_REQUIRED` without `config.frontendUrl`/`baseUrl`) |
@@ -74,9 +74,9 @@ Game and history:
 | `playTurn(x, y, additionalData = {})` | game-specific | requires `game.register(id)` + `game.use(id)`; posts to the game's **custom** `/{gameId}/play-turn/:sessionId` route. Throws `NO_GAME_SELECTED` / `GAME_NOT_REGISTERED`. For the generic route use `route.game("play-turn", ...)` |
 | `getGameHistory({ type? })` | `{ totalEvents, history }` | |
 | `requestRestartVote()` | `{ vote_inited }` | |
-| `submitRestartVote(voteYes)` | `{ }` | |
-| `subscribeToEvents(eventTypes)` / `unsubscribeFromEvents(eventTypes)` | `{ subscribed / unsubscribed, current_subscriptions }` | non-empty string array required |
-| `getSubscriptions()` | `{ subscriptions }` | |
+| `submitRestartVote(voteYes)` | `{ success }` | |
+| `subscribeToEvents(eventTypes)` / `unsubscribeFromEvents(eventTypes)` | `{ subscribedEventTypes }` / `{ unsubscribedEventTypes }` | non-empty array of history event names **without** the `kubic::` prefix (e.g. `["playerAdded"]`); applies to the whole session |
+| `getSubscriptions()` | `{ subscribedEventTypes, totalSubscriptions }` | |
 
 ## Route layer
 
@@ -99,24 +99,26 @@ Preconditions: `sessionId` set (`NO_ACTIVE_SESSION`) and a stored token (`NO_GAM
 
 | Action | Method + endpoint | Notes |
 |--------|-------------------|-------|
-| `"init"` | GET/POST `/session/init/:gameId` | POST body: `{ forceNew?, maxPlayers? }` |
+| `"init"` | GET `/session/init/:currentGame` | ignores `data`; use `initSession()` for `forceNew` / `maxPlayers` |
 | `"join"` | POST `/session/:sessionId/join` | `{ participantName, participantType? }`; stores token |
 | `"spectate"` | POST `/session/:sessionId/spectate` | `{ participantName }`; stores token |
 | `"leave"` | POST `/session/:sessionId/leave` | clears token |
 | `"participants"` | GET `/session/:sessionId/participants/list` | |
 | `"participant-stats"` | GET `/session/:sessionId/participants/stats` | |
 | `"restart-vote"` | GET `/session/:sessionId/request-restart-vote` | |
-| `"submit-vote"` | POST `/session/:sessionId/submit-restart-vote` | `{ voteYes }` (participantId auto) |
+| `"submit-vote"` | POST `/session/:sessionId/submit-restart-vote` | `{ participantId, voteYes }` - not auto-injected; prefer `submitRestartVote()` |
 | `"history"` | POST `/session/:sessionId/history` | optional `{ type, startTime, endTime }` |
 | `"list-all"` / `"list-joinable"` | GET `/sessions/list` | joinable adds `?onlyJoinable=true` |
 | `"list-by-game"` | GET `/sessions/game/:gameId` | `?onlyJoinable=` |
 | `"auto-join"` | POST `/sessions/auto-join/:gameId` | `{ participantName, participantType?, createIfNone? }` |
-| `"lobby-status"` | GET `/session/lobby/:sessionId` | |
+| `"lobby-status"` | GET `/session/:sessionId/lobby` | |
 | `"set-config"` / `"get-config"` / `"delete-config"` | POST / GET / DELETE `/session/:sessionId/config[...]` | host only for mutations |
 | `"subscribe"` / `"unsubscribe"` / `"subscriptions"` | POST/POST/GET `/session/:sessionId/subscribe...` | `{ eventTypes: string[] }` |
 | `"kick"` | POST `/session/:sessionId/kick` | `{ participantIdToKick }` (hostId auto) |
 | `"transfer-host"` | POST `/session/:sessionId/transfer-host` | `{ newHostId }` (currentHostId auto) |
 | `"send-chat"` / `"get-chat"` | POST/GET `/session/:sessionId/chat` | `{ message }` / `?limit=N` |
+
+The ready-check / sync-phase routes have no helper action; call them directly ([server reference](./server-reference.md#session-routes)).
 
 ### Client game registry
 
@@ -125,7 +127,13 @@ Preconditions: `sessionId` set (`NO_ACTIVE_SESSION`) and a stored token (`NO_GAM
 
 ## Reactive state namespaces
 
-Each namespace exposes plain properties, methods, a `getState()` snapshot, and `reset()`; changes are announced on `KubicKode.events`.
+Each namespace exposes plain properties, methods and a `getState()` snapshot (all but `inactivity` also have `reset()`); changes are announced on `KubicKode.events`.
+
+How much state the helper keeps is up to the app:
+
+- **Default:** built-in handlers keep the namespaces below up to date, re-fetch the board and current player on game events, and emit the derived helper-level events (`gameEnded`, `turnUpdated`, `restartVotingCompleted`, ...).
+- **`configure({ autoFetchOnEvents: false })`:** the handlers still run, but don't re-fetch over HTTP. For apps that fetch game state themselves.
+- **`KubicKode.flow.teardownEventHandlers()`:** removes the built-in handlers entirely. The namespaces and derived events stop updating; raw `kubic::` server events still arrive on `KubicKode.events`. For apps that manage all state themselves. `flow.setupEventHandlers()` re-attaches them.
 
 ### `KubicKode.session`
 
@@ -138,8 +146,6 @@ Emits: `sessionStateUpdated`, `participantsUpdated`, `sessionLoadingChanged`, `s
 Properties: `started`, `active`, `tilemap` (`tilemap[y][x]`), `currentPlayerId` (engine player id), `playerMappings` (participantId -> playerId), `isGameLoading`, `gameError`, `lastMoveResult`.
 Methods: `getTile(x, y)`, `getGridDimensions()` -> `{ rows, cols }`, `updateGame(data)`, `updateTilemap(t)`, `isMyTurn()`, `getCurrentPlayer()`, `getState()`, `reset()`; plus `register`/`use` (registry, above).
 Emits: `gameStateUpdated`, `tilemapUpdated`, `gameLoadingChanged`, `gameErrorChanged`, `gameReset`.
-
-Caveat: `isMyTurn()` and `getCurrentPlayer()` compare/look up the engine `currentPlayerId` against **participant** ids, which is an id-namespace mismatch (issue #175). Reliable turn check: `game.currentPlayerId === game.playerMappings[KubicKode.participantId]`.
 
 ### `KubicKode.voting`
 
@@ -180,21 +186,21 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 | Event | Payload highlights |
 |-------|--------------------|
-| `kubic::gameStarted` | `{ playerMappings?, updatedTileMap?, inactivityTimeout }` |
+| `kubic::gameStarted` | `{ playerMappings, inactivityTimeout }` |
 | `kubic::turnPlayed` | `{ roundStatus, updatedTileMap? }` |
 | `kubic::playerWon` | `{ playerId, winCondition }` |
 | `kubic::gameTied` | `{ message }` |
-| `kubic::gameStopped` | `{ reason? }` |
+| `kubic::gameStopped` | no payload |
 | `kubic::winCount` | `{ winCount }` |
 | `kubic::sessionParticipantJoined` / `kubic::sessionSpectatorJoined` / `kubic::sessionParticipantLeft` | participant lifecycle |
-| `kubic::sessionEnded` | `{ reason?, details? }` |
+| `kubic::sessionEnded` | `{ reason, message, connectedParticipants, requiredParticipants }` |
 | `kubic::participantDisconnected` / `kubic::participantReconnected` / `kubic::participantRemoved` | `{ participantId, participantName, ... }` |
 | `kubic::connectionConfirmed` | sent to you on socket connect |
 | `kubic::participantKicked` | `{ hostId, hostName, kickedParticipant }` |
 | `kubic::hostTransferred` | `{ oldHost, newHost, reason }` |
 | `kubic::timeLeft` | `{ secondsLeft }` |
 | `kubic::playerInactive` | `{ inactivePlayers }` |
-| `kubic::restartVoteStarted` / `kubic::restartVoteUpdate` / `kubic::restartVoteResult` | `{ initiatorId, participants }` / `{ participantId, vote }` / `{ allAgreed }` |
+| `kubic::restartVoteStarted` / `kubic::restartVoteUpdate` / `kubic::restartVoteResult` | `{ participants }` / `{ participantId, vote }` / `{ allAgreed, votes }` |
 | `kubic::lobbyConfigUpdated` / `kubic::lobbyConfigDeleted` | `{ hostId, hostName, changes | deletedKey, fullConfig | remainingConfig }` |
 | `kubic::lobbyChatMessage` | `{ message: { id, participantId, participantName, message, timestamp, type } }` |
 
@@ -204,6 +210,7 @@ Emits: `gameAutoStarted`, `flowReset`.
 |-------|---------|-------|
 | `websocketConnected` | `{ isReconnect }` | socket open (`isReconnect` is false for the first open after `disconnectWebSocket()`) |
 | `websocketDisconnected` | CloseEvent | unexpected socket close only; not fired by `disconnectWebSocket()` or when `connectWebSocket()` replaces a live socket |
+| `websocketRefused` | `{ code, reason }` | server refused the seat (code 4401); replaces `websocketDisconnected`, never retried |
 | `websocketError` | Error | socket error |
 | `sessionInitialized` | `{ sessionId }` | after `/session/init/*` |
 | `gameEnded` | `{ winner, isTie, reason? }` | win, tie, or inactivity ending |
@@ -215,7 +222,7 @@ Emits: `gameAutoStarted`, `flowReset`.
 | `inactivityTimerUpdate` | `{ secondsLeft }` | timer ticks / resets |
 | `sessionTerminated` | `{ reason, details }` | after `kubic::sessionEnded` |
 | `participantConnectionChanged` | `{ type: "disconnected"\|"removed"\|"reconnected", participantId, ... }` | unified connection changes |
-| `reconnectSynced` / `reconnectSyncFailed` | `{ sessionId, participantId, gameActive }` / `{ error }` | state re-sync after reconnect |
+| `reconnectSynced` / `reconnectSyncFailed` | `{ sessionId, participantId, gameActive }` / `{ error }` | after every `kubic::connectionConfirmed`, once participants (and, mid-game, tilemap + current player) are re-fetched |
 | `participantKicked` | server payload + `isSelf` | after `kubic::participantKicked` |
 | `hostTransferred` | server payload + `isHostNow` | after `kubic::hostTransferred` |
 | `restartVotingStarted` / `restartVotingUpdated` / `restartVotingCompleted` | `{ initiatorId, participants }` / `{ participantId, vote, allVotes }` / `{ allAgreed, initiatorId }` | voting flow |
@@ -224,7 +231,7 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 ## WebSocket lifecycle
 
-- `KubicKode.connectWebSocket()` - connects to `ws(s)://{hostname}:{config.websocketPort}{config.websocketPath}?sessionId=...[&participantId=...]`. Requires `sessionId`; connect **after joining** so the socket is tied to your participant.
+- `joinSession`, `spectateSession`, `autoJoinSession` and `syncSessionState` open the socket for you. `KubicKode.connectWebSocket()` does it manually: `ws(s)://{page hostname}:{config.websocketPort}{config.websocketPath}?sessionId=...&participantId=...&gameToken=...`. A seat whose token is missing or wrong is closed with code 4401, emits `websocketRefused`, and is not retried.
 - Heartbeats start automatically when a `participantId` is present: `{ type: "heartbeat" }` every 25 s, answered by `kubic::heartbeatResponse`.
 - On unexpected close (code != 1000) the helper reconnects automatically if `config.autoReconnect`, with exponential backoff from 1 s to 30 s plus jitter, reset on the next successful open. `disconnectWebSocket()` closes cleanly (code 1000), cancels a pending reconnect, and leaves `config.autoReconnect` untouched.
 - Calling `connectWebSocket()` while a socket is live replaces it: the old socket is detached and closed with code 1000 and never triggers a reconnect or a `websocketDisconnected` event. At most one socket exists per helper.
@@ -235,11 +242,4 @@ Emits: `gameAutoStarted`, `flowReset`.
 
 - **Tokens** are stored in localStorage under the single key `kubic_game_tokens`, shaped `{ [sessionId]: { [participantId]: token } }`. Managed automatically by join/spectate/leave; `KubicKode.clearAllGameTokens()` wipes them.
 - **HTTP**: `_makeRequest(method, endpoint, data?)` targets `{config.apiPrefix}{endpoint}`, JSON in/out, retried `retryAttempts` times, resolving `{ success: true, data }`. Non-2xx throws `KubicClientError` with `code: "HTTP_ERROR"` and `context: { status, statusText, url, method }`.
-- **`KubicClientError`**: `new KubicClientError(message, code, context = {})`; fields `name` (`"KubicClientError"`), `message`, `code` (string, e.g. `NO_ACTIVE_SESSION`, `NO_GAME_TOKEN`, `NO_PARTICIPANT_ID`, `UNKNOWN_GAME_ACTION`, `UNKNOWN_SESSION_ACTION`, `GAME_NOT_REGISTERED`, `HTTP_ERROR`), `context`, `timestamp` (ISO string).
-
-## Known caveats
-
-- `game.isMyTurn()` / `game.getCurrentPlayer()` mix the participant and engine player id spaces (#175); use `playerMappings` as shown above.
-- `getShareableSessionLink()` is synchronous, unlike every other high-level method.
-- `events` has no `once()`; unsubscribe manually with `off()`.
-- Ready-check / sync-phase session routes are not yet exposed by the helper (#92).
+- **`KubicClientError`**: `new KubicClientError(message, code, context = {})`; fields `name` (`"KubicClientError"`), `message`, `code` (string: `HTTP_ERROR` for non-2xx responses; client-side preconditions such as `NO_ACTIVE_SESSION`, `NO_GAME_TOKEN`, `NO_PARTICIPANT_ID`, `GAME_NOT_REGISTERED`, `UNKNOWN_GAME_ACTION`, `UNKNOWN_SESSION_ACTION`, `MESSAGE_TOO_LONG`, `EVENT_TYPES_INVALID`; and the rewraps `SESSION_INIT_FAILED`, `SESSION_AVAILABILITY_CHECK_FAILED`), `context`, `timestamp` (ISO string).
