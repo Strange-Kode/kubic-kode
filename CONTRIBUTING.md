@@ -21,8 +21,7 @@ cp .env.example .env
 ```
 
 Then open `.env` and set `KUBIC_GAME_TOKEN_SECRET_KEY` to a value of at least
-32 characters. This is required: the server refuses to start with a shorter or
-missing key.
+32 characters. The server refuses to start without one.
 
 ## Running the server
 
@@ -39,14 +38,26 @@ Consumer apps connect through the client helper in `client/kubic-kode-helper/`.
 
 ## Running tests
 
-Run the suite before opening a pull request, and make sure it passes:
+Run the suite before opening a pull request, and make sure it passes. The
+end-to-end suites talk to a live server, so start one first:
 
 ```sh
-npm test
+npm run start-server   # terminal 1
+npm test               # terminal 2
 ```
 
-This runs the tic-tac-toe and lobby suites. You can run them individually with
-`npm run test:tic-tac-toe` and `npm run test:lobby`.
+`npm test` runs three things in order:
+
+| Script | What it covers | Needs a server |
+|--------|----------------|----------------|
+| `npm run test:unit` | `*.test.js` files under `client/` and `game-server/` (`node --test`) | no |
+| `npm run test:tic-tac-toe` | full games against the built-in tic-tac-toe demo, over HTTP and WebSocket | yes |
+| `npm run test:lobby` | session listing, auto-join, host, lobby config and chat | yes |
+
+The end-to-end runners target `http://localhost:3000`. If your server runs on
+another port, point them at it with `KUBIC_TEST_BASE_URL=http://localhost:<port>`
+and `KUBIC_TEST_WS_URL=ws://localhost:<port>`. The shared HTTP/WebSocket test
+utilities live in `test/e2e-test-runner.js`.
 
 ## Branch naming
 
