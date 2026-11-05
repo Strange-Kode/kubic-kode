@@ -5,6 +5,7 @@ import { PlayStatus } from "./play-status.js";
 import { shuffleArray } from "../game-utility/game-utility.js";
 
 import { kubicLog } from "../kubic-log.js";
+import { SESSION_END_REASONS } from "../game-server/session/session-end-reasons.js";
 import { 
   KubicSystemError, 
   KubicGameError, 
@@ -200,7 +201,7 @@ class KubicKodeGame extends GameInterface {
         
         // Stop the game and clear inactivity timer when someone wins
         this.__gameOptions.setGameState("ended");
-        this.__gameSession.markEnded();
+        this.__gameSession.markEnded(SESSION_END_REASONS.GAME_WON);
       }
 
       // Record tie if it occurred and stop the game
@@ -212,7 +213,7 @@ class KubicKodeGame extends GameInterface {
 
         // Stop the game and clear inactivity timer when game is tied
         this.__gameOptions.setGameState("ended");
-        this.__gameSession.markEnded();
+        this.__gameSession.markEnded(SESSION_END_REASONS.GAME_TIED);
       }
     } else {
       // Record invalid turn attempt - extract position data for history
@@ -422,7 +423,7 @@ class KubicKodeGame extends GameInterface {
 
     // Clear inactivity timer when game stops
     this.__gameOptions.setGameState("ended");
-    this.__gameSession.markEnded();
+    this.__gameSession.markEnded(SESSION_END_REASONS.GAME_STOPPED);
 
     return result;
   }

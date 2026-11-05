@@ -52,7 +52,7 @@ modules.leaderboard.record("Ann", 3);
 ```javascript
 import { hooks } from "kubic-kode";
 
-hooks.register("session:ended", async (session) => { /* persist results */ });
+hooks.register("session:ended", async (session, { reason }) => { /* persist results */ });
 ```
 
 `hooks.register(name, fn)`, `hooks.unregister(name, fn)`, `hooks.run(name, ...args)` (runs handlers in order, awaiting each), `hooks.clear()`. Use any name for your own hooks. The framework fires:
@@ -62,4 +62,4 @@ hooks.register("session:ended", async (session) => { /* persist results */ });
 | `before:load` | file name without `.js` (e.g. `leaderboard-module`); fires even for modules that are then skipped |
 | `after:load` | module name (e.g. `leaderboard`) |
 | `before:reload`, `after:reload` | module name; only for the built-in modules loaded by `createGameServer`, not for `loadModulesFromDirectory` |
-| `session:ended` | the session (fired when a session's game ends; not awaited) |
+| `session:ended` | the session, then `{ reason }`, one of `SESSION_END_REASONS`: `"game_won"`, `"game_tied"`, `"game_stopped"`, `"orphaned"` (no sockets left), `"insufficient_players"` or `"hold_expired"` (fired when a session's game ends; not awaited) |

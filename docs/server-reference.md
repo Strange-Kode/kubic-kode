@@ -25,6 +25,7 @@ Inside a clone, import the files directly instead (`game-engine/game-engine.js`,
 | `createGameServer` | named | build and start the Express + WebSocket server |
 | `getKubicKodeModulesPath`, `loadModulesFromDirectory`, `initModuleSystem`, `registerModule`, `unregisterModule`, `hooks`, `modules`, `registry` | named | [module system](./module-system.md) |
 | `sessionManager`, `sessionRoutes`, `gameRoutes` | named | internals, for custom wiring |
+| `SESSION_END_REASONS` | named | the reasons `session:ended` hooks receive ([hooks](./module-system.md)) |
 | `validateGameToken`, `validateGameTokenWithParticipant`, `validateGameTokenWithParticipantReadOnly`, `validateSession`, `validateParticipant`, `validatePlayableParticipant`, `checkPlayableAccess` | named | Express middleware for your own routes ([HTTP guards](#guards)) |
 | `kubicLog`, `debugConfig` | named | [logging](#logging) |
 | `gameEngine.GameEngine`, `tileMap.TileMap`, `gameEntity.GameEntity`, `gameEntityPlayer.GameEntityPlayer`, `playStatus.PlayStatus`, `gameOptions.GameOptions`, `kubicKodeGame.KubicKodeGame` | namespace | engine building blocks |
@@ -251,6 +252,8 @@ Read from `.env` unless marked **env**: those must be set in the process environ
 | `KUBIC_HEARTBEAT_INTERVAL` | `30000` | **env.** ms between server heartbeats to started sessions |
 | `KUBIC_HEARTBEAT_TIMEOUT` | `60000` | **env.** ms after a socket closes before the participant is marked disconnected |
 | `KUBIC_RECONNECTION_WINDOW` | `120000` | **env.** ms after a socket closes before the participant is removed |
+| `KUBIC_HOLD_SOLO_SESSIONS` | `false` | **env.** `true` holds a started session whose only human dropped while every other seat is a computer, instead of ending it (see [concepts](./concepts.md#connection-and-reconnection)) |
+| `KUBIC_SOLO_RECONNECTION_WINDOW` | `600000` | **env.** how long a held session waits for its human, in ms |
 
 The npm scripts `dev-server` and `start-server:debug` set the logging variables for you.
 
@@ -345,7 +348,7 @@ The helper calls these for you; you only need this table for a non-JS client or 
 
 ## WebSocket
 
-Connect to the server's port (any path) with `?sessionId=<id>&participantId=<id>&gameToken=<token>`. The token must belong to that session and participant; otherwise the socket is closed with code `4401` and the reason.
+Connect to the server's port (any path) with `?sessionId=<id>&participantId=<id>&gameToken=<token>`. The token must belong to that session and participant; otherwise the socket is closed with code `4401` and the reason. A session that ended as `orphaned`, `insufficient_players` or `hold_expired` is about to be removed and refuses new sockets the same way (`"Game session has ended"`).
 
 **Client -> server:** `{ "type": "heartbeat" }` (or `"kubic::heartbeat"`; the helper sends one every 25 s). A seated socket is answered with `kubic::heartbeatResponse`. Nothing else is read.
 
@@ -361,7 +364,9 @@ Connect to the server's port (any path) with `?sessionId=<id>&participantId=<id>
 | `kubic::hostTransferred` | `{ oldHost, newHost, reason }` (`"host-left"` or `"host-handoff"`) |
 | `kubic::participantKicked` | `{ hostId, hostName, kickedParticipant: { id, name } }` |
 | `kubic::participantDisconnected` | `{ participantId, participantName, disconnectedAt, reason? }` |
-| `kubic::sessionEnded` | `{ reason: "insufficient_players", message, connectedParticipants, requiredParticipants }` |
+| `kubic::participantReconnected` | `{ participantId, participantName, reconnectedAt }` (a participant marked disconnected opened a socket again) |
+| `kubic::participantRemoved` | `{ participantId, participantName, reason: "reconnection_timeout" }` |
+| `kubic::sessionEnded` | `{ reason: "insufficient_players", message, connectedParticipants, requiredParticipants }`, or `{ reason: "hold_expired", message }` |
 | `kubic::lobbyChatMessage` | `{ message: { id, participantId, participantName, message, timestamp, type } }` (`type`: `user`, `host`, `system`) |
 | `kubic::lobbyConfigUpdated` | `{ hostId, hostName, changes, fullConfig }` |
 | `kubic::lobbyConfigDeleted` | `{ hostId, hostName, deletedKey, oldValue, remainingConfig }` |
