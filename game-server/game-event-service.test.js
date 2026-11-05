@@ -13,11 +13,14 @@ const SESSION_ID = "session-1";
 const SEAT = 1;
 
 /* The service only asks the session manager for session and participant
-   existence, so a two-method double is enough */
+   existence and whether the session has ended, so a small double is enough */
 const sessionManagerDouble = {
   getSession(id) {
     if (id !== SESSION_ID) return null;
-    return { getParticipantById: (participantId) => (Number(participantId) === SEAT ? { id: SEAT } : null) };
+    return {
+      getParticipantById: (participantId) => (Number(participantId) === SEAT ? { id: SEAT } : null),
+      getEndReason: () => null,
+    };
   },
   removeSession() { return true; },
 };

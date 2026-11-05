@@ -2,6 +2,15 @@ import { WebSocketServer } from "ws";
 import { kubicLog } from "../kubic-log.js";
 import { KubicBroadcastError, ErrorCodes } from "../game-engine/kubic-kode-error.js";
 import { resolveSeat } from "./game-token-middleware.js";
+import { SESSION_END_REASONS } from "./session/session-end-reasons.js";
+
+/* Ends after which the session is removed. A won or tied game stays open for
+   the game-over screen and a rematch vote, so sockets may still bind to it */
+const TEARDOWN_END_REASONS = new Set([
+  SESSION_END_REASONS.ORPHANED,
+  SESSION_END_REASONS.INSUFFICIENT_PLAYERS,
+  SESSION_END_REASONS.HOLD_EXPIRED,
+]);
 
 /* Application close code for a refused seat; the client's WS_CLOSE_UNAUTHORIZED
    (client/kubic-kode-helper/core/constants.js) is its pair and treats it as
@@ -14,6 +23,7 @@ const connectionsBySession = new Map();
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
 const heartbeatIntervals = new Map(); // sessionId -> interval
 const connectionTimeouts = new Map(); // sessionId -> Map(participantId -> timeout)
+const sessionHolds = new Map(); // sessionId -> timeout that ends a held session
 let wss = null;
 
 /** Set by SessionManager via setSessionManager() to avoid circular import. */
@@ -89,6 +99,8 @@ KUBIC_BUILT_IN_EVENTS.forEach(event => registeredBroadcasts.add(event));
 const HEARTBEAT_INTERVAL = parseInt(process.env.KUBIC_HEARTBEAT_INTERVAL) || 30000;
 const HEARTBEAT_TIMEOUT = parseInt(process.env.KUBIC_HEARTBEAT_TIMEOUT) || 60000;
 const RECONNECTION_WINDOW = parseInt(process.env.KUBIC_RECONNECTION_WINDOW) || 120000;
+const SHOULD_HOLD_SOLO_SESSIONS = process.env.KUBIC_HOLD_SOLO_SESSIONS === "true";
+const SOLO_RECONNECTION_WINDOW = parseInt(process.env.KUBIC_SOLO_RECONNECTION_WINDOW) || 600000;
 
 /**
  * Register a new broadcast event type
@@ -172,6 +184,10 @@ function getRegisteredBroadcasts() {
  * @returns {string|null} The close reason, or null when the socket may bind
  */
 function getHandshakeRefusal(sessionId, participantId, gameToken) {
+  // In the gap between ending and removal, a socket would bind to a dead session and never hear it ended
+  if (TEARDOWN_END_REASONS.has(_sessionManager.getSession(sessionId)?.getEndReason())) {
+    return "Game session has ended";
+  }
   if (participantId) {
     const seat = resolveSeat(_sessionManager, sessionId, participantId, gameToken);
     return seat.refusal ? seat.refusal.message : null;
@@ -232,6 +248,8 @@ function initWebSocketServer(server) {
         type: "kubic::connectionConfirmed",
         payload: { sessionId, participantId }
       }));
+
+      markParticipantReconnected(sessionId, participantId);
     }
     
     kubicLog.debug(`[GameEventService]::initWebSocketServer: Total connections for session ${sessionId}: ${connectionsBySession.get(sessionId).length}`);
@@ -250,18 +268,25 @@ function initWebSocketServer(server) {
     });
     
     ws.on("close", () => {
-      const conns = connectionsBySession.get(sessionId) || [];
-      connectionsBySession.set(sessionId, conns.filter(conn => conn !== ws));
-      
-      // Remove participant connection tracking
-      if (participantId && participantConnections.has(sessionId)) {
-        participantConnections.get(sessionId).delete(participantId);
+      // A socket that outlives cleanupSession must not recreate the session's entry
+      if (connectionsBySession.has(sessionId)) {
+        connectionsBySession.set(sessionId, connectionsBySession.get(sessionId).filter(conn => conn !== ws));
       }
       
-      kubicLog.debug(`[GameEventService]::initWebSocketServer: WebSocket closed for (session ${sessionId}, participant ${participantId}), remaining connections: ${connectionsBySession.get(sessionId).length}`);
-      
-      // Start disconnection timeout for this participant
-      if (participantId) {
+      /* A phone often opens its new socket before the old one finishes
+         closing, and a player can have the same seat open in two tabs. Only
+         the seat's registered socket unregisters it, and the timers start
+         once the seat is left with no socket at all */
+      const seatSockets = participantConnections.get(sessionId);
+      if (participantId && seatSockets?.get(participantId) === ws) {
+        seatSockets.delete(participantId);
+      }
+
+      kubicLog.debug(`[GameEventService]::initWebSocketServer: WebSocket closed for (session ${sessionId}, participant ${participantId}), remaining connections: ${(connectionsBySession.get(sessionId) || []).length}`);
+
+      const isSeatLeftWithoutSocket = Boolean(participantId) && !seatSockets?.has(participantId);
+      const hasPendingTimeout = connectionTimeouts.get(sessionId)?.has(participantId);
+      if (isSeatLeftWithoutSocket && !hasPendingTimeout) {
         startParticipantTimeout(sessionId, participantId);
       }
     });
@@ -271,7 +296,10 @@ function initWebSocketServer(server) {
 
 function handleHeartbeat(sessionId, participantId, ws) {
   if (participantId) {
-    resetParticipantTimeout(sessionId, participantId);
+    // A seat's older socket keeps answering heartbeats but no longer speaks for the seat
+    if (participantConnections.get(sessionId)?.get(participantId) === ws) {
+      resetParticipantTimeout(sessionId, participantId);
+    }
     
     // Send heartbeat response
     ws.send(JSON.stringify({
@@ -346,7 +374,9 @@ function handleSessionTermination(sessionId, participantId) {
   if (!session) return;
   const participant = session.getParticipantById(participantId);
   if (!participant) return;
-  session.removeParticipant(participantId);
+  if (sessionHolds.has(sessionId) && participant.type === "user") return;
+  // The URL gives a string id; removeParticipant matches the numeric one strictly
+  session.removeParticipant(participant.id);
   broadcastToSession(session, {
     type: "kubic::participantRemoved",
     payload: {
@@ -356,6 +386,80 @@ function handleSessionTermination(sessionId, participantId) {
     }
   });
   checkSessionViability(session);
+}
+
+/* Nobody waits on a human whose every opponent is a computer, so when that
+   human goes away the game waits for them instead of ending. A finished game
+   is not worth holding */
+function getHoldableHuman(session) {
+  if (!SHOULD_HOLD_SOLO_SESSIONS || !session.isStarted()) return null;
+  if (session.getGameInstance()?.isGameActive?.() === false) return null;
+  const playableParticipants = session.getPlayableParticipants();
+  const humans = playableParticipants.filter(p => p.type === "user");
+  if (humans.length !== 1 || playableParticipants.length < 2) return null;
+  return humans[0];
+}
+
+/* The hold owns its own timer, so how long a session waits does not depend
+   on which participant's reconnection timer happens to fire first */
+function holdSession(session, human) {
+  const sessionId = session.getSessionId();
+  /* The hold replaces the human's removal; their disconnect mark still lands.
+     Cleared on every pass, since the close handler can start the human's
+     timers after the hold began */
+  const humanTimeouts = connectionTimeouts.get(sessionId)?.get(String(human.id));
+  if (humanTimeouts) clearTimeout(humanTimeouts.reconnectionTimeout);
+  if (sessionHolds.has(sessionId)) return;
+  kubicLog.info(`[GameEventService]::holdSession: Holding session ${sessionId} for its only human, up to ${SOLO_RECONNECTION_WINDOW}ms`);
+  sessionHolds.set(sessionId, setTimeout(() => {
+    sessionHolds.delete(sessionId);
+    // The game can end during the hold (a computer's move wins); it already reported why
+    if (session.getEndReason()) {
+      if (_sessionManager) _sessionManager.removeSession(sessionId);
+      return;
+    }
+    kubicLog.warn(`[GameEventService]::holdSession: Hold on session ${sessionId} expired`);
+    endSession(session, SESSION_END_REASONS.HOLD_EXPIRED, 1000);
+    broadcastToSession(session, {
+      type: "kubic::sessionEnded",
+      payload: {
+        reason: SESSION_END_REASONS.HOLD_EXPIRED,
+        message: "Session ended because its only human did not come back in time"
+      }
+    });
+  }, SOLO_RECONNECTION_WINDOW));
+}
+
+function releaseHold(sessionId) {
+  clearTimeout(sessionHolds.get(sessionId));
+  sessionHolds.delete(sessionId);
+}
+
+function markParticipantReconnected(sessionId, participantId) {
+  const session = _sessionManager.getSession(sessionId);
+  const participant = session?.getParticipantById(participantId);
+  if (!participant) return;
+  // A hold can start before the heartbeat timeout marks the human disconnected
+  if (participant.type === "user") releaseHold(sessionId);
+  if (!participant.disconnected) return;
+  session.updateParticipantConnection(participant.id, true);
+  broadcastToSession(session, {
+    type: "kubic::participantReconnected",
+    payload: {
+      participantId,
+      participantName: participant.name,
+      reconnectedAt: new Date().toISOString()
+    }
+  });
+}
+
+function endSession(session, reason, removalDelayMs) {
+  const sessionId = session.getSessionId();
+  // A finished game already fired session:ended with its own reason
+  if (!session.getEndReason()) session.markEnded(reason);
+  setTimeout(() => {
+    if (_sessionManager) _sessionManager.removeSession(sessionId);
+  }, removalDelayMs);
 }
 
 function checkSessionViability(session) {
@@ -368,20 +472,24 @@ function checkSessionViability(session) {
   const gameInstance = session.getGameInstance();
   const requiredPlayers = gameInstance ? gameInstance.requiredPlayers() : 2;
 
-  // Check if there are no active connections (orphaned session)
-  if (conns.length === 0) {
-    kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
-    session.markEnded();
-    setTimeout(() => {
-      if (_sessionManager) _sessionManager.removeSession(sessionId);
-    }, 1000);
+  /* Away means no open socket, from the close on: another participant's timer
+     can bring the session here before the heartbeat timeout marks the human */
+  const holdableHuman = getHoldableHuman(session);
+  const isHumanAway = Boolean(holdableHuman) && !isParticipantConnected(sessionId, String(holdableHuman.id));
+  if (isHumanAway) {
+    holdSession(session, holdableHuman);
     return;
   }
 
-  // Check if there are insufficient connected players
+  if (conns.length === 0) {
+    kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
+    endSession(session, SESSION_END_REASONS.ORPHANED, 1000);
+    return;
+  }
+
   if (connectedParticipants.length < requiredPlayers) {
     kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has insufficient connected players (${connectedParticipants.length}/${requiredPlayers}), ending session`);
-    session.markEnded();
+    endSession(session, SESSION_END_REASONS.INSUFFICIENT_PLAYERS, 5000);
     broadcastToSession(session, {
       type: "kubic::sessionEnded",
       payload: {
@@ -391,9 +499,6 @@ function checkSessionViability(session) {
         requiredParticipants: requiredPlayers
       }
     });
-    setTimeout(() => {
-      if (_sessionManager) _sessionManager.removeSession(sessionId);
-    }, 5000);
   }
 }
 
@@ -497,7 +602,7 @@ function broadcastToSession(gameSession, messageObj) {
       } else {
         kubicLog.debug(`[GameEventService]::broadcastToSession - Keeping session ${sessionId} (participants: ${participants.length}, game active: ${isGameActive})`);
       }
-    }, 30000); // 30 second delay to allow for HTTP-only usage and temporary disconnections
+    }, 30000).unref(); // 30 second delay to allow for HTTP-only usage and temporary disconnections
     
     return;
   }
@@ -532,6 +637,8 @@ function cleanupSession(sessionId) {
     connectionTimeouts.delete(sessionId);
   }
   
+  releaseHold(sessionId);
+
   // Clear connections
   connectionsBySession.delete(sessionId);
   participantConnections.delete(sessionId);

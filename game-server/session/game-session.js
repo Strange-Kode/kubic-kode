@@ -27,6 +27,7 @@ export class GameSession {
     this._maxPlayers = maxPlayers;
     this._gameVariantId = gameVariantId;
     this._started = false;
+    this._endReason = null;
     this._winCounter = 0;
     this._restartCounter = 0; // Track number of game restarts for alternating first player
     this._gameInstance = null;
@@ -308,6 +309,7 @@ export class GameSession {
     }
 
     this._started = true;
+    this._endReason = null;
     if (this._gameInstance && this._gameInstance.handleInactivity) {
       const inactivityManager = new InactivityManager(this, this._gameInstance);
       this._inactivityManager = inactivityManager;
@@ -323,8 +325,13 @@ export class GameSession {
     this._historyManager.addSessionStartedEvent(this._participantManager.getParticipants());
   }
 
-  markEnded() {
+  /**
+   * @param {string} reason - One of SESSION_END_REASONS, handed to
+   *   session:ended hooks
+   */
+  markEnded(reason) {
     this._started = false;
+    this._endReason = reason;
     if (this._inactivityManager) {
       this._inactivityManager.clearTimer();
     }
@@ -336,7 +343,12 @@ export class GameSession {
     this._historyManager.addSessionEndedEvent(this._participantManager.getParticipantCount());
 
     // Fire server-side hook so game implementations can react
-    runHooks("session:ended", this);
+    runHooks("session:ended", this, { reason });
+  }
+
+  /** Why the current game ended, or null while it runs and before the first start */
+  getEndReason() {
+    return this._endReason;
   }
 
   getSessionId() {

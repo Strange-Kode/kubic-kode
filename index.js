@@ -33,6 +33,7 @@ export * as gameStateMachine from "./game-engine/game-state-machine.js";
 // Game Server
 export { sessionManager } from "./game-server/session-manager.js";
 export * as gameSession from "./game-server/session/game-session.js";
+export { SESSION_END_REASONS } from "./game-server/session/session-end-reasons.js";
 export { gameRegistry } from "./game-server/game-registry.js";
 export * as gameEventService from "./game-server/game-event-service.js";
 export * as gameHistory from "./game-server/game-history.js";
