@@ -243,9 +243,8 @@ Read from `.env` unless marked **env**: those must be set in the process environ
 | `KUBIC_ALLOW_AI_HOST` | `false` | `true` lists sessions with only computer players as joinable |
 | `KUBIC_SESSION_MONITOR` | `false` | `true` logs the open-session count periodically |
 | `KUBIC_SESSION_MONITOR_INTERVAL` | `60000` | monitor period, ms |
-| `KUBIC_GAME_TOKEN_ALGORITHM` | `aes-256-gcm` | changing it, or the two below, invalidates issued tokens |
+| `KUBIC_GAME_TOKEN_ALGORITHM` | `aes-256-gcm` | changing it, or the one below, invalidates issued tokens |
 | `KUBIC_GAME_TOKEN_IV_LENGTH` | `16` | |
-| `KUBIC_GAME_TOKEN_SALT_LENGTH` | `64` | |
 | `KUBIC_DEBUG_MODE` (or `DEBUG_MODE`) | off | **env.** `true`/`1` enables logging. When off, nothing is logged, errors included |
 | `KUBIC_LOG_LEVEL` (or `KUBIC_DEBUG_LEVEL`, `DEBUG_LEVEL`) | `info` | **env.** `error`, `warn`, `info`, `debug`, `trace` |
 | `KUBIC_HEARTBEAT_INTERVAL` | `30000` | **env.** ms between server heartbeats to started sessions |
@@ -291,6 +290,7 @@ The helper calls these for you; you only need this table for a non-JS client or 
 | Guard | Requires |
 |-------|----------|
 | token | body `gameToken` for this session; if `participantId` is sent it must match the token |
+| seat token | body `gameToken` issued for the seat the body names (`participantId`, or `hostId` / `currentHostId` on kick and transfer-host); a missing seat is a 400 `MISSING_PARTICIPANT_ID`, a token for another seat is a 403 `TOKEN_PARTICIPANT_MISMATCH` |
 | token + playable | token, and the participant is not a spectator |
 | session | the session exists |
 | participant | session, plus body `participantId` of an existing participant |
@@ -317,29 +317,27 @@ The helper calls these for you; you only need this table for a non-JS client or 
 | `POST /session/:id/join` | session | `participantName`, `participantType` (`user`\|`computer`\|`spectator`) | `{ success, participant_id, game_token }` |
 | `POST /session/:id/spectate` | session | `participantName` | as join |
 | `POST /sessions/auto-join/:variantId` | - | `participantName`, `participantType`, `createIfNone` (default true) | `{ success, session_id, participant_id, game_token, session_created, lobby_status }` |
-| `POST /session/:id/leave` | session | `participantId` | `{ success }` |
+| `POST /session/:id/leave` | seat token | `participantId`, `gameToken` | `{ success }` |
 | `GET /session/:id/participants/list` | session | - | `[{ id, name, type, isPlayable }]` |
 | `GET /session/:id/participants/stats` | session | - | `{ sessionId, maxPlayers, total, players, spectators, canStart, started }` |
 | `GET /session/:id/lobby` | session | - | `{ success, lobby }` |
 | `GET /sessions/list` | - | `?onlyJoinable=true` | `{ success, only_joinable, total_sessions, sessions }` |
 | `GET /sessions/game/:variantId` | - | `?onlyJoinable=true` | as above, plus `game_variant_id` |
-| `GET /session/:id/request-restart-vote` | session | - | `{ vote_inited }` |
-| `POST /session/:id/submit-restart-vote` | playable | `participantId`, `voteYes` | `{ success }` |
-| `POST /session/:id/config` | session (host) | `participantId`, `config` | `{ success, applied_config, changes, full_config, applied_to_game_options }` |
+| `POST /session/:id/request-restart-vote` | seat token + playable | `participantId`, `gameToken` | `{ vote_inited }` |
+| `POST /session/:id/submit-restart-vote` | seat token + playable | `participantId`, `gameToken`, `voteYes` | `{ success }` |
+| `POST /session/:id/config` | seat token (host) | `participantId`, `gameToken`, `config` | `{ success, applied_config, changes, full_config, applied_to_game_options }` |
 | `GET /session/:id/config` | session | - | `{ success, session_id, config, host }` |
-| `DELETE /session/:id/config/:key` | session (host) | `participantId` | `{ success, deleted_key, old_value, remaining_config }` |
-| `POST /session/:id/kick` | session (host) | `hostId`, `participantIdToKick` | `{ success, kicked_participant, remaining_participants }` |
-| `POST /session/:id/transfer-host` | session (host) | `currentHostId`, `newHostId` | `{ success, old_host, new_host }` |
-| `POST /session/:id/chat` | participant | `participantId`, `message` (1-500 chars) | `{ success, message }` |
+| `DELETE /session/:id/config/:key` | seat token (host) | `participantId`, `gameToken` | `{ success, deleted_key, old_value, remaining_config }` |
+| `POST /session/:id/kick` | seat token (host) | `hostId`, `gameToken`, `participantIdToKick` | `{ success, kicked_participant, remaining_participants }` |
+| `POST /session/:id/transfer-host` | seat token (host) | `currentHostId`, `gameToken`, `newHostId` | `{ success, old_host, new_host }` |
+| `POST /session/:id/chat` | seat token | `participantId`, `gameToken`, `message` (1-500 chars) | `{ success, message }` |
 | `GET /session/:id/chat` | session | `?limit=50` (server keeps 100) | `{ success, session_id, total_messages, messages }` |
-| `POST /session/:id/sync/start` | session (host) | `participantId` | `{ success, sync_phase, ready_states, participants }` |
-| `POST /session/:id/ready` | playable | `participantId`, `ready` | `{ success, participant_id, ready, all_ready, ready_states }` |
 | `GET /session/:id/ready` | session | - | `{ success, session_id, in_sync_phase, all_ready, ready_states, playable_participants }` |
 | `POST /session/:id/history` | session | optional `type`, `playerId`, `participantId`, `startTime`, `endTime` | `{ success, sessionId, totalEvents, history }` |
-| `POST /session/:id/subscribe` | session | `eventTypes` (names without `kubic::`) | `{ success, sessionId, subscribedEventTypes, message }` |
-| `POST /session/:id/unsubscribe` | session | `eventTypes` | `{ success, sessionId, unsubscribedEventTypes, message }` |
+| `POST /session/:id/subscribe` | token | `gameToken`, `eventTypes` (names without `kubic::`) | `{ success, sessionId, subscribedEventTypes, message }` |
+| `POST /session/:id/unsubscribe` | token | `gameToken`, `eventTypes` | `{ success, sessionId, unsubscribedEventTypes, message }` |
 | `GET /session/:id/subscriptions` | session | - | `{ success, sessionId, subscribedEventTypes, totalSubscriptions }` |
-| `POST /session/:id/heartbeat` | participant | `participantId` | `{ success, timestamp, participant_id }` |
+| `POST /session/:id/heartbeat` | seat token | `participantId`, `gameToken` | `{ success, timestamp, participant_id }` |
 | `GET /session/:id/status` | session | - | `{ success, session_id, status, participants }` |
 | `GET /sessions/status` | - | - | `{ success, sessions, stats }` |
 

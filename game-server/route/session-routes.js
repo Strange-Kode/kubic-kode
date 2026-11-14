@@ -2,13 +2,16 @@ import express from "express";
 import { sessionManager } from "../session-manager.js"; // Holds all active GameSession instances
 import { kubicLog } from "../../kubic-log.js";
 
-import { validateSession, validateParticipant, validatePlayableParticipant } from "../../game-utility/game-utility.js";
+import { validateSession, validatePlayableParticipant } from "../../game-utility/game-utility.js";
+import { requireSeatToken, validateGameToken } from "../game-token-middleware.js";
 import { modules as kubicModules } from "../../game-module/module-system/index.js";
 
 const sessionRouter = express.Router();
 
-// Create middleware instance with session manager
+// Create middleware instances with session manager
 const validateSessionMiddleware = validateSession(sessionManager);
+const requireParticipantToken = requireSeatToken(sessionManager);
+const requireSessionToken = validateGameToken(sessionManager);
 
 // Init session, GET fallback (no turnConfig)
 sessionRouter.get("/session/init/:gameId", (req, res) => {
@@ -54,11 +57,9 @@ sessionRouter.post("/session/:sessionId/spectate", validateSessionMiddleware, as
 });
 
 // Leave session
-sessionRouter.post("/session/:sessionId/leave", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/leave", requireParticipantToken, (req, res) => {
   const { participantId } = req.body;
   const gameSession = req.gameSession;
-
-  // TODO: Require participant token to be provided in the request body
 
   try {
     const result = kubicModules.participant.leaveSession(gameSession, participantId);
@@ -84,14 +85,14 @@ sessionRouter.get("/session/:sessionId/participants/stats", validateSessionMiddl
   res.json(kubicModules.participant.getParticipantStats(gameSession));
 });
 
-sessionRouter.get("/session/:sessionId/request-restart-vote", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/request-restart-vote", requireParticipantToken, validatePlayableParticipant(sessionManager), (req, res) => {
   const gameSession = req.gameSession;
 
   const result = kubicModules.vote.startRestartVote(gameSession);
   res.json(result);
 });
 
-sessionRouter.post("/session/:sessionId/submit-restart-vote", validateSessionMiddleware, validatePlayableParticipant(sessionManager), (req, res) => {
+sessionRouter.post("/session/:sessionId/submit-restart-vote", requireParticipantToken, validatePlayableParticipant(sessionManager), (req, res) => {
   const { participantId, voteYes } = req.body;
   const gameSession = req.gameSession;
 
@@ -118,7 +119,7 @@ sessionRouter.post("/session/:sessionId/history", validateSessionMiddleware, (re
 });
 
 // Subscribe to game history event types
-sessionRouter.post("/session/:sessionId/subscribe", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/subscribe", requireSessionToken, (req, res) => {
   const { eventTypes } = req.body;
   const gameSession = req.gameSession;
 
@@ -138,7 +139,7 @@ sessionRouter.post("/session/:sessionId/subscribe", validateSessionMiddleware, (
 });
 
 // Unsubscribe from game history event types
-sessionRouter.post("/session/:sessionId/unsubscribe", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/unsubscribe", requireSessionToken, (req, res) => {
   const { eventTypes } = req.body;
   const gameSession = req.gameSession;
 
@@ -213,7 +214,7 @@ sessionRouter.get("/sessions/game/:gameVariantId", (req, res) => {
 // ---------------------------
 
 // Set lobby configuration (host only)
-sessionRouter.post("/session/:sessionId/config", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/config", requireParticipantToken, (req, res) => {
   const { participantId, config } = req.body;
 
   if (!participantId) {
@@ -249,7 +250,7 @@ sessionRouter.get("/session/:sessionId/config", validateSessionMiddleware, (req,
 });
 
 // Delete specific lobby configuration key (host only)
-sessionRouter.delete("/session/:sessionId/config/:configKey", validateSessionMiddleware, (req, res) => {
+sessionRouter.delete("/session/:sessionId/config/:configKey", requireParticipantToken, (req, res) => {
   const { configKey } = req.params;
   const { participantId } = req.body;
 
@@ -297,47 +298,6 @@ sessionRouter.post("/sessions/auto-join/:gameVariantId", async (req, res) => {
 // Synchronization and Ready Check Routes
 // --------------------------------------
 
-// Start sync phase (host only)
-sessionRouter.post("/session/:sessionId/sync/start", validateSessionMiddleware, (req, res) => {
-  const { participantId } = req.body;
-
-  if (!participantId) {
-    return res.status(400).json({ error: "participantId is required." });
-  }
-
-  const session = req.gameSession;
-
-  try {
-    const result = kubicModules.lobby.startSyncPhase(session, participantId);
-    res.json(result);
-  } catch (err) {
-    kubicLog.error("session-routes.js::Start sync phase error:", err);
-    if (err.message.includes("Only the host")) {
-      return res.status(403).json({ error: err.message });
-    }
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Set participant ready state
-sessionRouter.post("/session/:sessionId/ready", validateSessionMiddleware, validatePlayableParticipant(sessionManager), (req, res) => {
-  const { participantId, ready } = req.body;
-
-  if (typeof ready !== "boolean") {
-    return res.status(400).json({ error: "ready must be a boolean value." });
-  }
-
-  const session = req.gameSession;
-
-  try {
-    const result = kubicModules.lobby.setParticipantReady(session, participantId, ready);
-    res.json(result);
-  } catch (err) {
-    kubicLog.error("session-routes.js::Set ready state error:", err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
 // Get ready states
 sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, res) => {
   const session = req.gameSession;
@@ -352,7 +312,7 @@ sessionRouter.get("/session/:sessionId/ready", validateSessionMiddleware, (req, 
 });
 
 // Kick participant (host only)
-sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/kick", requireSeatToken(sessionManager, "hostId"), (req, res) => {
   const { hostId, participantIdToKick } = req.body;
 
   if (!hostId || !participantIdToKick) {
@@ -374,7 +334,7 @@ sessionRouter.post("/session/:sessionId/kick", validateSessionMiddleware, (req, 
 });
 
 // Transfer host (current host only)
-sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddleware, (req, res) => {
+sessionRouter.post("/session/:sessionId/transfer-host", requireSeatToken(sessionManager, "currentHostId"), (req, res) => {
   const { currentHostId, newHostId } = req.body;
 
   if (!currentHostId || !newHostId) {
@@ -399,7 +359,7 @@ sessionRouter.post("/session/:sessionId/transfer-host", validateSessionMiddlewar
 // -------------------------
 
 // Send chat message
-sessionRouter.post("/session/:sessionId/chat", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
+sessionRouter.post("/session/:sessionId/chat", requireParticipantToken, (req, res) => {
   const { participantId, message } = req.body;
   const session = req.gameSession;
 
@@ -466,7 +426,7 @@ sessionRouter.get("/sessions/viable", (req, res) => {
 });
 
 // Heartbeat endpoint for clients to confirm they're still alive
-sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
+sessionRouter.post("/session/:sessionId/heartbeat", requireParticipantToken, (req, res) => {
   const { participantId } = req.body;
   const session = req.gameSession;
   
@@ -476,21 +436,6 @@ sessionRouter.post("/session/:sessionId/heartbeat", validateSessionMiddleware, v
   } catch (err) {
     kubicLog.error("session-routes.js::Heartbeat error:", err);
     res.status(500).json({ error: "Failed to process heartbeat." });
-  }
-});
-
-// Force disconnect a participant (admin function)
-sessionRouter.post("/session/:sessionId/disconnect", validateSessionMiddleware, validateParticipant(sessionManager), (req, res) => {
-  const { participantId, reason = "Admin disconnect" } = req.body;
-  const session = req.gameSession;
-  
-  try {
-    const participant = req.participant;
-    const result = kubicModules.participant.handleDisconnection(session, participant, participantId, reason);
-    res.json(result);
-  } catch (err) {
-    kubicLog.error("session-routes.js::Force disconnect error:", err);
-    res.status(500).json({ error: "Failed to disconnect participant." });
   }
 });
 

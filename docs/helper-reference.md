@@ -105,7 +105,7 @@ Preconditions: `sessionId` set (`NO_ACTIVE_SESSION`) and a stored token (`NO_GAM
 | `"leave"` | POST `/session/:sessionId/leave` | clears token |
 | `"participants"` | GET `/session/:sessionId/participants/list` | |
 | `"participant-stats"` | GET `/session/:sessionId/participants/stats` | |
-| `"restart-vote"` | GET `/session/:sessionId/request-restart-vote` | |
+| `"restart-vote"` | POST `/session/:sessionId/request-restart-vote` | `{ participantId? }` - defaults to `helper.participantId`; the seat's token is added |
 | `"submit-vote"` | POST `/session/:sessionId/submit-restart-vote` | `{ participantId, voteYes }` - not auto-injected; prefer `submitRestartVote()` |
 | `"history"` | POST `/session/:sessionId/history` | optional `{ type, startTime, endTime }` |
 | `"list-all"` / `"list-joinable"` | GET `/sessions/list` | joinable adds `?onlyJoinable=true` |
@@ -118,7 +118,7 @@ Preconditions: `sessionId` set (`NO_ACTIVE_SESSION`) and a stored token (`NO_GAM
 | `"transfer-host"` | POST `/session/:sessionId/transfer-host` | `{ newHostId }` (currentHostId auto) |
 | `"send-chat"` / `"get-chat"` | POST/GET `/session/:sessionId/chat` | `{ message }` / `?limit=N` |
 
-The ready-check / sync-phase routes have no helper action; call them directly ([server reference](./server-reference.md#session-routes)).
+The ready-state route (`GET /session/:id/ready`) has no helper action; call it directly ([server reference](./server-reference.md#session-routes)).
 
 ### Client game registry
 

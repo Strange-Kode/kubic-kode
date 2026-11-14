@@ -2,7 +2,7 @@
  * Lobby System Complete Test
  * 
  * This test validates the complete lobby experience from start to finish,
- * including host management, session configuration, ready checks, chat,
+ * including host management, session configuration, chat,
  * auto-joining, and all validation features.
  */
 
@@ -49,6 +49,7 @@ class LobbySystemTest extends E2ETestRunner {
       });
       
       const hostId = host1Response.data.participant_id;
+      const hostToken = host1Response.data.game_token;
       console.log(`  ✅ Host joined: ${hostId}`);
 
       // Verify host information
@@ -79,6 +80,7 @@ class LobbySystemTest extends E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantId: hostId,
+          gameToken: hostToken,
           config: {
             gridSize: 5,
             difficulty: "medium",
@@ -92,19 +94,20 @@ class LobbySystemTest extends E2ETestRunner {
       // Wait for WebSocket config update event
       await this.waitForEvent(sessionId, "message_received", 2000);
 
-      // Step 6: Test auto-join functionality
-      console.log("  🤖 Step 6: Testing auto-join functionality...");
-      const autoJoinResponse = await this.makeRequest(`/api/sessions/auto-join/${gameId}`, {
+      // Step 6: Join the second participant (auto-join is covered by its own test;
+      // it prefers the emptiest session, so it would not land in this lobby)
+      console.log("  🤖 Step 6: Joining second participant...");
+      const participant2Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
         method: "POST",
         body: JSON.stringify({
           participantName: "Bob",
-          participantType: "user",
-          createIfNone: false
+          participantType: "user"
         })
       });
       
-      const participant2Id = autoJoinResponse.data.participant_id;
-      console.log(`  ✅ Auto-join successful: ${participant2Id}`);
+      const participant2Id = participant2Response.data.participant_id;
+      const participant2Token = participant2Response.data.game_token;
+      console.log(`  ✅ Second participant joined: ${participant2Id}`);
       
       // Connect WebSocket for second participant
       await this.connectWebSocket(sessionId, participant2Id);
@@ -120,6 +123,7 @@ class LobbySystemTest extends E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantId: hostId,
+          gameToken: hostToken,
           message: "Welcome to the lobby! Ready to play?"
         })
       });
@@ -132,6 +136,7 @@ class LobbySystemTest extends E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           participantId: participant2Id,
+          gameToken: participant2Token,
           message: "Yes, I'm ready!"
         })
       });
@@ -145,49 +150,8 @@ class LobbySystemTest extends E2ETestRunner {
       const chatHistory = await this.makeRequest(`/api/session/${sessionId}/chat?limit=10`);
       console.log(`  ✅ Chat history retrieved: ${chatHistory.data.total_messages} messages`);
 
-      // Step 8: Test synchronization phase
-      console.log("  🔄 Step 8: Testing synchronization and ready checks...");
-      
-      // Start sync phase (host only)
-      const syncStartResponse = await this.makeRequest(`/api/session/${sessionId}/sync/start`, {
-        method: "POST",
-        body: JSON.stringify({
-          participantId: hostId
-        })
-      });
-      
-      console.log(`  ✅ Sync phase started: ${syncStartResponse.data.sync_phase}`);
-      
-      // Wait for sync phase event
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Set ready states
-      const hostReady = await this.makeRequest(`/api/session/${sessionId}/ready`, {
-        method: "POST",
-        body: JSON.stringify({
-          participantId: hostId,
-          ready: true
-        })
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const participant2Ready = await this.makeRequest(`/api/session/${sessionId}/ready`, {
-        method: "POST",
-        body: JSON.stringify({
-          participantId: participant2Id,
-          ready: true
-        })
-      });
-      
-      console.log(`  ✅ Ready states set: Host=${hostReady.data.ready}, Participant 2=${participant2Ready.data.ready}`);
-      console.log(`  ✅ All ready: ${participant2Ready.data.all_ready}`);
-      
-      // Wait for ready state events
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 9: Test participant management (kick functionality)
-      console.log("  👥 Step 9: Testing participant management...");
+      // Step 8: Test participant management (kick functionality)
+      console.log("  👥 Step 8: Testing participant management...");
       
       // Join a third participant to test kicking
       const participant3Response = await this.makeRequest(`/api/session/${sessionId}/join`, {
@@ -206,6 +170,7 @@ class LobbySystemTest extends E2ETestRunner {
         method: "POST",
         body: JSON.stringify({
           hostId: hostId,
+          gameToken: hostToken,
           participantIdToKick: participant3Id
         })
       });
@@ -215,13 +180,14 @@ class LobbySystemTest extends E2ETestRunner {
       // Wait for kick event
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 10: Test host transfer
-      console.log("  👑 Step 10: Testing host transfer...");
+      // Step 9: Test host transfer
+      console.log("  👑 Step 9: Testing host transfer...");
       
       const transferResponse = await this.makeRequest(`/api/session/${sessionId}/transfer-host`, {
         method: "POST",
         body: JSON.stringify({
           currentHostId: hostId,
+          gameToken: hostToken,
           newHostId: participant2Id
         })
       });
@@ -231,8 +197,8 @@ class LobbySystemTest extends E2ETestRunner {
       // Wait for host transfer event
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 11: Test validation scenarios
-      console.log("  ✅ Step 11: Testing validation scenarios...");
+      // Step 10: Test validation scenarios
+      console.log("  ✅ Step 10: Testing validation scenarios...");
       
       // Try to join with duplicate name (should fail)
       try {
@@ -254,6 +220,7 @@ class LobbySystemTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantId: hostId, // Old host ID (no longer host)
+            gameToken: hostToken,
             config: { gridSize: 7 }
           })
         });
@@ -262,8 +229,8 @@ class LobbySystemTest extends E2ETestRunner {
         console.log(`  ✅ Host privilege validation working`);
       }
 
-      // Step 12: Test final lobby status
-      console.log("  📊 Step 12: Verifying final lobby status...");
+      // Step 11: Test final lobby status
+      console.log("  📊 Step 11: Verifying final lobby status...");
       const finalLobbyStatus = await this.makeRequest(`/api/session/${sessionId}/lobby`);
       const finalStatus = finalLobbyStatus.data.lobby;
       
@@ -369,6 +336,7 @@ class LobbySystemTest extends E2ETestRunner {
         })
       });
       const hostId = hostResponse.data.participant_id;
+      const hostToken = hostResponse.data.game_token;
       
       // Join observer
       const observerResponse = await this.makeRequest(`/api/session/${sessionId}/join`, {
@@ -401,6 +369,7 @@ class LobbySystemTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantId: hostId,
+            gameToken: hostToken,
             config: config
           })
         });
@@ -419,7 +388,8 @@ class LobbySystemTest extends E2ETestRunner {
       const deleteResponse = await this.makeRequest(`/api/session/${sessionId}/config/customRule`, {
         method: "DELETE",
         body: JSON.stringify({
-          participantId: hostId
+          participantId: hostId,
+          gameToken: hostToken
         })
       });
       
@@ -462,6 +432,7 @@ class LobbySystemTest extends E2ETestRunner {
       ];
       
       const participantIds = [];
+      const participantTokens = [];
       for (const participant of participants) {
         const response = await this.makeRequest(`/api/session/${sessionId}/join`, {
           method: "POST",
@@ -471,6 +442,7 @@ class LobbySystemTest extends E2ETestRunner {
           })
         });
         participantIds.push(response.data.participant_id);
+        participantTokens.push(response.data.game_token);
         await this.connectWebSocket(sessionId, response.data.participant_id);
       }
       
@@ -490,6 +462,7 @@ class LobbySystemTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantId: participantIds[msg.from],
+            gameToken: participantTokens[msg.from],
             message: msg.text
           })
         });
@@ -506,6 +479,7 @@ class LobbySystemTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantId: participantIds[0],
+            gameToken: participantTokens[0],
             message: longMessage
           })
         });
@@ -567,6 +541,7 @@ class LobbySystemTest extends E2ETestRunner {
         })
       });
       const hostId = hostResponse.data.participant_id;
+      const hostToken = hostResponse.data.game_token;
       
       // Test 1: Duplicate participant names
       console.log("  🧪 Test 1: Duplicate participant names...");
@@ -597,6 +572,7 @@ class LobbySystemTest extends E2ETestRunner {
         })
       });
       const participant2Id = participant2Response.data.participant_id;
+      const participant2Token = participant2Response.data.game_token;
       
       console.log("  🧪 Test 2: Non-host configuration attempt...");
       try {
@@ -604,6 +580,7 @@ class LobbySystemTest extends E2ETestRunner {
           method: "POST",
           body: JSON.stringify({
             participantId: participant2Id,
+            gameToken: participant2Token,
             config: { gridSize: 5 }
           })
         });
@@ -616,31 +593,14 @@ class LobbySystemTest extends E2ETestRunner {
         results.push({ test: "Non-host config", success: true, expected: "Should fail" });
       }
       
-      // Test 3: Non-host trying to start sync
-      console.log("  🧪 Test 3: Non-host sync start attempt...");
-      try {
-        const syncResponse = await this.makeRequest(`/api/session/${sessionId}/sync/start`, {
-          method: "POST",
-          body: JSON.stringify({
-            participantId: participant2Id
-          })
-        });
-        if (syncResponse.status !== 200 || syncResponse.data.error) {
-          results.push({ test: "Non-host sync start", success: true, expected: "Should fail" });
-        } else {
-          results.push({ test: "Non-host sync start", success: false, expected: "Should fail" });
-        }
-      } catch (error) {
-        results.push({ test: "Non-host sync start", success: true, expected: "Should fail" });
-      }
-      
-      // Test 4: Non-host trying to kick
-      console.log("  🧪 Test 4: Non-host kick attempt...");
+      // Test 3: Non-host trying to kick
+      console.log("  🧪 Test 3: Non-host kick attempt...");
       try {
         const kickResponse = await this.makeRequest(`/api/session/${sessionId}/kick`, {
           method: "POST",
           body: JSON.stringify({
             hostId: participant2Id,
+            gameToken: participant2Token,
             participantIdToKick: hostId
           })
         });
@@ -653,13 +613,14 @@ class LobbySystemTest extends E2ETestRunner {
         results.push({ test: "Non-host kick", success: true, expected: "Should fail" });
       }
       
-      // Test 5: Host trying to kick themselves
-      console.log("  🧪 Test 5: Host self-kick attempt...");
+      // Test 4: Host trying to kick themselves
+      console.log("  🧪 Test 4: Host self-kick attempt...");
       try {
         const selfKickResponse = await this.makeRequest(`/api/session/${sessionId}/kick`, {
           method: "POST",
           body: JSON.stringify({
             hostId: hostId,
+            gameToken: hostToken,
             participantIdToKick: hostId
           })
         });
@@ -672,34 +633,6 @@ class LobbySystemTest extends E2ETestRunner {
         results.push({ test: "Host self-kick", success: true, expected: "Should fail" });
       }
       
-      // Test 6: Invalid ready state for spectator
-      const spectatorResponse = await this.makeRequest(`/api/session/${sessionId}/join`, {
-        method: "POST",
-        body: JSON.stringify({
-          participantName: "Spectator",
-          participantType: "spectator"
-        })
-      });
-      const spectatorId = spectatorResponse.data.participant_id;
-      
-      console.log("  🧪 Test 6: Spectator ready state attempt...");
-      try {
-        const readyResponse = await this.makeRequest(`/api/session/${sessionId}/ready`, {
-          method: "POST",
-          body: JSON.stringify({
-            participantId: spectatorId,
-            ready: true
-          })
-        });
-        if (readyResponse.status !== 200 || readyResponse.data.error) {
-          results.push({ test: "Spectator ready state", success: true, expected: "Should fail" });
-        } else {
-          results.push({ test: "Spectator ready state", success: false, expected: "Should fail" });
-        }
-      } catch (error) {
-        results.push({ test: "Spectator ready state", success: true, expected: "Should fail" });
-      }
-
       const passedTests = results.filter(r => r.success).length;
       console.log(`  ✅ Validation tests passed: ${passedTests}/${results.length}`);
       
