@@ -3,6 +3,11 @@
  * Handles all session-related HTTP endpoints
  **/
 export function createSessionRoutes(helper) {
+  // The server accepts a seat-bound request only with the token issued for
+  // that seat, and one device can hold tokens for several seats (AI players)
+  const getSeatToken = (seatId) =>
+    helper._getGameToken(helper.sessionId, seatId) || helper.gameToken;
+
   return async (action, data = {}) => {
     switch (action) {
       case "init":
@@ -64,7 +69,7 @@ export function createSessionRoutes(helper) {
         const leaveResult = await helper._makeRequest(
           "POST",
           `/session/${helper.sessionId}/leave`,
-          data
+          { ...data, gameToken: getSeatToken(data.participantId) }
         );
         // Clear game token from localStorage when leaving
         if (leaveResult.success) {
@@ -90,12 +95,17 @@ export function createSessionRoutes(helper) {
         );
 
       case "restart-vote":
-        // GET /session/:sessionId/request-restart-vote
+        // POST /session/:sessionId/request-restart-vote
+        // Requires: { participantId } (defaults to helper.participantId)
         // Returns: { vote_inited }
-        return await helper._makeRequest(
-          "GET",
-          `/session/${helper.sessionId}/request-restart-vote`
-        );
+        {
+          const voterId = data.participantId ?? helper.participantId;
+          return await helper._makeRequest(
+            "POST",
+            `/session/${helper.sessionId}/request-restart-vote`,
+            { participantId: voterId, gameToken: getSeatToken(voterId) }
+          );
+        }
 
       case "submit-vote":
         // POST /session/:sessionId/submit-restart-vote
@@ -104,7 +114,7 @@ export function createSessionRoutes(helper) {
         return await helper._makeRequest(
           "POST",
           `/session/${helper.sessionId}/submit-restart-vote`,
-          data
+          { ...data, gameToken: getSeatToken(data.participantId) }
         );
 
       case "history":
@@ -200,6 +210,7 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/config`,
           {
             participantId: helper.participantId,
+            gameToken: getSeatToken(helper.participantId),
             config: data.config,
           }
         );
@@ -253,6 +264,7 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/config/${data.configKey}`,
           {
             participantId: helper.participantId,
+            gameToken: getSeatToken(helper.participantId),
           }
         );
 
@@ -289,7 +301,10 @@ export function createSessionRoutes(helper) {
         return await helper._makeRequest(
           "POST",
           `/session/${helper.sessionId}/subscribe`,
-          { eventTypes: data.eventTypes }
+          {
+            eventTypes: data.eventTypes,
+            gameToken: getSeatToken(helper.participantId),
+          }
         );
 
       case "unsubscribe":
@@ -323,7 +338,10 @@ export function createSessionRoutes(helper) {
         return await helper._makeRequest(
           "POST",
           `/session/${helper.sessionId}/unsubscribe`,
-          { eventTypes: data.eventTypes }
+          {
+            eventTypes: data.eventTypes,
+            gameToken: getSeatToken(helper.participantId),
+          }
         );
 
       case "subscriptions":
@@ -375,6 +393,7 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/kick`,
           {
             hostId: helper.participantId,
+            gameToken: getSeatToken(helper.participantId),
             participantIdToKick: data.participantIdToKick,
           }
         );
@@ -420,6 +439,7 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/chat`,
           {
             participantId: helper.participantId,
+            gameToken: getSeatToken(helper.participantId),
             message: data.message,
           }
         );
@@ -477,6 +497,7 @@ export function createSessionRoutes(helper) {
           `/session/${helper.sessionId}/transfer-host`,
           {
             currentHostId: helper.participantId,
+            gameToken: getSeatToken(helper.participantId),
             newHostId: data.newHostId,
           }
         );

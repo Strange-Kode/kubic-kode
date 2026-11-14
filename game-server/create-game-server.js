@@ -9,6 +9,7 @@ import sessionRouter from "./route/session-routes.js";
 import gameRouter from "./route/game-routes.js";
 import { GameEventService } from "./game-event-service.js";
 import { sessionManager } from "./session-manager.js";
+import { gameTokenService } from "./game-token-service.js";
 
 /**
  * Validates and loads environment variables
@@ -165,6 +166,15 @@ export async function createGameServer(options = {}) {
     startServer = true,
     onReady
   } = options;
+
+  // The token service validates its env when first built; build it now so a
+  // bad config stops the boot instead of failing the first join
+  try {
+    gameTokenService.instance;
+  } catch (error) {
+    console.error(`Game token configuration is invalid: ${error.message}`);
+    process.exit(1);
+  }
 
   // Create Express app
   const app = express();

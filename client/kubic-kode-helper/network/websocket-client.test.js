@@ -244,3 +244,43 @@ describe("websocket-client lifecycle", () => {
     assert.strictEqual(url.searchParams.get("participantId"), "p1");
   });
 });
+
+describe("websocket-client REST heartbeat", () => {
+  const createRestHelper = ({ storedToken = null, gameToken = "fallback-token" } = {}) => {
+    const requests = [];
+    return {
+      ...createHelper(),
+      gameToken,
+      requests,
+      http: {
+        makeRequest: async (method, endpoint, body) => {
+          requests.push({ method, endpoint, body });
+          return { success: true, data: {} };
+        },
+      },
+      _getGameToken: () => storedToken,
+    };
+  };
+
+  test("sends the token stored for the helper's seat", async () => {
+    const helper = createRestHelper({ storedToken: "token-for-own-seat" });
+
+    await createWebSocketClient(helper).sendRestHeartbeat();
+
+    assert.deepStrictEqual(helper.requests, [
+      {
+        method: "POST",
+        endpoint: "/session/session-1/heartbeat",
+        body: { participantId: "p1", gameToken: "token-for-own-seat" },
+      },
+    ]);
+  });
+
+  test("falls back to the current token when none is stored for the seat", async () => {
+    const helper = createRestHelper();
+
+    await createWebSocketClient(helper).sendRestHeartbeat();
+
+    assert.strictEqual(helper.requests[0].body.gameToken, "fallback-token");
+  });
+});

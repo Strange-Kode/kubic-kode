@@ -7,6 +7,12 @@ import {
   ErrorCodes 
 } from "../game-engine/kubic-kode-error.js";
 
+const MAX_TOKEN_LENGTH = 512;
+// GCM with one shared key needs a nonce wide enough that random IVs never repeat,
+// and a wide IV would push every real token past MAX_TOKEN_LENGTH
+const MIN_IV_LENGTH = 12;
+const MAX_IV_LENGTH = 32;
+
 class GameTokenService {
   /**
    * Create a new game token service instance
@@ -16,7 +22,13 @@ class GameTokenService {
     this.__secretKey = process.env.KUBIC_GAME_TOKEN_SECRET_KEY; // Required to be set in the .env file
     this.__algorithm = process.env.KUBIC_GAME_TOKEN_ALGORITHM || "aes-256-gcm";
     this.__ivLength = parseInt(process.env.KUBIC_GAME_TOKEN_IV_LENGTH) || 16;
-    this.__saltLength = parseInt(process.env.KUBIC_GAME_TOKEN_SALT_LENGTH) || 64;
+    if (this.__ivLength < MIN_IV_LENGTH || this.__ivLength > MAX_IV_LENGTH) {
+      throw ErrorFactory.validation(
+        `KUBIC_GAME_TOKEN_IV_LENGTH must be between ${MIN_IV_LENGTH} and ${MAX_IV_LENGTH} bytes.`,
+        "KUBIC_GAME_TOKEN_IV_LENGTH",
+        this.__ivLength
+      );
+    }
     
     // Validate secret key exists and length
     if (!this.__secretKey) {
@@ -43,6 +55,12 @@ class GameTokenService {
           } }
         );
     }
+
+    // Derived once: tokens are validated for every request, so a per-token
+    // password-hash KDF would let anyone with junk tokens stall the event loop.
+    this.__key = Buffer.from(
+      crypto.hkdfSync("sha256", this.__secretKey, "kubic-game-token", "aes-256-gcm v1", 32)
+    );
   }
 
   get secretKey() {
@@ -66,14 +84,6 @@ class GameTokenService {
       "Attempting to access ivLength property on GameTokenService. Not allowed, ivLength is a private property.",
       "GameTokenService",
       { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "ivLength" } }
-    );
-  }
-
-  get saltLength() {
-    throw ErrorFactory.system(
-      "Attempting to access saltLength property on GameTokenService. Not allowed, saltLength is a private property.",
-      "GameTokenService",
-      { context: { suggestion: "Use generateToken() or validateToken() methods instead", property: "saltLength" } }
     );
   }
 
@@ -115,6 +125,11 @@ class GameTokenService {
    */
   validateToken(encryptedToken) {
     try {
+      // A real token is about 230 characters; decrypt time grows with input
+      // length, so oversized junk must be refused before it is decoded
+      if (typeof encryptedToken !== "string" || encryptedToken.length > MAX_TOKEN_LENGTH) {
+        return null;
+      }
       const decryptedString = this.decrypt(encryptedToken);
       const tokenData = JSON.parse(decryptedString);
       
@@ -136,7 +151,7 @@ class GameTokenService {
       kubicLog.debug(`[GameTokenService]::validateToken - Validated token for session: ${tokenData.sessionId}`);
       return tokenData;
     } catch (error) {
-      kubicLog.error("[GameTokenService]::validateToken - Error validating token:", error);
+      kubicLog.debug("[GameTokenService]::validateToken - Rejected token:", error.message);
       return null;
     }
   }
@@ -144,93 +159,67 @@ class GameTokenService {
   /**
    * Encrypt data using AES-256-GCM
    * @param {string} data - Data to encrypt
-   * @returns {string} - Encrypted data as base64 string
+   * @returns {string} - Base64 of iv + authTag (16 bytes) + ciphertext
    */
   encrypt(data) {
     const iv = crypto.randomBytes(this.__ivLength);
-    const salt = crypto.randomBytes(this.__saltLength);
-    
-    // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, "sha256");
-    
-    // Create cipher using proper Node.js crypto API with IV
-    const cipher = crypto.createCipheriv(this.__algorithm, key, iv);
-    
-    // For GCM mode, set additional authenticated data
-    if (this.__algorithm.includes('gcm')) {
-      cipher.setAAD(salt);
-    }
-    
-    // Encrypt data
+    const cipher = crypto.createCipheriv(this.__algorithm, this.__key, iv);
+
     let encrypted = cipher.update(data, "utf8", "hex");
     encrypted += cipher.final("hex");
-    
+
     // Get auth tag for GCM mode, or create HMAC for other modes
     let authTag;
     if (this.__algorithm.includes('gcm')) {
       authTag = cipher.getAuthTag();
     } else {
-      // Create HMAC for non-GCM modes
-      const hmac = crypto.createHmac('sha256', key);
-      hmac.update(salt);
+      const hmac = crypto.createHmac('sha256', this.__key);
       hmac.update(iv);
       hmac.update(encrypted);
       authTag = hmac.digest();
     }
-    
-    // Combine all components: salt + iv + authTag + encrypted
-    const combined = Buffer.concat([salt, iv, authTag, Buffer.from(encrypted, "hex")]);
-    
+
+    const combined = Buffer.concat([iv, authTag, Buffer.from(encrypted, "hex")]);
+
     return combined.toString("base64");
   }
 
   /**
    * Decrypt data using AES-256-GCM
-   * @param {string} encryptedData - Encrypted data as base64 string
+   * @param {string} encryptedData - Base64 of iv + authTag (16 bytes) + ciphertext
    * @returns {string} - Decrypted data
    */
   decrypt(encryptedData) {
     const combined = Buffer.from(encryptedData, "base64");
 
-    // Key derivation below is deliberately slow; junk from an unauthenticated
-    // peer must not pay for it
-    const minimumLength = this.__saltLength + this.__ivLength + 16 + 1;
+    const minimumLength = this.__ivLength + 16 + 1;
     if (combined.length < minimumLength) {
       throw new Error("Encrypted payload too short");
     }
 
-    // Extract components
-    const salt = combined.subarray(0, this.__saltLength);
-    const iv = combined.subarray(this.__saltLength, this.__saltLength + this.__ivLength);
-    const authTag = combined.subarray(this.__saltLength + this.__ivLength, this.__saltLength + this.__ivLength + 16); // GCM auth tag is 16 bytes
-    const encrypted = combined.subarray(this.__saltLength + this.__ivLength + 16);
-    
-    // Derive key from secret and salt
-    const key = crypto.pbkdf2Sync(this.__secretKey, salt, 100000, 32, "sha256");
-    
-    // Create decipher using proper Node.js crypto API with IV
-    const decipher = crypto.createDecipheriv(this.__algorithm, key, iv);
-    
+    const iv = combined.subarray(0, this.__ivLength);
+    const authTag = combined.subarray(this.__ivLength, this.__ivLength + 16); // GCM auth tag is 16 bytes
+    const encrypted = combined.subarray(this.__ivLength + 16);
+
+    const decipher = crypto.createDecipheriv(this.__algorithm, this.__key, iv);
+
     if (this.__algorithm.includes('gcm')) {
       decipher.setAuthTag(authTag);
-      decipher.setAAD(salt);
     } else {
       // Verify HMAC for non-GCM modes
-      const hmac = crypto.createHmac('sha256', key);
-      hmac.update(salt);
+      const hmac = crypto.createHmac('sha256', this.__key);
       hmac.update(iv);
       hmac.update(encrypted.toString('hex'));
       const computedAuthTag = hmac.digest();
-      
+
       if (!crypto.timingSafeEqual(authTag, computedAuthTag)) {
         throw new Error("Authentication tag verification failed");
       }
     }
-    
-    // Decrypt data
+
     let decrypted = decipher.update(encrypted, null, "utf8");
     decrypted += decipher.final("utf8");
-    
+
     return decrypted;
   }
 }

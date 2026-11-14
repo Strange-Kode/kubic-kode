@@ -43,7 +43,7 @@ The framework maps between them when the game starts (`playerMappings`: particip
 
 Joining (`join`, `spectate`, `auto-join`) returns a **game token**: an encrypted blob naming the session and participant, valid for 24 hours. The helper stores it in localStorage (`kubic_game_tokens`) and attaches it for you.
 
-The token is required for every `/api/game/...` route and for a WebSocket that claims a seat. A token from one session or participant is rejected for another. Tokens are encrypted with `KUBIC_GAME_TOKEN_SECRET_KEY` (32+ characters, required).
+The token is required for every `/api/game/...` route, for a WebSocket that claims a seat, and for every session route that acts as a participant (leave, kick, transfer-host, chat, config, restart vote, heartbeat, subscribe). A token from one session or participant is rejected for another. Tokens are encrypted with `KUBIC_GAME_TOKEN_SECRET_KEY` (32+ characters, required).
 
 ## Game lifecycle
 

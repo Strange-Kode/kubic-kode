@@ -243,6 +243,9 @@ export function createWebSocketClient(helper) {
           `/session/${helper.sessionId}/heartbeat`,
           {
             participantId: helper.participantId,
+            gameToken:
+              helper._getGameToken(helper.sessionId, helper.participantId) ||
+              helper.gameToken,
           }
         );
       } catch (error) {

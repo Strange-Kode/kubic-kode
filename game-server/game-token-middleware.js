@@ -1,6 +1,8 @@
 import { gameTokenService } from "./game-token-service.js";
 import { kubicLog } from "../kubic-log.js";
 
+const hasSeatClaim = (participantId) => participantId !== undefined && participantId !== null && participantId !== "";
+
 /**
  * The one answer to "may this token act as this seat in this session", shared
  * by the HTTP routes and the websocket handshake so both refuse the same
@@ -41,8 +43,7 @@ export function resolveSeat(sessionManager, sessionId, participantId, gameToken)
   }
 
   // URL params arrive as strings and JSON bodies as numbers
-  const hasSeatClaim = participantId !== undefined && participantId !== null && participantId !== "";
-  if (hasSeatClaim && String(tokenData.participantId) !== String(participantId)) {
+  if (hasSeatClaim(participantId) && String(tokenData.participantId) !== String(participantId)) {
     return {
       refusal: {
         status: 403,
@@ -78,7 +79,7 @@ export function validateGameToken(sessionManager) {
       });
     }
 
-    const { gameToken, participantId } = req.body;
+    const { gameToken, participantId } = req.body ?? {};
     const { sessionId } = req.params;
 
     const seat = resolveSeat(sessionManager, sessionId, participantId, gameToken);
@@ -97,6 +98,38 @@ export function validateGameToken(sessionManager) {
 }
 
 export const validateGameTokenWithParticipantReadOnly = validateGameToken;
+
+/**
+ * Middleware for routes that act as a participant: the body names the seat in
+ * `seatField`, and `gameToken` must have been issued for exactly that seat.
+ * Unlike validateGameToken it works for any HTTP method.
+ * @param {Object} sessionManager - The session manager instance
+ * @param {string} [seatField="participantId"] - Body field that names the acting seat
+ * @returns {Function} Express middleware function
+ */
+export function requireSeatToken(sessionManager, seatField = "participantId") {
+  return (req, res, next) => {
+    const seatClaim = req.body?.[seatField];
+    if (!hasSeatClaim(seatClaim)) {
+      return res.status(400).json({
+        error: true,
+        message: `${seatField} is required`,
+        code: "MISSING_PARTICIPANT_ID"
+      });
+    }
+
+    const seat = resolveSeat(sessionManager, req.params.sessionId, seatClaim, req.body.gameToken);
+    if (seat.refusal) {
+      const { status, ...body } = seat.refusal;
+      return res.status(status).json({ error: true, ...body });
+    }
+
+    req.gameTokenData = seat.tokenData;
+    req.gameSession = seat.gameSession;
+    req.participant = seat.gameSession.getParticipantById(seat.tokenData.participantId);
+    next();
+  };
+}
 
 /**
  * Middleware for routes that change game state: the token's participant must also be playable.
