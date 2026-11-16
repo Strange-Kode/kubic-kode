@@ -11,6 +11,7 @@ const WS_CLOSE_UNAUTHORIZED = 4401;
 const WS_CLOSE_TRY_AGAIN_LATER = 1013;
 
 const connectionsBySession = new Map();
+const socketParticipantIds = new WeakMap(); // ws -> participantId as sent in the URL
 const participantConnections = new Map(); // sessionId -> Map(participantId -> ws)
 const heartbeatIntervals = new Map(); // sessionId -> interval
 const connectionTimeouts = new Map(); // sessionId -> Map(participantId -> timeout)
@@ -219,6 +220,7 @@ function initWebSocketServer(server) {
     
     // Track participant connection
     if (participantId) {
+      socketParticipantIds.set(ws, participantId);
       if (!participantConnections.has(sessionId)) {
         participantConnections.set(sessionId, new Map());
       }
@@ -250,15 +252,19 @@ function initWebSocketServer(server) {
     });
     
     ws.on("close", () => {
-      const conns = connectionsBySession.get(sessionId) || [];
-      connectionsBySession.set(sessionId, conns.filter(conn => conn !== ws));
+      const remainingConns = (connectionsBySession.get(sessionId) || []).filter(conn => conn !== ws);
+      if (remainingConns.length === 0) {
+        connectionsBySession.delete(sessionId);
+      } else {
+        connectionsBySession.set(sessionId, remainingConns);
+      }
       
       // Remove participant connection tracking
       if (participantId && participantConnections.has(sessionId)) {
         participantConnections.get(sessionId).delete(participantId);
       }
       
-      kubicLog.debug(`[GameEventService]::initWebSocketServer: WebSocket closed for (session ${sessionId}, participant ${participantId}), remaining connections: ${connectionsBySession.get(sessionId).length}`);
+      kubicLog.debug(`[GameEventService]::initWebSocketServer: WebSocket closed for (session ${sessionId}, participant ${participantId}), remaining connections: ${remainingConns.length}`);
       
       // Start disconnection timeout for this participant
       if (participantId) {
@@ -358,9 +364,18 @@ function handleSessionTermination(sessionId, participantId) {
   checkSessionViability(session);
 }
 
+/* Only a player's socket keeps a session alive. A seatless socket needs no
+   token and /spectate hands a spectator token to anyone, and session ids are
+   public, so counting either would let an outsider pin any session. Checked
+   against the current players, so a socket whose player left stops counting. */
+function hasPlayerSocket(session) {
+  const conns = connectionsBySession.get(session.getSessionId()) || [];
+  const playerIds = new Set(session.getPlayableParticipants().map(p => String(p.id)));
+  return conns.some(ws => playerIds.has(socketParticipantIds.get(ws)));
+}
+
 function checkSessionViability(session) {
   const sessionId = session.getSessionId();
-  const conns = connectionsBySession.get(sessionId) || [];
   const playableParticipants = session.getPlayableParticipants();
   const connectedParticipants = playableParticipants.filter(p => !p.disconnected);
 
@@ -369,8 +384,8 @@ function checkSessionViability(session) {
   const requiredPlayers = gameInstance ? gameInstance.requiredPlayers() : 2;
 
   // Check if there are no active connections (orphaned session)
-  if (conns.length === 0) {
-    kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no active connections, ending orphaned session`);
+  if (!hasPlayerSocket(session)) {
+    kubicLog.warn(`[GameEventService]::checkSessionViability: Session ${sessionId} has no player connections, ending orphaned session`);
     session.markEnded();
     setTimeout(() => {
       if (_sessionManager) _sessionManager.removeSession(sessionId);
@@ -479,10 +494,7 @@ function broadcastToSession(gameSession, messageObj) {
   }
   const message = JSON.stringify(finalMessageObj);
   
-  // Early return if no connections available
-  if (conns.length === 0) {
-    kubicLog.debug(`[GameEventService]::broadcastToSession: No active connections for session ${sessionId}, skipping broadcast of ${messageObj.type} (unsent message: ${JSON.stringify(messageObj)})`);
-    
+  if (!hasPlayerSocket(gameSession)) {
     // Trigger session cleanup only if no participants are connected and no game is active
     setTimeout(() => {
       if (!_sessionManager) return;
@@ -498,7 +510,10 @@ function broadcastToSession(gameSession, messageObj) {
         kubicLog.debug(`[GameEventService]::broadcastToSession - Keeping session ${sessionId} (participants: ${participants.length}, game active: ${isGameActive})`);
       }
     }, 30000); // 30 second delay to allow for HTTP-only usage and temporary disconnections
-    
+  }
+
+  if (conns.length === 0) {
+    kubicLog.debug(`[GameEventService]::broadcastToSession: No active connections for session ${sessionId}, skipping broadcast of ${messageObj.type} (unsent message: ${JSON.stringify(messageObj)})`);
     return;
   }
   
@@ -519,6 +534,10 @@ function broadcastToSession(gameSession, messageObj) {
       kubicLog.debug(`[GameEventService]::broadcastToSession: Skipping closed WebSocket connection`);
     }
   });
+}
+
+function getSessionIdsWithConnections() {
+  return Array.from(connectionsBySession.keys());
 }
 
 function cleanupSession(sessionId) {
@@ -547,6 +566,7 @@ export const GameEventService = {
   stopHeartbeatForSession,
   isParticipantConnected,
   getConnectedParticipants,
+  getSessionIdsWithConnections,
   cleanupSession,
   checkSessionViability,
   registerBroadcast,
